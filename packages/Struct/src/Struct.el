@@ -8,6 +8,7 @@
 ;; Package-Requires: ((emacs "29.1") (dash "2.19.1") (Commons "1.0.0beta1"))
 
 (require 'Commons)
+(require 'cl-macs)
 (eval-and-compile (require 'dash))
 
 (defconst Struct:Type:symbol 'Struct:Type
@@ -55,31 +56,43 @@ Returns DEFAULT if value is nil."
          :default-value nil
          :documentation "The name of this struct-type."
          :required t
-         :read-only t)
+         :read-only t
+         :type symbol)
         (Struct:Property
          :name documentation
          :keyword :documentation
          :default-value nil
          :documentation "The documentation of this struct-type."
          :required nil
-         :read-only t)
+         :read-only t
+         :type (or null string))
         (Struct:Property
          :name properties
          :keyword :properties
          :default-value nil
          :documentation "The properties of this struct-type."
          :required nil
-         :read-only t)
+         :read-only t
+         :type list)
         (Struct:Property
          :name read-only
          :keyword :read-only
          :default-value nil
          :documentation "Whether this type is immutable after its construction."
          :required nil
-         :read-only t))))
+         :read-only t
+         :type boolean)
+        (Struct:Property
+         :name disable-type-checks
+         :keyword :disable-type-checks
+         :default-value nil
+         :documentation "Wether checking property-types should be disabled."
+         :required nil
+         :read-only t
+         :type boolean))))
 
 (defun Struct:Type:get (name &optional no-error)
-  "Returns the `Struct:Type` of NAME.
+  "Returns the `Struct:Type' of NAME.
 
 Throws an error, if NAME is not a struct-type, unless NO-ERROR is
 non-nil, in which case `nil' is returned."
@@ -100,42 +113,56 @@ non-nil, in which case `nil' is returned."
          :default-value nil
          :documentation "The name of this propertỵ."
          :required t
-         :read-only t)
+         :read-only t
+         :type symbol)
         (Struct:Property
          :name keyword
          :keyword :keyword
          :default-value (Commons:symbol-to-keyword name)
          :documentation "The name of this propertỵ as a keyword."
          :required t
-         :read-only t)
+         :read-only t
+         :type keyword)
         (Struct:Property
          :name default-value
          :keyword :default-value
          :default-value nil
          :documentation "The default value of this propertỵ."
          :required nil
-         :read-only t)
+         :read-only t
+         :type nil)
         (Struct:Property
          :name documentation
          :keyword :documentation
          :default-value nil
          :documentation "The documentation of this propertỵ."
          :required nil
-         :read-only t)
+         :read-only t
+         :type (or null string))
         (Struct:Property
          :name required
          :keyword :required
          :default-value nil
          :documentation "Whether this property can have a `nil' valuẹ."
          :required nil
-         :read-only t)
+         :read-only t
+         :type boolean)
         (Struct:Property
          :name read-only
          :keyword :read-only
          :default-value nil
          :documentation "Whether this property is immutable after its construction."
          :required nil
-         :read-only t))))
+         :read-only t
+         :type boolean)
+        (Struct:Property
+         :name type
+         :keyword :type
+         :default-value nil
+         :documentation "The type of this property."
+         :required nil
+         :read-only t
+         :type nil))))
 
 (defun Struct::construct (name arguments)
   (let ((type (Struct:Type:get name)))
@@ -183,9 +210,16 @@ non-nil, in which case `nil' is returned."
         (push (cons (Struct:unsafe-get property :name) value)
               environment)
         (push keyword property-list)
-        (push value property-list)))
+        (push (Struct::check-type type property value) property-list)))
     (append (nreverse property-list)
             initial-property-list)))
+
+(defun Struct::check-type (struct-type property-type value)
+  (unless (Struct:unsafe-get struct-type :disable-type-checks)
+    (when-let (type (Struct:unsafe-get property-type :type))
+      (or (cl-typep value type)
+          (signal 'wrong-type-argument (list type value)))))
+  value)
 
 ;;;###autoload
 (defmacro Struct:define (name &optional documentation &rest declarations)
@@ -223,7 +257,8 @@ non-nil, in which case `nil' is returned."
          ,(Struct::doc-predicate type 'object)
          (eq (car-safe object) ',name))
        (defalias ',alternative-predicate-name ',predicate-name)
-       (put ',name Struct:Type:symbol ',type)
+       ;; Use `copy-sequence', in case type is mutated afterwards.
+       (put ',name Struct:Type:symbol (copy-sequence ',type))
        (when Struct:enable-syntax-highlighting
          (Struct::syntax-highlight-add ',name)))))
 
@@ -252,7 +287,7 @@ non-nil, in which case `nil' is returned."
   "Returns `t', if %s is of struct-type `%s'.")
 
 (defconst Struct::doc-function-constructor
-  "Constructs a value of struct-type `%s'.\nSee also `%s'.")
+  "Constructs a value of struct-type `%s'.\n\nSee also `%s'.")
 
 (defconst Struct::doc-constructor-first-line
   "Constructs a value of struct-type `%s'.")
@@ -290,15 +325,12 @@ See also `%s*'.")
     (terpri nil t)
     (terpri)
     (--each (Struct:unsafe-get type :properties)
-      (-let* (((&plist :name :documentation :default-value :read-only :required)
-               (Struct:unsafe-properties it))
-              (flags (pcase-exhaustive (list read-only required)
-                       (`(nil nil) nil)
-                       (`(nil t) "required")
-                       (`(t nil) "read-only")
-                       (`(t t) "required:read-only"))))
-        
+      (-let* (((&plist :name :documentation :default-value
+                       :read-only :required :type)
+               (Struct:unsafe-properties it)))
         (princ (format "- %s" name))
+        (when type
+          (princ (format " :: %s" type)))
         (princ "	(")
         (when required
           (princ "required, "))
@@ -315,7 +347,19 @@ See also `%s*'.")
       (terpri)
       (princ (format Struct::doc-constructor-syntax-info
                      (Struct:unsafe-get type :name))))
-    (terpri)))
+    (terpri nil t)
+    (terpri)
+    (princ (Struct::doc-constructor-signature type))))
+
+(defun Struct::doc-constructor-signature (type)
+  (--> (--map
+        (-let* (((&plist :keyword :required :default-value)
+                 (Struct:unsafe-properties it))
+                (optional (or default-value (not required))))
+          (format "%s%s" keyword (if optional "?" "")))
+        (Struct:unsafe-get type :properties))
+       (mapconcat #'identity it " ")
+       (format "\(fn (&plist %s))" it)))
 
 (defun Struct::doc-predicate (type argument-name)
   (with-output-to-string
@@ -352,7 +396,8 @@ See also `%s*'.")
             (list ,@(nreverse expanded-property-list)))))
 
 (defun Struct::syntax-highlight-add (name)
-  (let ((keywords `((,(format "\\_<%s\\_>" name) 0 'font-lock-type-face))))
+  (let ((keywords `((,(format "\\_<%s\\*?\\_>" name)
+                     0 'font-lock-type-face))))
     (put name Struct:syntax-highlight-symbol keywords)
     (font-lock-add-keywords 'emacs-lisp-mode keywords)))
 
@@ -366,9 +411,12 @@ See also `%s*'.")
 (defun Struct:undefine (name)
   "Undefine struct NAME.
 
-Does nothing, if NAME does not name a defined struct."
+This function attempts to undo all side-effects of a
+corresponding `Struct:define' call.
+
+It does nothing, if NAME does not name a defined struct-type."
   (when (memq name '(Struct:Type Struct:Property))
-    (error "Attempted to undefine a core type: %s" name))
+    (error "Attempted to undefine a builtin struct-type: %s" name))
   (when-let (type (Struct:Type:get name :no-error))
     (put name Struct:Type:symbol nil)
     (Struct::syntax-highlight-remove name :undefine)
@@ -382,7 +430,7 @@ Does nothing, if NAME does not name a defined struct."
   "Returns non-nil, if STRUCT has a keyword-property PROPERTY.
 
 Returned value is actually the `Struct:Property' type of the
-PROPERTY."
+given PROPERTY."
   (--find (eq property (Struct:unsafe-get it :keyword))
           (Struct:unsafe-get
            (Struct:Type:get (car struct))
@@ -391,6 +439,8 @@ PROPERTY."
 ;;;###autoload
 (defun Struct:get (struct property &optional default)
   "Returns STRUCT's current value of PROPERTY.
+
+Throws an error if PROPERTY is not a member of STRUCT.
 
 Returns DEFAULT, if value is `nil'."
   (unless (Struct:member? struct property)
@@ -405,17 +455,19 @@ Returns DEFAULT, if value is `nil'."
 Throws an error if
 - PROPERTY is not a member of STRUCT, or
 - VALUE is `nil' and PROPERTY is required, or
-- PROPERTY is read-only."
+- PROPERTY is read-only, or
+- PROPERTY has an associated type and VALUE does not match it."
   (let ((property-type (Struct:member? struct property))
-        (type (Struct:Type:get (car struct))))
+        (struct-type (Struct:Type:get (car struct))))
     (unless property-type
       (error "Property is not a member of struct: %s" property))
     (when (and (null value)
                (Struct:unsafe-get property-type :required))
       (error "Attempted to set required property to `nil': %s" property))
-    (when (or (Struct:unsafe-get type :read-only)
+    (when (or (Struct:unsafe-get struct-type :read-only)
               (Struct:unsafe-get property-type :read-only))
-      (error "Attempted to set read-only property: %s" property)))
+      (error "Attempted to set read-only property: %s" property))
+    (Struct::check-type struct-type property-type value))
   (Struct:unsafe-set struct property value))
 
 ;;;###autoload

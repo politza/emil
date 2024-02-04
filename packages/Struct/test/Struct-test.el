@@ -172,4 +172,38 @@
       (Struct:undefine 'TestStruct))
 
     (it "can not set any property"
-      (expect (Struct:set (TestStruct) :property 1) :to-throw))))
+      (expect (Struct:set (TestStruct) :property 1) :to-throw)))
+
+  (describe "with an integer typed property"
+    (before-each
+      (Struct:define TestStruct
+        "A test struct."
+        (property 0 "An integer property." :type integer)))
+
+    (after-each
+      (Struct:undefine 'TestStruct))
+
+    (it "can be constructed with an integer value"
+      (expect (TestStruct :property 1)
+              :to-equal
+              '(TestStruct :property 1)))
+
+    (it "can not be constructed with a non-integer value"
+      (expect (TestStruct :property "one") :to-throw))
+
+    (it "can be constructed with a non-integer value if :disable-type-checks is set"
+      (Struct:unsafe-set (Struct:Type:get 'TestStruct) :disable-type-checks t)
+      (expect (TestStruct :property "one")
+              :to-equal
+              '(TestStruct :property "one")))
+    
+    (it "can set an integer value"
+      (expect (Struct:set (TestStruct) :property 1)
+              :to-equal 1))
+    
+    (it "can not set a non-integer value"
+      (expect (Struct:set (TestStruct) :property "one") :to-throw))
+
+    (it "can set a non-integer value :disable-type-checks is set"
+      (Struct:unsafe-set (Struct:Type:get 'TestStruct) :disable-type-checks t)
+      (expect (Struct:set (TestStruct) :property "one") :to-equal "one"))))
