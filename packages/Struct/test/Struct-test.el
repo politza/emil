@@ -1,9 +1,9 @@
 ;; -*- lexical-binding: t -*-
 
 (require 'buttercup)
-(require 'Lang/Struct)
+(require 'Struct)
 
-(describe "Lang/Struct"
+(describe "Struct"
   (describe "with a basic struct"
     (before-each
       (Struct:define TestStruct

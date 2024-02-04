@@ -1,9 +1,16 @@
-;; -*- lexical-binding: t -*-
+;;; Struct.el --- A struct data-type.             -*- lexical-binding: t; -*-
 
-(require 'Lang/Commons)
+;; Copyright (C) 2024  Andreas Politz
+
+;; Author: Andreas Politz <mail@andreas-politz.de>
+;; Keywords: extensions
+;; Version: 1.0.0beta1
+;; Package-Requires: ((emacs "29.1") (dash "2.19.1") (Commons "1.0.0beta1"))
+
+(require 'Commons)
 (eval-and-compile (require 'dash))
 
-(defconst Struct:type-symbol 'Struct:Type
+(defconst Struct:Type:symbol 'Struct:Type
   "Symbol used to attach struct type-information to other symbols.")
 
 (defconst Struct:syntax-highlight-symbol 'Struct:syntax-highlight
@@ -13,14 +20,32 @@
   "Whether to highlight struct types with face `font-lock-type-face'.")
 
 (defun Struct:get-type (name &optional no-error)
-  (or (get name Struct:type-symbol)
+  (or (get name Struct:Type:symbol)
       (and (not no-error)
            (error "Not a struct: %s" name))))
+
+;;;###autoload
+(defsubst Struct:unsafe-get (struct property)
+  (plist-get (cdr struct) property))
+
+;;;###autoload
+(defsubst Struct:unsafe-set (struct property value)
+  (setcdr struct
+          (plist-put (cdr struct) property value))
+  value)
+
+;;;###autoload
+(defsubst Struct:properties (struct)
+  (copy-sequence (cdr struct)))
+
+;;;###autoload
+(defsubst Struct:unsafe-properties (struct)
+  (cdr struct))
 
 (defun Struct:Type (&rest property-list)
   (Struct:construct 'Struct:Type property-list))
 
-(put 'Struct:Type Struct:type-symbol
+(put 'Struct:Type Struct:Type:symbol
      '(Struct:Type
        :name Struct:Type
        :properties
@@ -28,21 +53,21 @@
          :name name
          :keyword :name
          :default-value nil
-         :documentation "The name of this struct-typẹ."
+         :documentation "The name of this Struct:typẹ."
          :required t
          :read-only t)
         (Struct:Property
          :name documentation
          :keyword :documentation
          :default-value nil
-         :documentation "The documentation of this struct-typẹ."
+         :documentation "The documentation of this Struct:typẹ."
          :required nil
          :read-only t)
         (Struct:Property
          :name properties
          :keyword :properties
          :default-value nil
-         :documentation "The properties of this struct-typẹ."
+         :documentation "The properties of this Struct:typẹ."
          :required nil
          :read-only t)
         (Struct:Property
@@ -56,7 +81,7 @@
 (defun Struct:Property (&rest property-list)
   (Struct:construct 'Struct:Property property-list))
 
-(put 'Struct:Property Struct:type-symbol
+(put 'Struct:Property Struct:Type:symbol
      `(Struct:Type
        :name Struct:Property
        :properties
@@ -164,12 +189,12 @@
     (setq documentation nil))
   (-let* (((struct-declarations property-declarations)
            (Commons:split-property-list-start declarations))
-          (struct-properties
+          (Struct:properties
            (append struct-declarations
                    (list :name name :documentation documentation
                          :properties
                          (-map #'Struct:construct-property property-declarations))))
-          (type (apply #'Struct:Type struct-properties))
+          (type (apply #'Struct:Type Struct:properties))
           (star-name (intern (concat (symbol-name name) "*"))))
     `(prog1
          (defmacro ,name (&rest arguments)
@@ -178,7 +203,7 @@
                  '',name (Struct:expand-syntax arguments)))
        (defun ,star-name (&rest arguments)
          (Struct:construct ',name arguments))
-       (put ',name Struct:type-symbol ',type)
+       (put ',name Struct:Type:symbol ',type)
        (when Struct:enable-syntax-highlighting
          (Struct:syntax-highlight-add ',name)))))
 
@@ -245,7 +270,7 @@
   (when (memq name '(Struct:Type Struct:Property))
     (error "Attempted to undefine a core type: %s" name))
   (when-let (type (Struct:get-type name :no-error))
-    (put name Struct:type-symbol nil)
+    (put name Struct:Type:symbol nil)
     (Struct:syntax-highlight-remove name :undefine)
     (fmakunbound name)
     (fmakunbound (intern (concat (symbol-name name) "*")))))
@@ -258,41 +283,24 @@
            :properties)))
 
 ;;;###autoload
-(defsubst Struct:unsafe-get (struct property)
-  (plist-get (cdr struct) property))
-
-;;;###autoload
 (defun Struct:get (struct property)
   (unless (Struct:member? struct property)
     (error "Property is not a member of struct: %s" property))
   (Struct:unsafe-get struct property))
 
 ;;;###autoload
-(defsubst Struct:unsafe-set (struct property value)
-  (setcdr struct
-          (plist-put (cdr struct) property value))
-  value)
-
-;;;###autoload
 (defun Struct:set (struct property value)
-  (let ((struct-property (Struct:member? struct property))
+  (let ((Struct:property (Struct:member? struct property))
         (type (Struct:get-type (car struct))))
-    (unless struct-property
-      (error "Property is not a member of struct: %s"))
+    (unless Struct:property
+      (error "Property is not a member of struct: %s" property))
     (when (and (null value)
-               (Struct:unsafe-get struct-property :required))
+               (Struct:unsafe-get Struct:property :required))
       (error "Attempted to set required property to `nil': %s" property))
     (when (or (Struct:unsafe-get type :read-only)
-              (Struct:unsafe-get struct-property :read-only))
+              (Struct:unsafe-get Struct:property :read-only))
       (error "Attempted to set read-only property: %s" property)))
   (Struct:unsafe-set struct property value))
 
-;;;###autoload
-(defsubst Struct:properties (struct)
-  (copy-sequence (cdr struct)))
-
-;;;###autoload
-(defsubst Struct:unsafe-properties (struct)
-  (cdr struct))
-
-(provide 'Lang/Struct)
+(provide 'Struct)
+;;; Struct.el ends here

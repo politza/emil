@@ -1,4 +1,11 @@
-;; -*- lexical-binding: t -*-
+;;; Commons.el --- Common ELisp functions.             -*- lexical-binding: t; -*-
+
+;; Copyright (C) 2024  Andreas Politz
+
+;; Author: Andreas Politz <mail@andreas-politz.de>
+;; Keywords: extensions
+;; Version: 1.0.0beta1
+;; Package-Requires: ((emacs "29.1") (dash "2.19.1"))
 
 (eval-and-compile (require 'dash))
 
@@ -24,4 +31,5 @@
 (defun Commons:split-property-list-end (list)
   (--split-with (not (keywordp it)) list))
 
-(provide 'Lang/Commons)
+(provide 'Commons)
+;;; Commons.el ends here
