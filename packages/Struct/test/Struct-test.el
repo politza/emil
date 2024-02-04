@@ -105,6 +105,13 @@
                           :required)
               :to-equal 1))
 
+    (it "can get a property with default"
+      (let ((struct (TestStruct :required 1)))
+        ;; Need to set it explicitly, since otherwise default-value applies.
+        (Struct:set struct :optional nil)
+        (expect (Struct:get struct :optional 2)
+                :to-equal 2)))
+
     (it "can not get an unknown property"
       (expect (Struct:get (TestStruct :required 1)
                           :unknown 2)
