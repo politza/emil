@@ -178,7 +178,7 @@ non-nil, in which case `nil' is returned."
             (value (pop arguments)))
         (setq property-list (plist-put property-list keyword value))))
     (unless (= property-count (/ (length property-list) 2))
-      (error "Unknown properties set: %s"
+      (error "Undeclared properties set: %s"
              (nthcdr (* 2 property-count) property-list)))
     property-list))
 
@@ -193,14 +193,13 @@ non-nil, in which case `nil' is returned."
             (Struct::property-keywords
              (Struct:unsafe-get type :properties))))
 
-(defun Struct::construct-property-list (type initial-property-list)
+(defun Struct::construct-property-list (type property-list)
   (let ((properties (Struct:unsafe-get type :properties))
-        (property-list nil)
-        (environment nil))
+        (environment nil)
+        (property-list-head property-list))
     (while properties
       (let ((property (pop properties))
-            (keyword (pop initial-property-list))
-            (value (pop initial-property-list)))
+            (value (nth 1 property-list-head)))
         (unless value
           (when-let (default-value (Struct:unsafe-get property :default-value))
             (setq value (eval default-value environment))))
@@ -209,10 +208,10 @@ non-nil, in which case `nil' is returned."
                  (Struct:unsafe-get property :name)))
         (push (cons (Struct:unsafe-get property :name) value)
               environment)
-        (push keyword property-list)
-        (push (Struct::check-type type property value) property-list)))
-    (append (nreverse property-list)
-            initial-property-list)))
+        (setcar (cdr property-list-head)
+                (Struct::check-type type property value))
+        (setq property-list-head (nthcdr 2 property-list-head))))
+    property-list))
 
 (defun Struct::check-type (struct-type property-type value)
   (unless (Struct:unsafe-get struct-type :disable-type-checks)
