@@ -483,7 +483,7 @@ Throws an error if
   "Returns STRUCT's properties and values as a property-list.
 
 This function returns a new property-list everytime its called."
-  (copy-sequence (cdr struct)))
+  (copy-sequence (Struct:unsafe-properties struct)))
 
 (put 'Struct:Type 'function-documentation
      (Struct::doc-constructor (Struct:Type:get 'Struct:Type)))
