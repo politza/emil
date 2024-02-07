@@ -475,6 +475,10 @@ Throws an error if
               (funcall fn (Struct:get struct property))))
 
 ;;;###autoload
+(defmacro Struct:update- (struct property form)
+  `(Struct:update ,struct ,property (lambda (it) ,form)))
+
+;;;###autoload
 (defun Struct:properties (struct)
   "Returns STRUCT's properties and values as a property-list.
 
