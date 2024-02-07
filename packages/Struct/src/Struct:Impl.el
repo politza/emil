@@ -80,6 +80,14 @@ Otherwise this behaves like `defun', which see."
             42)
 
   (method TestStruct:get-foo (self)
+    43)
+
+  (function TestStruct:get-value-documented ()
+            "Returns a value."
+            42)
+
+  (method TestStruct:get-foo-documented (self)
+    "Returns foo."
     43))
   
 (provide 'Struct:Impl)
