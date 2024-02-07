@@ -100,6 +100,16 @@ non-nil, in which case `nil' is returned."
       (and (not no-error)
            (error "Not a struct: %s" name))))
 
+(defun Struct:Type? (name-or-type-struct)
+  "Return `t', if NAME-OR-TYPE-STRUCT is a struct-type.
+
+NAME-OR-TYPE-STRUCT can be either a symbol naming a struct-type or
+the type itself."
+  (let ((type-struct (if (symbolp name-or-type-struct)
+                         (Struct:Type:get name-or-type-struct :no-error)
+                       name-or-type-struct)))
+    (eq 'Struct:Type (car-safe type-struct))))
+
 (defun Struct:Property (&rest property-list)
   (Struct::construct 'Struct:Property property-list))
 
