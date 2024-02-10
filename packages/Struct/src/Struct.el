@@ -537,7 +537,7 @@ the struct and updates the documentation of its type-constructor,
 such that it will contain a reference to this method.
 
 Otherwise this behaves like `defun', which see."
-  (declare (indent defun))
+  (declare (indent defun) (doc-string 3))
   (let* ((documentation (if (stringp (car-safe body)) (pop body)))
          (declare (if (eq 'declare (car-safe (car-safe body))) (pop body)))
          (self-form (car-safe arguments))
