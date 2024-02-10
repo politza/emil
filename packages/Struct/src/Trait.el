@@ -71,13 +71,14 @@ The value is a pair `\(MIN . MAX\)'. See also `func-arity'."
 
 (defmacro Trait:define (name supertraits &optional documentation &rest methods)
   "Defines a new trait named NAME."
-  (declare (indent 2))
+  (declare (indent 2) (doc-string 3))
   (unless (symbolp name)
     (signal 'wrong-type-argument `(symbol ,name)))
   (unless (and (listp supertraits)
                (-every? #'symbolp supertraits))
     (signal 'wrong-type-argument `((list symbol) ,supertraits)))
-  (unless (stringp documentation)
+  (unless (or (null documentation)
+              (stringp documentation))
     (push documentation methods)
     (setq documentation nil))
 
@@ -93,17 +94,20 @@ The value is a pair `\(MIN . MAX\)'. See also `func-arity'."
     (error "Method definition should be a non-empty list: %s" method))
   (-let (((head name arguments documentation . body) method))
     (unless (eq 'defmethod head)
-      (error "Method declaration should start with `defmethod': %s" head))
+      (error "Method declaration should start with defmethod: %s" head))
     (unless (symbolp name)
       (error "Method name should be a symbol: %s" name))
     (unless (and (listp arguments)
                  (-every? #'symbolp arguments))
       (error "Invalid method arguments declaration: %s" arguments))
-    (unless (stringp documentation)
+    (unless (consp arguments)
+      (error "Trait method must accept at least one argument: %s" name))
+    (unless (or (stringp documentation)
+                (null documentation))
       (push documentation body)
       (setq documentation nil))
     (when (eq 'declare (car-safe (car body)))
-      (error "Declare not supported for methods."))
+      (error "Declare not supported for methods"))
     
     `(cons ',name
            (Trait:Method
@@ -127,7 +131,7 @@ The value is a pair `\(MIN . MAX\)'. See also `func-arity'."
       (defalias (car it)
         (Struct:get (cdr it) :dispatch-function))
       (put (car it) 'function-documentation
-           `(Trait:Method:documentation ',(car it))))
+           `(Trait:Method:documentation ',name ',(car it))))
     (put name Trait:definition-symbol trait)
     (put name 'function-documentation
          `(Trait:documentation ',name))
@@ -174,7 +178,7 @@ idempotent."
     (error "Expected a non-empty list: %s" method))
   (-let (((head name arguments . body) method))
     (unless (eq 'defmethod head)
-      (error "Method implementation should start with `defmethod': %s" head))
+      (error "Method implementation should start with defmethod: %s" head))
     (unless (symbolp name)
       (error "Method name should be a symbol: %s" name))
     (unless (and (listp arguments)
@@ -245,3 +249,6 @@ Otherwise, calls `type-of' on VALUE and return its result."
            (symbolp (car value))
            (car value))
       (type-of value)))
+
+(provide 'Trait)
+;;; Trait.el ends here
