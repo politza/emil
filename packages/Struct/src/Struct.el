@@ -287,16 +287,14 @@ the type itself."
    ((symbolp declaration)
     (Struct:Property :name declaration))
    ((consp declaration)
-    (-let* ((((positional &as name default-value documentation)
+    (-let* ((((positional &as name documentation)
               property-list)
              (Commons:split-property-list-end declaration))
             (positional-property-list
              (cl-case (length positional)
                (0 nil)
                (1 (list :name name))
-               (2 (list :name name :default-value default-value))
-               (3 (list :name name :default-value default-value
-                        :documentation documentation))
+               (2 (list :name name :documentation documentation))
                (t (error "Invalid property declaration: %s" declaration)))))
       (apply #'Struct:Property (append positional-property-list
                                        property-list))))

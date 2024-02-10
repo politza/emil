@@ -11,16 +11,16 @@ The trait-definition is put on the symbol property-list using this value.")
 (Struct:define Trait
   "Represents a trait-type."
   (name
-   nil "The name of this trait."
+    "The name of this trait."
    :required t :read-only t :type symbol)
   (methods
-   nil "An association-list mapping method-names to their definitions."
+    "An association-list mapping method-names to their definitions."
    :type list)
   (implementing-types
-   nil "A list of types implementing this trait."
+    "A list of types implementing this trait."
    :type list)
   (supertraits
-   nil "A list of required traits for implementing this trait."
+    "A list of required traits for implementing this trait."
    :type list))
 
 (defun Trait:get (name &optional ensure)
@@ -35,25 +35,22 @@ which case a `wrong-type-argument' is signaled."
 (Struct:define Trait:Method
   "Represents a trait-method."
   (name
-   nil "The name of this method."
+  "The name of this method."
    :required t :read-only t :type symbol)
   (arguments
-   nil "The declared argument list of this method."
+  "The declared argument list of this method."
    :read-only t :type list)
   (documentation
-   nil "A string describing this method."
+  "A string describing this method."
    :read-only t :type (or string null))
   (default-implementation
-   nil
    "An optional default implementation of this method. If not provided,
 this method is required for implementors to implement."
    :read-only t :type (or function null))
   (implementations
-   nil
    "An alist mapping types to their implementation of this method."
    :type list)
   (dispatch-function
-   nil
    "A function responsible for dispatching this method."
    :required t :read-only t :type function))
 
