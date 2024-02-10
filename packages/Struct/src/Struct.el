@@ -278,7 +278,8 @@ the type itself."
        ;; Use `copy-sequence', in case type is mutated afterwards.
        (put ',name Struct:Type:symbol (copy-sequence ',type))
        (when Struct:enable-syntax-highlighting
-         (Struct::syntax-highlight-add ',name)))))
+         (Struct::syntax-highlight-add ',name))
+       ',name)))
 
 (defun Struct::construct-property (declaration)
   (cond
