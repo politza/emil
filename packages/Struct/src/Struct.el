@@ -81,22 +81,6 @@ Returns DEFAULT if value is nil."
          :documentation "Whether this type is immutable after its construction."
          :required nil
          :read-only t
-         :type boolean)
-        (Struct:Property
-         :name methods
-         :keyword :methods
-         :default-value nil
-         :documentation "A list of method-names associated with this struct-type."
-         :required nil
-         :read-only nil
-         :type list)
-        (Struct:Property
-         :name disable-type-checks
-         :keyword :disable-type-checks
-         :default-value nil
-         :documentation "Wether checking property-types should be disabled."
-         :required nil
-         :read-only t
          :type boolean))))
 
 (defun Struct:Type:get (name &optional no-error)
@@ -228,15 +212,14 @@ the type itself."
         (push (cons (Struct:unsafe-get property :name) value)
               environment)
         (setcar (cdr property-list-head)
-                (Struct::check-type type property value))
+                (Struct::check-type property value))
         (setq property-list-head (nthcdr 2 property-list-head))))
     property-list))
 
-(defun Struct::check-type (struct-type property-type value)
-  (unless (Struct:unsafe-get struct-type :disable-type-checks)
-    (when-let (type (Struct:unsafe-get property-type :type))
+(defun Struct::check-type (property-type value)
+  (when-let (type (Struct:unsafe-get property-type :type))
       (or (cl-typep value type)
-          (signal 'wrong-type-argument (list type value)))))
+          (signal 'wrong-type-argument (list type value))))
   value)
 
 ;;;###autoload
@@ -359,9 +342,6 @@ See also `%s*'.")
 
 (defconst Struct::doc-constructor-functions-info
   "The following functions are associated with this struct:")
-
-(defconst Struct::doc-constructor-methods-info
-  "The following methods can be used with this struct:")
 
 (defun Struct::doc-constructor (type)
   (with-output-to-string
@@ -520,7 +500,7 @@ Throws an error if
     (when (or (Struct:unsafe-get struct-type :read-only)
               (Struct:unsafe-get property-type :read-only))
       (error "Attempted to set read-only property: %s" property))
-    (Struct::check-type struct-type property-type value))
+    (Struct::check-type property-type value))
   (Struct:unsafe-set struct property value))
 
 ;;;###autoload
@@ -558,8 +538,7 @@ such that it will contain a reference to this method.
 
 Otherwise this behaves like `defun', which see."
   (declare (indent defun))
-  (let* ((struct-type (make-symbol "struct-type"))
-         (documentation (if (stringp (car-safe body)) (pop body)))
+  (let* ((documentation (if (stringp (car-safe body)) (pop body)))
          (declare (if (eq 'declare (car-safe (car-safe body))) (pop body)))
          (self-form (car-safe arguments))
          (self-argument (car-safe self-form))
@@ -577,10 +556,7 @@ Otherwise this behaves like `defun', which see."
                  (symbolp struct-name))
       (error "First argument must have the form (self Type)"))
     (setq arguments (cons self-argument (cdr arguments)))
-    `(let ((,struct-type (Struct:Type:get ',struct-name)))
-       (defun ,name ,arguments ,documentation ,declare ,@body)
-       (unless (memq ',name (Struct:get ,struct-type :methods))
-         (Struct:update- ,struct-type :methods (push ',name it))))))
+    `(defun ,name ,arguments ,documentation ,declare ,@body)))
 
 (provide 'Struct)
 ;;; Struct.el ends here
