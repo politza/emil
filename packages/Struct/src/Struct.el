@@ -527,8 +527,9 @@ Otherwise this behaves like `defun', which see."
   (let* ((struct-type (make-symbol "struct-type"))
          (documentation (if (stringp (car-safe body)) (pop body)))
          (declare (if (eq 'declare (car-safe (car-safe body))) (pop body)))
-         (self-argument (car-safe arguments))
-         (struct-name (car-safe (cdr-safe self-argument)))
+         (self-form (car-safe arguments))
+         (self-argument (car-safe self-form))
+         (struct-name (car-safe (cdr-safe self-form)))
          (type-predicate (intern (format "%s?" struct-name)))
          (type-predicate-form
           `(or (,type-predicate ,self-argument)
@@ -541,6 +542,7 @@ Otherwise this behaves like `defun', which see."
     (unless (and struct-name
                  (symbolp struct-name))
       (error "First argument must have the form (self Type)"))
+    (setq arguments (cons self-argument (cdr arguments)))
     `(let ((,struct-type (Struct:Type:get ',struct-name)))
        (defun ,name ,arguments ,documentation ,declare ,@body)
        (unless (memq ',name (Struct:get ,struct-type :methods))
