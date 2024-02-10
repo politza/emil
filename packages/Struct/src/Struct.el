@@ -241,7 +241,41 @@ the type itself."
 
 ;;;###autoload
 (defmacro Struct:define (name &optional documentation &rest declarations)
-  "Defines a new struct NAMẸ."
+  "Defines a new struct-type named NAMẸ.
+
+DOCUMENTATION is an optional string describing the type.
+
+STRUCT-META-PROPERTY is a keyword/value pair of which an arbitrary
+number may be provided.  The supported properties are listed in the
+documentation of `Struct:Type'.  All of which can be used, with the
+exception of `:name', `:documentation' and `:properties'.
+
+The remaining forms, if present, determine the properties of the
+defined struct.
+
+Each such form may be just the property's name, or a list consisting
+of its name, an optional documentation string and an arbitrary number
+of meta-properties.  See `Struct:Property' for a list of supported
+meta-properties.  All of which mentioned there can be used.
+
+Defining a struct also defines 3 functions and 1 macro, which there
+are:
+
+1. A type-constructor with the name of the struct with an asterisk
+appended. It accepts keyword/value pairs for defining the properties
+of the struct-value.
+
+2. A type-predicate using the name of the struct with a question-mark
+appended.
+
+3. Another type-predicate using the name with '-p' appended.  This is
+defined for the purpose of compatibility with `cl-check-type'.
+
+4. Finally, another type-constructor with just the name of type.  It
+works like the first constructor, except that it is defined as a macro
+and is therefore able to support shorthand- as well as splice-syntax.
+
+(fn NAME [DOCUMENTATION]? [STRUCT-META-PROPERTY]* [PROPERTY-NAME | (PROPERTY-NAME [DOCUMENTATION]? [PROPERTY-META-PROPERTY]*)]*)"
   (declare (indent 1) (doc-string 2))
   (unless (symbolp name)
     (error "Expected a symbol: %s" name))

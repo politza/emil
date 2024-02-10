@@ -1,7 +1,9 @@
 ;; -*- lexical-binding: t -*-
 
-(require 'Struct)
-(eval-and-compile (require 'dash))
+
+(eval-and-compile
+  (require 'dash)
+  (require 'Struct))
 
 (defconst Trait:definition-symbol 'Trait:definition-symbol
   "Ths symbol by which to associate traits with their name.
@@ -54,20 +56,22 @@ this method is required for implementors to implement."
    "A function responsible for dispatching this method."
    :required t :read-only t :type function))
 
-(defun Trait:Method:required? (method)
+(Struct:defmethod Trait:Method:required? ((method Trait:Method))
   "Returns non-nil, if implementing METHOD is required.
 
 This is the case, if METHOD does not define a default implementation."
   (null (Struct:get method :default-implementation)))
 
-(defun Trait:Method:arity (method)
+(Struct:defmethod Trait:Method:arity ((method Trait:Method))
   "Returns the number of accepted arguments of METHOD.
 
 The value is a pair `\(MIN . MAX\)'. See also `func-arity'."
   (func-arity `(lambda ,(Struct:get method :arguments))))
 
 (defmacro Trait:define (name supertraits &optional documentation &rest methods)
-  "Defines a new trait named NAME."
+  "Defines a new trait named NAME.
+
+(fn NAME ([SUPERTRAIT]*) [DOCUMENTATION]? [(defmethod METHOD-NAME ARGUMENTS [DOCUMENTATION]? . BODY)]*)"
   (declare (indent 2) (doc-string 3))
   (unless (symbolp name)
     (signal 'wrong-type-argument `(symbol ,name)))
@@ -159,7 +163,9 @@ idempotent."
       (Struct:get :documentation)))
 
 (defmacro Trait:implement (trait type &rest methods)
-  "Defines a implementation of TRAIT for TYPE."
+  "Defines an implementation of TRAIT for TYPE.
+
+(fn TRAIT TYPE [(defmethod METHOD-NAME ARGUMENTS . BODY)]*)"
   (declare (indent 2))
   (unless (symbolp trait)
     (signal 'wrong-type-argument `(symbol ,trait)))
