@@ -270,11 +270,13 @@ the type itself."
            (list 'Struct::construct
                  '',name (Struct::expand-syntax property-list)))
        (defun ,starred-name (&rest property-list)
-         ,(Struct::doc-function-constructor type)
+         ,(Struct::doc-constructor type)
          (Struct::construct ',name property-list))
-       (defsubst ,predicate-name (object)
-         ,(Struct::doc-predicate type 'object)
-         (eq (car-safe object) ',name))
+       (defun ,predicate-name (object &optional ensure)
+         ,(Struct::doc-predicate type)
+         (or (eq (car-safe object) ',name)
+             (and ensure
+                  (signal 'wrong-type-argument (list ',predicate-name object)))))
        (defalias ',alternative-predicate-name ',predicate-name)
        ;; Use `copy-sequence', in case type is mutated afterwards.
        (put ',name Struct:Type:symbol (copy-sequence ',type))
@@ -302,10 +304,10 @@ the type itself."
     (error "Invalid property declaration: %s" declaration))))
 
 (defconst Struct::doc-predicate
-  "Returns `t', if %s is of struct-type `%s'.")
+  "Returns `t', if OBJECT is of struct-type `%s'.
 
-(defconst Struct::doc-function-constructor
-  "Constructs a value of struct-type `%s'.\n\nSee also `%s'.")
+Otherwise returns nil, unless ENSURE is non-nil, in which a
+`wrong-type-argument' is signaled.")
 
 (defconst Struct::doc-constructor-first-line
   "Constructs a value of struct-type `%s'.")
@@ -326,13 +328,6 @@ See also `%s*'.")
 
 (defconst Struct::doc-constructor-methods-info
   "The following methods can be used with this struct:")
-
-(defun Struct::doc-function-constructor (type)
-  (with-output-to-string
-    (princ (format Struct::doc-function-constructor
-                   (Struct:unsafe-get type :name)
-                   (format "%s*" (Struct:unsafe-get type :name))))
-    (terpri)))
 
 (defun Struct::doc-constructor (type)
   (with-output-to-string
@@ -366,8 +361,10 @@ See also `%s*'.")
           (princ (string-trim documentation))
           (terpri nil t))
         (terpri)))
-    (unless (memq (Struct:unsafe-get type :name)
+    (unless (or (memq (Struct:unsafe-get type :name)
                   '(Struct:Type Struct:Property))
+                (not (string-suffix-p
+                      "*" (symbol-name (Struct:unsafe-get type :name)))))
       (terpri)
       (princ (format Struct::doc-constructor-syntax-info
                      (Struct:unsafe-get type :name))))
@@ -385,11 +382,9 @@ See also `%s*'.")
        (mapconcat #'identity it " ")
        (format "\(fn (&plist %s))" it)))
 
-(defun Struct::doc-predicate (type argument-name)
+(defun Struct::doc-predicate (type)
   (with-output-to-string
-    (princ (format Struct::doc-predicate
-                   (upcase (symbol-name argument-name))
-                   (Struct:unsafe-get type :name)))
+    (princ (format Struct::doc-predicate (Struct:unsafe-get type :name)))
     (terpri)))
 
 (defun Struct::expand-syntax (arguments)
