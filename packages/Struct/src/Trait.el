@@ -252,5 +252,7 @@ Otherwise, calls `type-of' on VALUE and return its result."
            (car value))
       (type-of value)))
 
+(put 'defmethod 'lisp-indent-function 'defun)
+
 (provide 'Trait)
 ;;; Trait.el ends here
