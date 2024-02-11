@@ -74,8 +74,7 @@
     (it "defines constructors and predicates"
       (expect (fboundp 'TestStruct) :to-equal t)
       (expect (fboundp 'TestStruct*) :to-equal t)
-      (expect (fboundp 'TestStruct?) :to-equal t)
-      (expect (fboundp 'TestStruct-p) :to-equal t))
+      (expect (fboundp 'TestStruct?) :to-equal t))
 
     (it "can be constructed"
       (expect (TestStruct :optional 1 :required "string" :read-only 2)
@@ -84,8 +83,6 @@
 
     (it "can type-check a value"
       (expect (TestStruct? (TestStruct :required 0))
-              :to-equal t)
-      (expect (TestStruct-p (TestStruct :required 0))
               :to-equal t)
       (expect (TestStruct? '(NonTestStruct :required 4))
               :to-equal nil)
@@ -182,7 +179,17 @@
 
     (it "can not undefine core types"
       (expect (Struct:undefine 'Struct:Type) :to-throw)
-      (expect (Struct:undefine 'Struct:Property) :to-throw)))
+      (expect (Struct:undefine 'Struct:Property) :to-throw))
+
+    (it "can be used with cl's type-system"
+      (expect (cl-check-type (TestStruct :required 1) TestStruct)
+              :to-be nil)
+      (expect (cl-check-type "TestStruct" TestStruct)
+              :to-throw 'wrong-type-argument)
+      (expect (cl-typep (TestStruct :required 1) 'TestStruct)
+              :to-be t)
+      (expect (cl-typep "TestStruct" 'TestStruct)
+              :to-be nil)))
 
   (describe "with a read-only struct"
     (before-each

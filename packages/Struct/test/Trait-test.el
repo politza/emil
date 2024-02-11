@@ -9,19 +9,23 @@
 
   (after-each
     (Trait:undefine 'TestTrait)
+    (Trait:undefine 'SuperTrait)
+    (Trait:undefine 'OtherTrait)
     (Struct:undefine 'TestStruct))
 
   (describe "with a basic trait"
     (before-each
       (Trait:define TestTrait ()
         "TestTrait documentation."
-        
+
         (defmethod TestTrait:required (self argument)
           "TestTrait:required documentation.")
-        
+
         (defmethod TestTrait:optional(self argument)
           "TestTrait:optional documentation."
-          (1+ argument))))
+          (1+ argument)))
+
+      (Trait:define OtherTrait ()))
 
     (it "defines a trait type"
       (let ((trait (Trait:get 'TestTrait :ensure)))
@@ -73,12 +77,11 @@
               :to-be nil))
 
     (describe "with an implementation"
-
       (before-each
         (Trait:implement TestTrait TestStruct
           (defmethod TestTrait:required (self argument)
             (+ (Struct:get self :property) argument))))
-      
+
       (it "can invoke a default method"
         (expect (TestTrait:optional (TestStruct) 2)
                 :to-be
@@ -87,7 +90,22 @@
       (it "can invoke a required method"
         (expect (TestTrait:required (TestStruct :property 2) 2)
                 :to-be
-                4))))
+                4))
+
+      (it "can be used with cl's type-system"
+        (expect (cl-check-type (TestStruct) (Trait TestTrait))
+                :to-be nil)
+        (expect (cl-check-type (TestStruct) (Trait OtherTrait))
+                :to-throw 'wrong-type-argument '((Trait OtherTrait) (TestStruct :property nil) (TestStruct)))
+        (expect (cl-check-type "TestStruct" (Trait TestTrait))
+                :to-throw 'wrong-type-argument '((Trait TestTrait) "TestStruct" "TestStruct"))
+
+        (expect (cl-typep (TestStruct) '(Trait TestTrait))
+                :to-be t)
+        (expect (cl-typep (TestStruct) '(Trait OtherTrait))
+                :to-be nil)
+        (expect (cl-typep "TestStruct" '(Trait TestTrait))
+                :to-be nil))))
 
   (describe "Trait:define"
     (describe "recognizes syntax-errors"
@@ -181,9 +199,9 @@
     (describe "recognizes runtime-errors"
       (before-each (Trait:define TestTrait ()
                      (defmethod TestTrait:required (self &optional argument))))
-      
+
       (it "rejects if required methods are not implemented"
-        (expect (Trait:implement TestTrait TestStruct) 
+        (expect (Trait:implement TestTrait TestStruct)
                 :to-throw
                 'error
                 '("Required method not implemented: TestTrait:required")))
@@ -195,7 +213,7 @@
                 :to-throw
                 'error
                 '("Method not declared by this trait: TestTrait:no-such-method")))
-      
+
       (it "rejects if method signatures are incompatible"
         (expect (Trait:implement TestTrait TestStruct
                   (defmethod TestTrait:required (self argument)))
@@ -208,12 +226,12 @@
       (Trait:define SuperTrait ()
         (defmethod SuperTrait:optional (self argument)
           (1+ argument)))
-      
+
       (Trait:define TestTrait (SuperTrait))
 
       (Trait:implement SuperTrait TestStruct)
       (Trait:implement TestTrait TestStruct))
-    
+
     (it "rejects unimplemented supertraits"
       (expect (Trait:implement TestTrait OtherTestStruct)
               :to-throw

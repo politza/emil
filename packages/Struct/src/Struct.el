@@ -43,7 +43,7 @@ Returns DEFAULT if value is nil."
   "Constructs a new struct-type."
   (Struct:-construct 'Struct:Type property-list))
 
-(put 'Struct:Type Struct:Type:definition-symbol
+(define-symbol-prop 'Struct:Type Struct:Type:definition-symbol
      '(Struct:MetaType
        :name Struct:Type
        :properties
@@ -102,7 +102,7 @@ the type itself."
 (defun Struct:Property (&rest property-list)
   (Struct:-construct 'Struct:Property property-list))
 
-(put 'Struct:Property Struct:Type:definition-symbol
+(define-symbol-prop 'Struct:Property Struct:Type:definition-symbol
      `(Struct:MetaType
        :name Struct:Property
        :properties
@@ -237,8 +237,8 @@ of its name, an optional documentation string and an arbitrary number
 of meta-properties.  See `Struct:Property' for a list of supported
 meta-properties.  All of which mentioned there can be used.
 
-Defining a struct also defines 3 functions and 1 macro, which there
-are:
+Defining a struct also defines 2 functions, a macro and a new cl-type,
+which are:
 
 1. A type-constructor with the name of the struct with an asterisk
 appended. It accepts keyword/value pairs for defining the properties
@@ -247,14 +247,15 @@ of the struct-value.
 2. A type-predicate using the name of the struct with a question-mark
 appended.
 
-3. Another type-predicate using the name with '-p' appended.  This is
-defined for the purpose of compatibility with `cl-check-type'.
+3. Another type-constructor with just the name of type.  It works like
+the first constructor, except that it is defined as a macro and is
+therefore able to support shorthand- as well as splice-syntax.
 
-4. Finally, another type-constructor with just the name of type.  It
-works like the first constructor, except that it is defined as a macro
-and is therefore able to support shorthand- as well as splice-syntax.
+4. A cl-type having the name of the struct, which may be used in
+`cl-check-type' and other cl-type features.
 
-(fn NAME [DOCUMENTATION]? [STRUCT-META-PROPERTY]* [PROPERTY-NAME | (PROPERTY-NAME [DOCUMENTATION]? [PROPERTY-META-PROPERTY]*)]*)"
+(fn NAME [DOCUMENTATION]? [STRUCT-META-PROPERTY]* [PROPERTY-NAME |
+(PROPERTY-NAME [DOCUMENTATION]? [PROPERTY-META-PROPERTY]*)]*)"
   (declare (indent 1) (doc-string 2))
   (unless (symbolp name)
     (error "Expected a symbol: %s" name))
@@ -272,9 +273,7 @@ and is therefore able to support shorthand- as well as splice-syntax.
                                property-declarations))))
           (type (apply #'Struct:Type struct-property-list))
           (starred-name (intern (concat (symbol-name name) "*")))
-          (predicate-name (intern (concat (symbol-name name) "?")))
-          (alternative-predicate-name
-           (intern (concat (symbol-name name) "-p"))))
+          (predicate-name (intern (concat (symbol-name name) "?"))))
     `(progn
        (defmacro ,name (&rest property-list)
          ,(Struct:-doc-constructor type)
@@ -290,9 +289,11 @@ and is therefore able to support shorthand- as well as splice-syntax.
          (or (eq (car-safe object) ',name)
              (and ensure
                   (signal 'wrong-type-argument (list ',predicate-name object)))))
-       (defalias ',alternative-predicate-name ',predicate-name)
+       (cl-deftype ,name ()
+         (list 'satisfies (function ,predicate-name)))
        ;; Use `copy-sequence', in case type is mutated afterwards.
-       (put ',name Struct:Type:definition-symbol (copy-sequence ',type))
+       (define-symbol-prop ',name Struct:Type:definition-symbol
+                           (copy-sequence ',type))
        (when Struct:enable-syntax-highlighting
          (Struct:-add-syntax-highlighting ',name))
        ',name)))
@@ -549,10 +550,10 @@ Otherwise this behaves like `defun', which see."
     (setq arguments (cons self-argument (cdr arguments)))
     `(defun ,name ,arguments ,documentation ,declare ,@body)))
 
-(put 'Struct:Type 'function-documentation
+(define-symbol-prop 'Struct:Type 'function-documentation
      (Struct:-doc-constructor (Struct:Type:get 'Struct:Type :ensure)))
 
-(put 'Struct:Property 'function-documentation
+(define-symbol-prop 'Struct:Property 'function-documentation
      (Struct:-doc-constructor (Struct:Type:get 'Struct:Property :ensure)))
 
 (provide 'Struct)

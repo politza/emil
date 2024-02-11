@@ -1,5 +1,7 @@
 ;; -*- lexical-binding: t -*-
 
+(require 'Trait)
+
 (defconst Struct:Support:complete-properties-symbol
   'Struct:Support:complete-properties-symbol)
 

@@ -2,6 +2,7 @@
 
 (require 'Struct)
 (require 'dash)
+(require 'cl-macs)
 
 (defconst Trait:definition-symbol 'Trait:definition-symbol
   "Ths symbol by which to associate traits with their name.
@@ -107,7 +108,7 @@ The value is a pair `\(MIN . MAX\)'. See also `func-arity'."
       (setq documentation nil))
     (when (eq 'declare (car-safe (car body)))
       (error "Declare not supported for methods"))
-    
+
     `(cons ',name
            (Trait:Method
             :name ',name
@@ -125,7 +126,7 @@ The value is a pair `\(MIN . MAX\)'. See also `func-arity'."
   (-let (((&plist :name :methods :supertraits)
           (Struct:properties trait)))
     (Trait:undefine name)
-    (--each supertraits (Trait:get it :ensure))  
+    (--each supertraits (Trait:get it :ensure))
     (--each methods
       (defalias (car it)
         (Struct:get (cdr it) :dispatch-function))
@@ -187,7 +188,7 @@ idempotent."
       (error "Invalid method argument-list declaration: %s" arguments))
     (when (eq 'declare (car-safe (car body)))
       (error "Declare not supported for methods"))
-    
+
     `(cons ',name (lambda ,arguments ,@body))))
 
 (defun Trait:implement* (trait type implementations)
@@ -239,6 +240,21 @@ idempotent."
         (error "Type does not implement trait: %s, %s" type trait))
       (error "Required method not implemented by type: %s, %s" method type))
     (apply impl arguments)))
+
+(defun Trait:implements? (type trait)
+  "Return non-nil, if type TYPE implements trait TRAIT.
+
+TYPE and TRAIT should both be symbols.
+
+Signals a `wrong-type-argument', if TRAIT is not a defined trait."
+  (memq type (Struct:get (Trait:get trait :ensure) :implementing-types)))
+
+(cl-deftype Trait (&rest traits)
+  `(satisfies ,(lambda (value)
+                 (let ((type (Trait:type-of value)))
+                   (cl-every (lambda (trait)
+                               (Trait:implements? type trait))
+                             traits)))))
 
 (defun Trait:type-of (value)
   "Returns the type of VALUE.
