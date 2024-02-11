@@ -1,0 +1,9 @@
+; -*- mode: emacs-lisp; lexical-binding: t -*-
+
+(eldev-use-package-archive 'gnu-elpa)
+
+(setf eldev-project-source-dirs "src")
+
+(eldev-use-local-dependency "../Commons")
+(eldev-use-local-dependency "../Struct")
+
