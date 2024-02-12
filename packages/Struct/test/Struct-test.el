@@ -109,7 +109,7 @@
     (it "can use shorthand syntax"
       (let ((optional 1)
             (required 0))
-        (expect (TestStruct optional required)
+        (expect (TestStruct* optional required)
                 :to-equal
                 `(TestStruct :optional ,optional
                              :required ,required
@@ -117,7 +117,7 @@
 
     (it "can use spread syntax"
       (let ((other (TestStruct :required 1)))
-        (expect (TestStruct ,@other :optional 2)
+        (expect (TestStruct* ,@other :optional 2)
                 :to-equal
                 `(TestStruct :optional 2 :required 1 :read-only 0))))
 
