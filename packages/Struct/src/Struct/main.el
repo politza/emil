@@ -221,9 +221,11 @@ the type itself."
     property-list))
 
 (defun Struct:-check-property-type (property-type value)
-  (when-let (type (Struct:unsafe-get property-type :type))
-      (or (cl-typep value type)
-          (signal 'wrong-type-argument (list type value))))
+  (when-let ((type (Struct:unsafe-get property-type :type)))
+    (or (and (null value)
+             (not (Struct:unsafe-get property-type :required)))
+        (cl-typep value type)
+        (signal 'wrong-type-argument (list type value))))
   value)
 
 ;;;###autoload
