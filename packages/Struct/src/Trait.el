@@ -93,15 +93,15 @@ The value is a pair `\(MIN . MAX\)'. See also `func-arity'."
   (unless (consp method)
     (error "Method definition should be a non-empty list: %s" method))
   (-let (((head name arguments documentation . body) method))
+    (Struct:lambda-check-arguments arguments)
     (unless (eq 'defmethod head)
       (error "Method declaration should start with defmethod: %s" head))
     (unless (symbolp name)
       (error "Method name should be a symbol: %s" name))
-    (unless (and (listp arguments)
-                 (-every? #'symbolp arguments))
-      (error "Invalid method arguments declaration: %s" arguments))
     (unless (consp arguments)
       (error "Trait method must accept at least one argument: %s" name))
+    (unless (symbolp (car arguments))
+      (error "First argument can not be typed: %s" (car arguments)))
     (unless (or (stringp documentation)
                 (null documentation))
       (push documentation body)
@@ -115,7 +115,7 @@ The value is a pair `\(MIN . MAX\)'. See also `func-arity'."
             :documentation ,documentation
             :default-implementation
             ,(and body
-                  `(lambda ,arguments ,@body))
+                  `(Struct:lambda ,arguments ,@body))
             :arguments (copy-sequence ',arguments)
             :dispatch-function
             (lambda (&rest arguments)
@@ -183,13 +183,12 @@ idempotent."
       (error "Method implementation should start with defmethod: %s" head))
     (unless (symbolp name)
       (error "Method name should be a symbol: %s" name))
-    (unless (and (listp arguments)
-                 (-every? #'symbolp arguments))
+    (unless (listp arguments)
       (error "Invalid method argument-list declaration: %s" arguments))
     (when (eq 'declare (car-safe (car body)))
       (error "Declare not supported for methods"))
 
-    `(cons ',name (lambda ,arguments ,@body))))
+    `(list ',name ',arguments (Struct:lambda ,arguments ,@body))))
 
 (defun Trait:implement* (trait type implementations)
   "Defines an implementation of TRAIT for TYPE."
@@ -207,19 +206,37 @@ idempotent."
       (unless (assq (car it) methods)
         (error "Method not declared by this trait: %s" (car it))))
     (--each methods
-      (when-let (impl (cdr (assq (car it) implementations)))
-        (unless (equal (Trait:Method:arity (cdr it))
-                       (func-arity impl))
-          (error "Signature not compatible with method declared by trait: %s, %s, %s"
-                 (car it)
-                 (Trait:Method:arity (cdr it))
-                 (func-arity impl)))))
+      (-when-let ((name arguments)
+                  (assq (car it) implementations))
+        (let ((declared-arguments (Struct:get (cdr it) :arguments)))
+          (unless (Trait:-compatible-arguments?
+                   declared-arguments       
+                   arguments)
+            (error "Signature incompatible with method declared by trait: %s, %s, %s"
+                   (car it)
+                   declared-arguments
+                   arguments)))))
     (Struct:update trait-struct :implementing-types (-partial #'cons type))
     (--each methods
-      (when-let (impl (cdr (assq (car it) implementations)))
+      (-when-let ((_ _ impl) (assq (car it) implementations))
         (Struct:update (cdr it) :implementations
                        (-partial #'cons (cons type impl)))))
-    trait))
+    type))
+
+(defun Trait:-compatible-arguments? (declared-arguments arguments)
+  (and (= (length declared-arguments)
+          (length arguments))
+       (-every? (-lambda ((declared-argument . argument))
+                  (cond
+                   ((memq declared-argument '(&rest &optional &struct))
+                    (eq declared-argument argument))
+                   ((symbolp declared-argument)
+                    (symbolp argument))
+                   ((consp argument)
+                    (equal (cdr declared-argument)
+                           (cdr argument)))
+                   (t nil)))
+                (-zip-pair declared-arguments arguments))))
 
 (defun Trait:dispatch (trait method arguments)
   "Dispatch call of TRAIT's METHOD using ARGUMENTS."
