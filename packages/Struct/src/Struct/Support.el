@@ -146,5 +146,5 @@
             (when struct
               (list struct (if macro? 'macro 'defun)))))))))
 
-(provide 'Struct:Support)
+(provide 'Struct/Support)
 ;;; Struct:Support.el ends here
