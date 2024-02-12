@@ -521,18 +521,6 @@ This function returns a new property-list everytime its called."
   (copy-sequence (Struct:unsafe-properties struct)))
 
 (defun Struct:ensure-struct (type struct)
-  "Return a struct of type TYPE.
-
-TYPE should be a symbol naming the type.
-
-If STRUCT is already of type TYPE, return it.
-
-If STRUCT is a list with one element of type TYPE, return that
-element.
-
-Otherwise call TYPE's constructor with properties as arguments and
-return its result. Unless the constructor does not exist, in which
-case a `wrong-type-argument' is signaled."
   (cl-check-type type symbol)
   (let ((constructor nil))
     (cond
@@ -577,21 +565,21 @@ case a `wrong-type-argument' is signaled."
     (pcase (length struct-rest)
       (1 (error "&struct is missing an argument: %s" arguments))
       (2 nil)
-      (_ (error "&struct argument must be last %s" arguments)))
+      (_ (error "&struct argument must be last: %s" arguments)))
     (let ((argument (cadr struct-rest)))
       (unless (and (consp argument)
                    (= (length argument))
                    (-every? #'symbolp argument))
-        (error "&struct argument should have a form of (argument struct-type): %s"
+        (error "&struct argument should specify a struct-type: %s"
                arguments))))
   (when-let (rest-rest (memq '&rest arguments))
     (pcase (length rest-rest)
       (1 (error "&rest is missing an argument: %s" arguments))
       (2 nil)
-      (_ (error "&rest argument must be last %s" arguments)))
+      (_ (error "&rest argument must be last: %s" arguments)))
     (let ((argument (cadr rest-rest)))
-      (unless (symbolp argument)
-        (error "Providing a type for &rest argument not supported: %s"
+      (when (consp argument)
+        (error "Providing a type for &rest arguments is not supported: %s"
                arguments))))
   (--each arguments
     (unless (or (symbolp it)
