@@ -31,14 +31,14 @@
 (defun Commons:split-property-list-end (list)
   (--split-with (not (keywordp it)) list))
 
-(defun Commons:load-main (feature)
+(defun Commons:load-relative (feature)
   (let ((load-path (cons (file-name-directory
                           (or (and (boundp 'byte-compile-current-file)
                                    byte-compile-current-file)
                               load-file-name
                               buffer-file-name))
                          load-path)))
-    (load (format "%s/main" feature) nil :no-message)))
+    (load (format "%s" feature) nil :no-message)))
 
 (provide 'Commons)
 ;;; Commons.el ends here
