@@ -10,9 +10,15 @@
 (require 'Struct)
 (require 'Trait)
 (require 'dash)
+(require 'cl-macs)
 
-;; See https://github.com/reactive-streams/reactive-streams-jvm/blob/v1.0.4/README.md#specification 
+(cl-deftype error ()
+  `(and cons
+        (satisfies (lambda (value)
+                     (and (symbolp (car value))
+                          (get (car value) 'error-conditions))))))
 
+;; See https://github.com/reactive-streams/reactive-streams-jvm/blob/v1.0.4/README.md#specification
 (Trait:define Rs:Subscriber ()
   (defmethod Rs:Subscriber:on-subscribe (self (subscription (Trait Rs:Subscription))))
   (defmethod Rs:Subscriber:on-next (self value))
@@ -41,18 +47,18 @@
       (if-let (on-subscribe (Struct:get self :on-subscribe))
           (funcall on-subscribe subscription)
         (Rs:Subscription:request subscription most-positive-fixnum))))
-  
+
   (defmethod Rs:Subscriber:on-next (self value)
     (unless (Struct:get self :cancelled)
       (when-let (on-next (Struct:get self :on-next))
         (funcall on-next value))))
-  
+
   (defmethod Rs:Subscriber:on-error (self (error error))
     (unless (Struct:get self :cancelled)
       (if-let (on-error (Struct:get self :on-error))
           (funcall on-error error)
         (signal (car error) (cdr error)))))
-  
+
   (defmethod Rs:Subscriber:on-complete (self)
     (unless (Struct:get self :cancelled)
       (when-let (on-complete (Struct:get self :on-complete))
@@ -70,12 +76,6 @@
   (defmethod Rs:Subscription:cancel (self)))
 
 (Trait:define Rs:Processor (Rs:Publisher Rs:Subscriber))
-
-(cl-deftype error ()
-  `(and cons
-        (satisfies (lambda (value)
-                     (and (symbolp (car value))
-                          (get (car value) 'error-conditions))))))
 
 (provide 'Rs)
 ;;; Rs.el ends here
