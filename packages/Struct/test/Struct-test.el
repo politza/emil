@@ -19,7 +19,7 @@
          :default-value 0 :mutable t)
         (required
          "A required property."
-         :required t :mutable t)
+         :type (not null) :mutable t)
         (read-only
          "A read-only property."
          :default-value 0)))
@@ -44,8 +44,6 @@
                   :to-equal 0)
           (expect (Struct:get optional :documentation)
                   :to-equal "An optional property.")
-          (expect (Struct:get optional :required)
-                  :to-equal nil)
           (expect (Struct:get optional :mutable)
                   :to-equal t))
 
@@ -56,8 +54,8 @@
                   :to-equal nil)
           (expect (Struct:get required :documentation)
                   :to-equal "A required property.")
-          (expect (Struct:get required :required)
-                  :to-equal t)
+          (expect (Struct:get required :type)
+                  :to-equal '(not null))
           (expect (Struct:get required :mutable)
                   :to-equal t))
 
@@ -68,8 +66,6 @@
                   :to-equal 0)
           (expect (Struct:get read-only :documentation)
                   :to-equal "A read-only property.")
-          (expect (Struct:get read-only :required)
-                  :to-equal nil)
           (expect (Struct:get read-only :mutable)
                   :to-equal nil))))
 
@@ -194,12 +190,12 @@
               :to-be nil))
 
     (it "accepts nil for non-required typed properties"
-      (Struct:define TestStruct (property :type number))
+      (Struct:define TestStruct (property :type (or null number)))
 
       (expect (TestStruct) :to-equal (TestStruct :property nil))
       (expect (TestStruct :property 0) :to-equal (TestStruct :property 0))
       (expect (TestStruct :property "0")
-              :to-throw 'wrong-type-argument '(number "0"))))
+              :to-throw 'wrong-type-argument '((or null number) "0"))))
 
   (describe "with a read-only struct"
     (before-each
@@ -262,8 +258,6 @@
               :to-be nil)
       (expect (Struct:get property :documentation)
               :to-equal "Property documentation.")
-      (expect (Struct:get property :required)
-              :to-be nil)
       (expect (Struct:get property :mutable)
               :to-be nil)))
 
