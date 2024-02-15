@@ -139,7 +139,7 @@
                   "prog2 should contain a first and second form: %s"
                 rest (cons 'prog2 rest)))
             (Transformer:transform-prog2
-             self (car rest) (cadr rest) (cdr rest) data))
+             self (car rest) (cadr rest) (cddr rest) data))
         (`progn (Transformer:transform-progn self rest data))
         (`quote
          (unless (= 1 (length rest))
@@ -188,7 +188,7 @@
     `(defconst ,(Transformer:transform-form self symbol data)
        ,(Transformer:transform-form self init-value data)
        ,@(and doc-string
-              (list (Transformer:map-transform self doc-string data)))))
+              (list (Transformer:transform-form self doc-string data)))))
   
   (defmethod Transformer:transform-defvar (self symbol &optional init-value
                                                 doc-string data)
@@ -196,7 +196,7 @@
        ,@(and init-value
               (list (Transformer:map-transform self init-value data)))
        ,@(and doc-string
-              (list (Transformer:map-transform self doc-string data)))))
+              (list (Transformer:transform-form self doc-string data)))))
   
   (defmethod Transformer:transform-function (self argument &optional data)
     `(function ,(Transformer:transform-form self argument data)))

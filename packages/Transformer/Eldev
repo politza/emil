@@ -3,3 +3,6 @@
 (eldev-use-package-archive 'gnu-elpa)
 
 (setf eldev-project-source-dirs "src")
+
+(eldev-use-local-dependency "../Struct")
+(eldev-use-local-dependency "../Commons")
