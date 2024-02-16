@@ -13,6 +13,7 @@
 (require 'Struct/Primitives)
 (require 'Struct/Doc)
 (require 'Struct/Impl)
+(require 'Struct/Syntax)
 
 (defconst Struct:syntax-highlight-symbol 'Struct:syntax-highlight-symbol
   "Symbol to attach font-lock information to other symbols.")
@@ -58,47 +59,54 @@ as splice-syntax.
 (fn NAME [DOCUMENTATION]? [STRUCT-META-PROPERTY]* [PROPERTY-NAME |
 (PROPERTY-NAME [DOCUMENTATION]? [PROPERTY-META-PROPERTY]*)]*)"
   (declare (indent 1) (doc-string 2))
+
   (unless (symbolp name)
     (error "Expected a symbol: %s" name))
   (unless (or (stringp documentation)
               (null documentation))
     (push documentation declarations)
     (setq documentation nil))
+
   (-let* (((struct-declarations property-declarations)
            (Commons:split-property-list-start declarations))
-          (struct-property-list
+          (struct-properties
            (append struct-declarations
                    (list :name name :documentation documentation
                          :properties
                          (-map #'Struct:-construct-property
                                property-declarations))))
-          (type (apply #'Struct:Type struct-property-list))
+          (type (apply #'Struct:Type struct-properties))
           (macro-name (intern (concat (symbol-name name) "*")))
           (predicate-name (intern (concat (symbol-name name) "?"))))
     `(progn
        (defun ,name (&rest properties)
          (Struct:construct ',name properties))
+
        (defmacro ,macro-name (&rest properties)
          (declare (no-font-lock-keyword t) (debug t))
          (list 'Struct:construct
-               '',name (Struct:-expand-syntax properties)))
+               '',name (Struct:Syntax:expand-properties properties)))
+
        (defun ,predicate-name (object &optional ensure)
          (or (eq (car-safe object) ',name)
              (and ensure
                   (signal 'wrong-type-argument (list ',predicate-name object)))))
+
        (cl-deftype ,name ()
          (list 'satisfies (function ,predicate-name)))
-       (define-symbol-prop ',name 'function-documentation
+
+       (put ',name 'function-documentation
          '(Struct:-doc-constructor (Struct:Type:get ',name :ensure)))
-       (define-symbol-prop ',macro-name 'function-documentation
+       (put ',macro-name 'function-documentation
          '(Struct:-doc-constructor (Struct:Type:get ',name :ensure)))
-       (define-symbol-prop ',predicate-name 'function-documentation
+       (put ',predicate-name 'function-documentation
          '(Struct:-doc-predicate (Struct:Type:get ',name :ensure)))
-       ;; Use `copy-sequence', in case type is mutated afterwards.
-       (define-symbol-prop ',name Struct:Type:definition-symbol
-         (copy-sequence ',type))
+
+       (Struct:Type:define ',name ',type)
+
        (when Struct:enable-syntax-highlighting
          (Struct:-add-syntax-highlighting ',name))
+
        ',name)))
 
 (defun Struct:-construct-property (declaration)
@@ -120,33 +128,6 @@ as splice-syntax.
    (t
     (error "Invalid property declaration: %s" declaration))))
 
-(defun Struct:-expand-syntax (arguments)
-  "Expands shorthand and spread-syntax in ARGUMENTS."
-  (let ((expanded-property-list nil))
-    (while arguments
-      (let ((argument (pop arguments)))
-        (cond
-         ((and (keywordp argument) arguments)
-          ;; Keyword-value pair.
-          (push `(list ,argument ,(pop arguments))
-                expanded-property-list))
-         ((and (eq '\,@ (car-safe argument))
-               (= 2 (length argument)))
-          ;; Spread syntax.
-          (push `(Struct:properties ,(nth 1 argument))
-                expanded-property-list))
-         ((and (symbolp argument) (not (keywordp argument)))
-          ;; Shorthand syntax.
-          (push `(list ,(Commons:symbol-to-keyword argument)
-                       ,argument)
-                expanded-property-list))
-         (t
-          ;; Probably an error later on.
-          (push `(list ,argument)
-                expanded-property-list)))))
-    `(apply (function append)
-            (list ,@(nreverse expanded-property-list)))))
-
 (defun Struct:-add-syntax-highlighting (name)
   (let ((keywords `((,(format "\\_<%s\\*?\\_>"
                               (regexp-quote (symbol-name name)))
@@ -154,24 +135,22 @@ as splice-syntax.
     (put name Struct:syntax-highlight-symbol keywords)
     (font-lock-add-keywords 'emacs-lisp-mode keywords)))
 
-(defun Struct:-remove-syntax-highlighting (name &optional undefine)
+(defun Struct:-remove-syntax-highlighting (name)
   (when-let (keywords (get name Struct:syntax-highlight-symbol))
     (font-lock-remove-keywords 'emacs-lisp-mode keywords)
-    (when undefine
-      (put name Struct:syntax-highlight-symbol nil))))
+    (put name Struct:syntax-highlight-symbol nil)))
 
 (defun Struct:undefine (name)
   "Undefine struct NAME.
 
-This function attempts to undo all side-effects of a
-corresponding `Struct:define' call.
+This function undoes the side-effects of a corresponding
+`Struct:define' invocation.
 
 It does nothing, if NAME does not name a defined struct-type."
-  (when (memq name '(Struct:Type Struct:Property))
-    (error "Attempted to undefine a builtin struct-type: %s" name))
-  (when-let (type (Struct:Type:get name))
-    (put name Struct:Type:definition-symbol nil)
-    (Struct:-remove-syntax-highlighting name :undefine)
+  (when (Struct:Type:get name)
+    (Struct:Type:undefine name)
+    (Struct:-remove-syntax-highlighting name)
+    (put name 'cl-deftype-handler nil)
     (fmakunbound name)
     (fmakunbound (intern (concat (symbol-name name) "*")))
     (fmakunbound (intern (concat (symbol-name name) "?")))))

@@ -3,7 +3,7 @@
 (require 'Struct)
 
 (Struct:define Struct:Function
-  "Defines a function for use with structs and traits."
+  "Defines a declared function."
   (name
    "The name of the function."
    :type symbol)
@@ -14,18 +14,16 @@ This is the name under which the function is exported into the global
 namespace."
    :type symbol)
   (arguments 
-   "The list of arguments declared by this function."
+   "The list of declared arguments of this function."
    :type list)
   (return-type
-   "The type this function returns."
+   "The return-type of this function."
    :type nil)
   (documentation
    "The documentation for this function."
    :type (or null string))
-  (definition
-   "The definition of this function.
-
-If nil, this function is abstract."
-   :type (or null function)))
+  (body-forms
+   "The forms defining this function."
+   :type list))
 
 (provide 'Struct/Function)
