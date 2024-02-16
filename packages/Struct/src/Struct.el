@@ -10,9 +10,7 @@
 (require 'Commons)
 (require 'cl-macs)
 (require 'dash)
-
-(defconst Struct:Type:definition-symbol 'Struct:Type:definition-symbol
-  "Symbol used to attach struct type-information to other symbols.")
+(require 'Struct/Primitives)
 
 (defconst Struct:syntax-highlight-symbol 'Struct:syntax-highlight-symbol
   "Symbol to attach font-lock information to other symbols.")
@@ -22,197 +20,7 @@
 
 ;; These `defsubst' definitions need to be defined before they are
 ;; used.
-(defsubst Struct:unsafe-get (struct property &optional default)
-  "Returns STRUCT's current value of PROPERTY.
 
-Returns DEFAULT if value is nil."
-  (or (plist-get (cdr struct) property)
-      default))
-
-(defsubst Struct:unsafe-set (struct property value)
-  "Sets STRUCT's PROPERTY to VALUE and returns it."
-  (setcdr struct
-          (plist-put (cdr struct) property value))
-  value)
-
-(defsubst Struct:unsafe-properties (struct)
-  "Returns STRUCT's properties."
-  (cdr struct))
-
-(defun Struct:Type (&rest property-list)
-  "Constructs a new struct-type."
-  (Struct:-construct 'Struct:Type property-list))
-
-(defmacro Struct:Type* (&rest property-list)
-  "Constructs a new struct-type."
-  (declare (no-font-lock-keyword t)
-           (debug t))
-  (list 'Struct:-construct
-        'Struct:Type (Struct:-expand-syntax property-list)))
-
-(define-symbol-prop 'Struct:Type Struct:Type:definition-symbol
-  '(Struct:MetaType
-    :name Struct:Type
-    :properties
-    ((Struct:Property
-      :name name
-      :keyword :name
-      :default-value nil
-      :documentation "The name of this struct-type."
-      :mutable nil
-      :type symbol)
-     (Struct:Property
-      :name documentation
-      :keyword :documentation
-      :default-value nil
-      :documentation "The documentation of this struct-type."
-      :mutable nil
-      :type (or null string))
-     (Struct:Property
-      :name properties
-      :keyword :properties
-      :default-value nil
-      :documentation "The properties of this struct-type."
-      :mutable nil
-      :type list)
-     (Struct:Property
-      :name mutable
-      :keyword :mutable
-      :default-value t
-      :documentation "Whether this type is mutable after its construction.
-Defaults to `t'."
-      :mutable nil
-      :type boolean))))
-
-(defun Struct:Type:get (name &optional ensure)
-  "Returns the `Struct:Type' definition of NAME.
-
-Returns nil, if NAME does not name a struct-type; unless ENSURE is
-non-nil, in which case a `wrong-type-argument' is signaled."
-  (or (get name Struct:Type:definition-symbol)
-      (and ensure
-           (signal 'wrong-type-argument (list 'Struct:Type name)))))
-
-(defun Struct:Type? (name-or-type-struct)
-  "Return `t', if NAME-OR-TYPE-STRUCT is a struct-type.
-
-NAME-OR-TYPE-STRUCT can be either a symbol naming a struct-type or
-the type itself."
-  (let ((type-struct (if (symbolp name-or-type-struct)
-                         (Struct:Type:get name-or-type-struct)
-                       name-or-type-struct)))
-    (eq 'Struct:Type (car-safe type-struct))))
-
-(defmacro Struct:Property* (&rest property-list)
-  "Creates a new struct-property."
-  (declare (no-font-lock-keyword t)
-           (debug t))
-  (list 'Struct:-construct
-        'Struct:Property (Struct:-expand-syntax property-list)))
-
-(defun Struct:Property (&rest property-list)
-  "Creates a new struct-property."
-  (Struct:-construct 'Struct:Property property-list))
-
-(define-symbol-prop 'Struct:Property Struct:Type:definition-symbol
-  `(Struct:MetaType
-    :name Struct:Property
-    :properties
-    ((Struct:Property
-      :name name
-      :keyword :name
-      :default-value nil
-      :documentation "The name of this propertỵ."
-      :mutable nil
-      :type symbol)
-     (Struct:Property
-      :name keyword
-      :keyword :keyword
-      :default-value (Commons:symbol-to-keyword name)
-      :documentation "The name of this propertỵ as a keyword."
-      :mutable nil
-      :type keyword)
-     (Struct:Property
-      :name default-value
-      :keyword :default-value
-      :default-value nil
-      :documentation "The default value of this propertỵ."
-      :mutable nil
-      :type nil)
-     (Struct:Property
-      :name documentation
-      :keyword :documentation
-      :default-value nil
-      :documentation "The documentation of this propertỵ."
-      :mutable nil
-      :type (or null string))
-     (Struct:Property
-      :name mutable
-      :keyword :mutable
-      :default-value nil
-      :documentation "Whether this property is mutable after its construction.
- Defaults to `nil'."
-      :mutable nil
-      :type boolean)
-     (Struct:Property
-      :name type
-      :keyword :type
-      :default-value nil
-      :documentation "The type of this property."
-      :mutable nil
-      :type nil))))
-
-(defun Struct:-construct (name arguments)
-  (let ((type (Struct:Type:get name :ensure)))
-    (cons name (->> arguments
-                    (Struct:-initial-property-list type)
-                    (Struct:-construct-property-list type)))))
-
-(defun Struct:-initial-property-list (type arguments)
-  (let* ((property-list (Struct:-empty-property-list type))
-         (property-count (/ (length property-list) 2)))
-    (while arguments
-      (let ((keyword (pop arguments))
-            (value (pop arguments)))
-        (setq property-list (plist-put property-list keyword value))))
-    (unless (= property-count (/ (length property-list) 2))
-      (error "Undeclared properties set: %s"
-             (nthcdr (* 2 property-count) property-list)))
-    property-list))
-
-(defun Struct:-property-keywords (properties)
-  (--map (Commons:symbol-to-keyword it)
-         (--map (Struct:unsafe-get it :name)
-                properties)))
-
-(defun Struct:-empty-property-list (type)
-  (--splice (prog1 t (ignore it))
-            (list it nil)
-            (Struct:-property-keywords
-             (Struct:unsafe-get type :properties))))
-
-(defun Struct:-construct-property-list (type property-list)
-  (let ((properties (Struct:unsafe-get type :properties))
-        (environment nil)
-        (property-list-head property-list))
-    (while properties
-      (let ((property (pop properties))
-            (value (nth 1 property-list-head)))
-        (unless value
-          (when-let (default-value (Struct:unsafe-get property :default-value))
-            (setq value (eval default-value environment))))
-        (push (cons (Struct:unsafe-get property :name) value)
-              environment)
-        (setcar (cdr property-list-head)
-                (Struct:-check-property-type property value))
-        (setq property-list-head (nthcdr 2 property-list-head))))
-    property-list))
-
-(defun Struct:-check-property-type (property-type value)
-  (when-let ((type (Struct:unsafe-get property-type :type)))
-    (or (cl-typep value type)
-        (signal 'wrong-type-argument (list type value))))
-  value)
 
 ;;;###autoload
 (defmacro Struct:define (name &optional documentation &rest declarations)
@@ -273,12 +81,12 @@ as splice-syntax.
     `(progn
        (defun ,name (&rest property-list)
          ,(Struct:-doc-constructor type)
-         (Struct:-construct ',name property-list))
+         (Struct:construct ',name property-list))
        (defmacro ,macro-name (&rest property-list)
          ,(Struct:-doc-constructor type)
          (declare (no-font-lock-keyword t)
                   (debug t))
-         (list 'Struct:-construct
+         (list 'Struct:construct
                '',name (Struct:-expand-syntax property-list)))
        (defun ,predicate-name (object &optional ensure)
          ,(Struct:-doc-predicate type)
@@ -444,61 +252,7 @@ It does nothing, if NAME does not name a defined struct-type."
     (fmakunbound (intern (concat (symbol-name name) "?")))))
 
 ;;;###autoload
-(defun Struct:member? (struct property)
-  "Returns non-nil, if STRUCT has a keyword-property PROPERTY.
 
-Returned value is actually the `Struct:Property' type of the
-given PROPERTY."
-  (--find (eq property (Struct:unsafe-get it :keyword))
-          (Struct:unsafe-get
-           (Struct:Type:get (car struct) :ensure)
-           :properties)))
-
-;;;###autoload
-(defun Struct:get (struct property &optional default)
-  "Returns STRUCT's current value of PROPERTY.
-
-Throws an error if PROPERTY is not a member of STRUCT.
-
-Returns DEFAULT, if value is `nil'."
-  (unless (Struct:member? struct property)
-    (error "Property is not a member of struct: %s" property))
-  (or (Struct:unsafe-get struct property)
-      default))
-
-;;;###autoload
-(defun Struct:set (struct property value)
-  "Sets STRUCT's PROPERTY to VALUE.
-
-Throws an error if
-- PROPERTY is not a member of STRUCT, or
-- PROPERTY is not mutable, or
-- PROPERTY has an associated type and VALUE does not match it."
-  (let ((property-type (Struct:member? struct property))
-        (struct-type (Struct:Type:get (car struct) :ensure)))
-    (unless property-type
-      (error "Property is not a member of struct: %s" property))
-    (unless (and (Struct:unsafe-get struct-type :mutable)
-                 (Struct:unsafe-get property-type :mutable))
-      (error "Attempted to set immutable property: %s" property))
-    (Struct:-check-property-type property-type value))
-  (Struct:unsafe-set struct property value))
-
-;;;###autoload
-(defun Struct:update (struct property fn)
-  (Struct:set struct property
-              (funcall fn (Struct:get struct property))))
-
-;;;###autoload
-(defmacro Struct:update- (struct property form)
-  `(Struct:update ,struct ,property (lambda (it) ,form)))
-
-;;;###autoload
-(defun Struct:properties (struct)
-  "Returns STRUCT's properties and values as a property-list.
-
-This function returns a new property-list everytime its called."
-  (copy-sequence (Struct:unsafe-properties struct)))
 
 
 (defmacro Struct:lambda (arguments &rest body)
