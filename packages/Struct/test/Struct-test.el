@@ -16,14 +16,14 @@
         "A test struct."
         (optional
          "An optional property."
-         :default-value 0 :mutable t)
+         :default 0 :mutable t)
         (required
          "A required property."
          :type (not null) :mutable t)
         (read-only
          "A read-only property."
-         :default-value 0)))
-    
+         :default 0)))
+
     (it "defines a type"
       (let ((type (Struct:Type:get 'TestStruct :ensure)))
         (expect type :to-be-truthy)
@@ -39,7 +39,7 @@
         (let ((optional (cdr (nth 0 (Struct:get type :properties)))))
           (expect (Struct:get optional :name)
                   :to-equal 'optional)
-          (expect (Struct:get optional :default-value)
+          (expect (Struct:get optional :default)
                   :to-equal 0)
           (expect (Struct:get optional :documentation)
                   :to-equal "An optional property.")
@@ -50,7 +50,7 @@
         (let ((required (cdr (nth 1 (Struct:get type :properties)))))
           (expect (Struct:get required :name)
                   :to-equal 'required)
-          (expect (Struct:get required :default-value)
+          (expect (Struct:get required :default)
                   :to-equal nil)
           (expect (Struct:get required :documentation)
                   :to-equal "A required property.")
@@ -63,7 +63,7 @@
         (let ((read-only (cdr (nth 2 (Struct:get type :properties)))))
           (expect (Struct:get read-only :name)
                   :to-equal 'read-only)
-          (expect (Struct:get read-only :default-value)
+          (expect (Struct:get read-only :default)
                   :to-equal 0)
           (expect (Struct:get read-only :documentation)
                   :to-equal "A read-only property.")
@@ -131,7 +131,7 @@
 
     (it "can get a property with default"
       (let ((struct (TestStruct :required 1)))
-        ;; Need to set it explicitly, since otherwise default-value applies.
+        ;; Need to set it explicitly, since otherwise default value applies.
         (Struct:set struct :optional nil)
         (expect (Struct:get struct :optional 2)
                 :to-equal 2)))
@@ -154,7 +154,7 @@
                 :to-equal 2)
         (expect (Struct:get struct :required)
                 :to-equal 2)))
-    
+
     (it "can not set an unknown property"
       (expect (Struct:set (TestStruct :required 1)
                           :unknown 2)
@@ -198,28 +198,13 @@
       (expect (TestStruct :property "0")
               :to-throw 'wrong-type-argument '((or null number) "0"))))
 
-  (describe "with a read-only struct"
-    (before-each
-      (Struct:define TestStruct
-        "A test struct."
-        :mutable nil
-        (property
-         "An optional property."
-         :default-value 0)))
-
-    (after-each
-      (Struct:undefine 'TestStruct))
-
-    (it "can not set any property"
-      (expect (Struct:set (TestStruct) :property 1) :to-throw)))
-
   (describe "with an integer typed property"
     (before-each
       (Struct:define TestStruct
         "A test struct."
         (property
          "An integer property."
-         :default-value 0
+         :default 0
          :mutable t
          :type integer)))
 
@@ -233,11 +218,11 @@
 
     (it "can not be constructed with a non-integer value"
       (expect (TestStruct :property "one") :to-throw))
-    
+
     (it "can set an integer value"
       (expect (Struct:set (TestStruct) :property 1)
               :to-equal 1))
-    
+
     (it "can not set a non-integer value"
       (expect (Struct:set (TestStruct) :property "one") :to-throw)))
 
@@ -255,7 +240,7 @@
                                             :properties)))))
       (expect (Struct:get property :name)
               :to-be 'property)
-      (expect (Struct:get property :default-value)
+      (expect (Struct:get property :default)
               :to-be nil)
       (expect (Struct:get property :documentation)
               :to-equal "Property documentation.")
@@ -264,7 +249,7 @@
 
   (describe "Struct:defun"
     (before-each
-      (Struct:define TestStruct (property :default-value 0)))
+      (Struct:define TestStruct (property :default 0)))
 
     (describe "used at compile-time"
       (it "throws errors when appropriate"
@@ -295,7 +280,7 @@
         (expect (eval '(Struct:defun fn ((a b c))))
                 :to-throw
                 'error '("Argument should be a symbol or have the form (argument type): ((a b c))"))))
-    
+
     (describe "used at runtime"
       (after-each (fmakunbound 'TestFn))
       (it "can be defined"
@@ -338,7 +323,7 @@
       (it "can be used with a &struct argument"
         (Struct:defun TestFn ((a number) &struct (struct TestStruct))
           (+ a (Struct:get struct :property)))
-        
+
         (expect (TestFn 2) :to-be 2)
         (expect (TestFn 2 :property 3) :to-be 5)
         (expect (TestFn 2 (TestStruct :property 4)) :to-be 6)
