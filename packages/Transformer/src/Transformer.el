@@ -11,6 +11,34 @@
 (require 'Trait)
 (require 'dash)
 
+(Trait:define Form ()
+  (defmethod Form:number? (self)
+    (numberp self))
+  
+  (defmethod Form:string? (self)
+    (stringp self))
+  
+  (defmethod Form:vector? (self)
+    (vectorp self))
+  
+  (defmethod Form:symbol? (self)
+    (symbolp self))
+  
+  (defmethod Form:cons? (self)
+    (consp self))
+  
+  (defmethod Form:elements(self)
+    self)
+  
+  (defmethod Form:value (self)
+    self))
+
+(Trait:implement Form number)
+(Trait:implement Form string)
+(Trait:implement Form vector)
+(Trait:implement Form symbol)
+(Trait:implement Form cons)
+
 (define-error 'Transformer:syntax-error "Syntax Error")
 
 (defun Transformer:syntax-error (fmt &rest arguments)
@@ -33,48 +61,49 @@
 (Trait:define Transformer ()
   (defmethod Transformer:transform-form (self form &optional data)
     (cond
-     ((numberp form)
+     ((Form:number? form)
       (Transformer:transform-number self form data))
-     ((stringp form)
+     ((Form:string? form)
       (Transformer:transform-string self form data))
-     ((vectorp form)
+     ((Form:vector? form)
       (Transformer:transform-vector self form data))
-     ((symbolp form)
+     ((Form:symbol? form)
       (Transformer:transform-symbol self form data))
-     ((consp form)
+     ((Form:cons? form)
       (Transformer:transform-cons self form data))
      (t (error "Internal error: form is none of the above: %s" form))))
   
   (defmethod Transformer:transform-number (self number &optional data)
     (ignore self data)
-    number)
+    (Form:value number))
   
   (defmethod Transformer:transform-string (self string &optional data)
     (ignore self data)
-    string)
+    (Form:value string))
   
   (defmethod Transformer:transform-vector (self vector &optional data)
     (ignore self data)
-    vector)
+    (Form:value vector))
   
   (defmethod Transformer:transform-symbol (self symbol &optional data)
     (ignore self data)
-    symbol)
+    (Form:value symbol))
   
   (defmethod Transformer:transform-cons (self cons &optional data)
-    (let ((head (car cons))
-          (rest (cdr cons)))
-      (pcase head
+    (let* ((elements (Form:elements cons))
+           (head (car elements))
+           (rest (cdr elements)))
+      (pcase (Form:value head)
         (`and (Transformer:transform-and self rest data))
         (`catch
-            (unless (symbolp (car rest))
+            (unless (symbolp (Form:value (car rest)))
               (Transformer:syntax-error "catch tag should be a symbol: %s"
                 (car rest) (cons 'catch rest)))
           (Transformer:transform-catch self (car rest) (cdr rest) data))
         (`cond
          (Transformer:transform-cond self rest data))
         (`defconst
-          (unless (symbolp (car rest))
+          (unless (symbolp (Form:value (car rest)))
             (Transformer:syntax-error "defconst name should be a symbol: %s"
               (car rest) (cons 'defconst rest)))
           (unless (and (<= 3 (length rest))
@@ -104,23 +133,24 @@
         (`interactive
          (Transformer:transform-interactive self (car rest) (cdr rest) data))
         (`lambda
-          (unless (and (listp (car rest))
-                       (-every? #'symbolp (car rest)))
+          (unless (and (listp (Form:value (car rest)))
+                       (-every? #'symbolp (-map #'Form:value (car rest))))
             (Transformer:syntax-error
                 "lambda arguments should be a list of symbols: %s"
               (car rest) (cons 'lambda rest)))
           (let ((arguments (pop rest))
-                (documentation (and (stringp (car rest)) (pop rest)))
-                (interactive (and (eq 'interactive (car-safe (car rest)))
+                (documentation (and (stringp (Form:value (car rest)))
+                                    (pop rest)))
+                (interactive (and (eq 'interactive (car-safe (Form:value (car rest))))
                                   (pop rest))))
             (Transformer:transform-lambda
              self arguments documentation interactive rest data)))
         ((or `let `let*)
-         (unless (and (listp (car rest))
+         (unless (and (listp (Form:value (car rest)))
                       (--every? (or (symbolp it)
                                     (and (consp it)
-                                         (symbolp (car it))))
-                                (car rest)))
+                                         (symbolp (Form:value (car it)))))
+                                (-map #'Form:value (car rest))))
            (Transformer:syntax-error
                "let bindings should be a list of symbols or start with one: %s"
              (car rest) (cons head rest)))
@@ -144,7 +174,7 @@
         (`quote
          (unless (= 1 (length rest))
            (Transformer:syntax-error "quote should have exactly one argument: %s"
-             rest (cons 'function rest)))
+             rest elements))
          (Transformer:transform-quote self (car rest) data))
         (`save-current-buffer
           (Transformer:transform-save-current-buffer self rest data))
@@ -158,17 +188,17 @@
              head rest (cons head rest)))
          (--each rest
            (unless (or (= 1 (% it-index 2))
-                       (symbolp it))
+                       (symbolp (Form:value it)))
              (Transformer:syntax-error "%s place should be a symbol: %s"
-               head it (cons head rest))))
-         (if (eq head 'setq)
+               head it elements)))
+         (if (eq (Form:value head) 'setq)
              (Transformer:transform-setq self rest data)
            (Transformer:transform-setq-default self rest data)))
         ((or `unwind-protect `while)
          (unless (>= (length rest) 1)
            (Transformer:syntax-error "%s should have at least one argument: %s"
-             head rest (cons 'unwind-protect rest)))
-         (if (eq head 'unwind-protect)
+             head rest elements))
+         (if (eq (Form:value head) 'unwind-protect)
              (Transformer:transform-unwind-protect self (car rest) (cdr rest) data)
            (Transformer:transform-while self (car rest) (cdr rest) data)))
         (_ (Transformer:transform-application self head rest data)))))  
@@ -187,15 +217,15 @@
                                                   doc-string data)
     `(defconst ,(Transformer:transform-form self symbol data)
        ,(Transformer:transform-form self init-value data)
-       ,@(and doc-string
+       ,@(and (Form:value doc-string)
               (list (Transformer:transform-form self doc-string data)))))
   
   (defmethod Transformer:transform-defvar (self symbol &optional init-value
                                                 doc-string data)
     `(defvar ,(Transformer:transform-form self symbol data)
-       ,@(and init-value
+       ,@(and (Form:value init-value)
               (list (Transformer:map-transform self init-value data)))
-       ,@(and doc-string
+       ,@(and (Form:value doc-string)
               (list (Transformer:transform-form self doc-string data)))))
   
   (defmethod Transformer:transform-function (self argument &optional data)
@@ -212,9 +242,9 @@
   (defmethod Transformer:transform-lambda (self arguments documentation
                                                 interactive body &optional data)
     `(lambda ,(Transformer:map-transform self arguments data)
-       ,@(and documentation
+       ,@(and (Form:value documentation)
               (list (Transformer:transform-form self documentation data)))
-       ,@(and interactive
+       ,@(and (Form:value interactive)
               (Transformer:transform-form self interactive data))
        ,@(Transformer:map-transform self body data)))
   
@@ -243,7 +273,7 @@
   
   (defmethod Transformer:transform-quote (self argument &optional data)
     (ignore self data)
-    `(quote ,argument))
+    `(quote ,(Form:value argument)))
   
   (defmethod Transformer:transform-save-current-buffer (self body &optional data)
     `(save-current-buffer ,@(Transformer:map-transform self body data)))
@@ -269,14 +299,42 @@
        ,@(Transformer:map-transform self body data)))
   
   (defmethod Transformer:transform-application (self function arguments &optional data)
-    (if (macrop function)
-        (Transformer:transform-form self (macroexpand (cons function arguments)) data)
+    (if (macrop (Form:value function))
+        (Transformer:transform-form
+         self
+         (macroexpand (-map #'Form:value (cons function arguments)))
+         data)
       `(,(Transformer:transform-form self function)
         ,@(Transformer:map-transform self arguments data)))))
 
 (Struct:define Transformer:Identity)
-
 (Trait:implement Transformer Transformer:Identity)
+
+(Struct:define AugmentedForm
+  (form)
+  (data))
+
+(Trait:implement Form AugmentedForm
+  (defmethod Form:number? (self)
+    (numberp self))
+  
+  (defmethod Form:string? (self)
+    (stringp self))
+  
+  (defmethod Form:vector? (self)
+    (vectorp self))
+  
+  (defmethod Form:symbol? (self)
+    (symbolp self))
+  
+  (defmethod Form:cons? (self)
+    (consp self))
+  
+  (defmethod Form:elements(self)
+    self)
+  
+  (defmethod Form:value (self)
+    self))
 
 (defun Transformer:read (&optional point transformer)
   (Transformer:transform
