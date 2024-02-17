@@ -29,20 +29,7 @@
          :return-type number
          :documentation "Returns A plus B."
          :body ((+ a b)))))
-
-    (it "custom namespace-separator"
-      (expect
-       (Struct:Function:read 'emacs-convention
-         '(fn test ()) '-)
-       :to-equal
-       '(Struct:Function
-         :name test
-         :qualified-name emacs-convention-test
-         :arguments nil
-         :return-type nil
-         :documentation nil
-         :body nil)))
-
+    
     (it "documentation, but no body"
       (expect
        (Struct:Function:read 'Test
@@ -160,39 +147,45 @@
       (expect
        (Struct:Function:read 'Test
          '(fn test (&rest a &optional b)))
+       :to-throw))
+
+    (it "declare used"
+      (expect
+       (Struct:Function:read 'Test
+         '(fn test () (declare (debug t))))
        :to-throw)))
 
-  (describe "lambda-arguments"
+  (describe "emit-arguments"
     (it "regular arguments"
-      (expect (Struct:Function:lambda-arguments
+      (expect (Struct:Function:emit-arguments
                (Struct:Function:read 'Test
                  '(fn test (a b c))))
               :to-equal
               '(a b c)))
 
     (it "optional arguments"
-      (expect (Struct:Function:lambda-arguments
+      (expect (Struct:Function:emit-arguments
                (Struct:Function:read 'Test
                  '(fn test (&optional a b c))))
               :to-equal
               '(&optional a b c)))
 
     (it "rest argument"
-      (expect (Struct:Function:lambda-arguments
+      (expect (Struct:Function:emit-arguments
                (Struct:Function:read 'Test
                  '(fn test (&rest a))))
               :to-equal
               '(&rest a)))
 
     (it "struct argument"
-      (expect (Struct:Function:lambda-arguments
+      (expect (Struct:Function:emit-arguments
                (Struct:Function:read 'Test
                  '(fn test (&struct a))))
               :to-equal
               '(&rest a)))
 
     (it "mixed arguments"
-      (expect (Struct:Function:lambda-arguments
+      (expect (Struct:Function:emit-arguments
                (Struct:Function:read 'Test
                  '(fn test (a &optional b &rest c))))
               :to-equal

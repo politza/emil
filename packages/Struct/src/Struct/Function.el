@@ -2,6 +2,7 @@
 
 (require 'Struct)
 (require 'Struct/Argument)
+(require 'eieio-core)
 
 (defconst Struct:Function:arrow-symbol '->)
 
@@ -33,13 +34,12 @@ namespace."
    "A list of forms defining this function."
    :type list))
 
-(defun Struct:Function:read (namespace form &optional namespace-separator)
+(defun Struct:Function:read (namespace form)
   (declare (indent 1))
   (cl-check-type form cons)
   (cl-check-type namespace symbol)
-  (unless namespace-separator
-    (setq namespace-separator Struct:Function:namespace-separator))
-  (-let (((fn name arguments documentation . body) form))
+  (-let (((fn name arguments documentation . body) form)
+         (separator Struct:Function:namespace-separator))
     (unless (eq fn Struct:Function:fn-symbol)
       (error "Function declaration should start with %s: %s"
              Struct:Function:fn-symbol
@@ -51,15 +51,17 @@ namespace."
                      (<= (length form) 3)))
       (push documentation body)
       (setq documentation nil))
+    (when (eq 'declare (car-safe (car body)))
+      (error "Declare form not supported: %s" (caar body)))
 
     (-let* (((arguments . return-type)
-             (Struct:Function:-read-argument-list arguments))
+             (Struct:Function:read-arguments arguments))
             (qualified-name
-             (intern (format "%s%s%s" namespace namespace-separator name))))
+             (intern (format "%s%s%s" namespace separator name))))
       (Struct:Function* name qualified-name arguments
                         return-type documentation body))))
 
-(defun Struct:Function:-read-argument-list (form)
+(defun Struct:Function:read-arguments (form)
   "Reads a complete argument-list from FORM.
 
 Returns a cons of (ARGUMENTS . RETURN_TYPE)."
@@ -94,17 +96,60 @@ Returns a cons of (ARGUMENTS . RETURN_TYPE)."
            (push (Struct:Argument:read argument kind) arguments)))))
     (cons (nreverse arguments) return-type)))
 
-(defun Struct:Function:lambda-arguments (self)
+(defun Struct:Function:emit-lambda (self &optional transformer)
+  `(lambda ,(Struct:Function:emit-arguments self)
+     ,@(when-let (documentation (Struct:get self :documentation))
+         (list documentation))
+     ,@(Struct:Function:emit-body self transformer)))
+
+(defun Struct:Function:emit-arguments (self)
   (let ((previous-kind nil)
         (result nil)
         (arguments (Struct:get self :arguments)))
     (while arguments
-      (-let (((&plist :name :kind)
-              (Struct:properties (pop arguments))))
+      (-let ((kind (Struct:get self :kind)))
         (when (and kind (not (eq kind previous-kind)))
           (push kind result)
           (setq previous-kind kind))
-        (push name result)))
+        (push (Struct:get self :name) result)))
     (nreverse result)))
+
+(defun Struct:Function:emit-body (self &optional transformer)
+  (let ((body (append (Struct:Function:emit-body-preamble self)
+                      (Struct:get self :body))))
+    (if transformer
+        (funcall transformer body)
+      body)))
+
+(defun Struct:Function:emit-body-preamble (self)
+  (let* ((arguments (Struct:get self :arguments))
+         (annotated (--filter (Struct:get it :type) arguments)))
+    (append (--map `(cl-check-type ,(Struct:get it :name)
+                                   ,(Struct:get it :type))
+                   (-filter #'Struct:Argument:regular? annotated))
+            (--map `(cl-check-type ,(Struct:get it :name)
+                                   (or null ,(Struct:get it :type)))
+                   (-filter #'Struct:Argument:optional? annotated))
+            (--map `(cl-check-type ,(Struct:get it :name)
+                                   (list-of ,(Struct:get it :type)))
+                   (-filter #'Struct:Argument:rest? annotated))
+            (--map `(or ,(Struct:get it :name)
+                        (setq ,(Struct:get it :name)
+                              ,(Struct:get it :default)))
+                   (-filter #'Struct:Argument:default? arguments))
+            (--map (prog1
+                       `(setq ,(Struct:get it :name)
+                          (Struct:Function:-struct-argument-handler
+                           ',(Struct:get it :type)
+                           ,(Struct:get it :name)))
+                     (Struct:Type:get (Struct:get it :name) :ensure))
+                   (-filter #'Struct:Argument:struct? arguments)))))
+
+(defun Struct:Function:-struct-argument-handler (type rest)
+  (if (and (consp rest)
+           (= 1 (length rest))
+           (eq type (car-safe (car rest))))
+      (car rest)
+    (apply type rest)))
 
 (provide 'Struct/Function)
