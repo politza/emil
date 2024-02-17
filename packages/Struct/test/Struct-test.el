@@ -36,7 +36,7 @@
         (expect (length (Struct:get type :properties)) :to-equal 3)
         (expect (Struct:Type? type) :to-equal t)
 
-        (let ((optional (nth 0 (Struct:get type :properties))))
+        (let ((optional (cdr (nth 0 (Struct:get type :properties)))))
           (expect (Struct:get optional :name)
                   :to-equal 'optional)
           (expect (Struct:get optional :default-value)
@@ -47,7 +47,7 @@
                   :to-equal t)
           (expect (Struct:Property? optional) :to-equal t))
 
-        (let ((required (nth 1 (Struct:get type :properties))))
+        (let ((required (cdr (nth 1 (Struct:get type :properties)))))
           (expect (Struct:get required :name)
                   :to-equal 'required)
           (expect (Struct:get required :default-value)
@@ -60,7 +60,7 @@
                   :to-equal t)
           (expect (Struct:Property? required) :to-equal t))
 
-        (let ((read-only (nth 2 (Struct:get type :properties))))
+        (let ((read-only (cdr (nth 2 (Struct:get type :properties)))))
           (expect (Struct:get read-only :name)
                   :to-equal 'read-only)
           (expect (Struct:get read-only :default-value)
@@ -251,8 +251,8 @@
     (expect (Struct:define TestStruct
               (:name property :documentation "Property documentation."))
             :to-be 'TestStruct)
-    (let ((property (nth 0 (Struct:get (Struct:Type:get 'TestStruct :ensure)
-                                       :properties))))
+    (let ((property (cdr (nth 0 (Struct:get (Struct:Type:get 'TestStruct :ensure)
+                                            :properties)))))
       (expect (Struct:get property :name)
               :to-be 'property)
       (expect (Struct:get property :default-value)

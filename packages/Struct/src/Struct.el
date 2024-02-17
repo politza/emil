@@ -73,7 +73,7 @@ as splice-syntax.
            (append struct-declarations
                    (list :name name :documentation documentation
                          :properties
-                         (-map #'Struct:-construct-property
+                         (-map #'Struct:-construct-property-entry
                                property-declarations))))
           (type (apply #'Struct:Type struct-properties))
           (macro-name (intern (concat (symbol-name name) "*")))
@@ -109,10 +109,11 @@ as splice-syntax.
 
        ',name)))
 
-(defun Struct:-construct-property (declaration)
+(defun Struct:-construct-property-entry (declaration)
   (cond
    ((symbolp declaration)
-    (Struct:Property :name declaration))
+    (cons (Commons:symbol-to-keyword declaration)
+          (Struct:Property :name declaration)))
    ((consp declaration)
     (-let* ((((positional &as name documentation)
               properties)
@@ -123,8 +124,9 @@ as splice-syntax.
                (1 (list :name name))
                (2 (list :name name :documentation documentation))
                (t (error "Invalid property declaration: %s" declaration)))))
-      (apply #'Struct:Property (append positional-properties
-                                       properties))))
+      (cons (Commons:symbol-to-keyword name)
+            (apply #'Struct:Property (append positional-properties
+                                             properties)))))
    (t
     (error "Invalid property declaration: %s" declaration))))
 

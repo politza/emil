@@ -7,88 +7,6 @@
 (defconst Struct:Type:definition-symbol 'Struct:Type:definition-symbol
   "Symbol used to attach struct type-information to other symbols.")
 
-(define-symbol-prop 'Struct:Property Struct:Type:definition-symbol
-  `(Struct:MetaType
-    :name Struct:Property
-    :properties
-    ((Struct:Property
-      :name name
-      :keyword :name
-      :default-value nil
-      :documentation "The name of this propertỵ."
-      :mutable nil
-      :type symbol)
-     (Struct:Property
-      :name keyword
-      :keyword :keyword
-      :default-value (Commons:symbol-to-keyword name)
-      :documentation "The name of this propertỵ as a keyword."
-      :mutable nil
-      :type keyword)
-     (Struct:Property
-      :name default-value
-      :keyword :default-value
-      :default-value nil
-      :documentation "The default value of this propertỵ."
-      :mutable nil
-      :type nil)
-     (Struct:Property
-      :name documentation
-      :keyword :documentation
-      :default-value nil
-      :documentation "The documentation of this propertỵ."
-      :mutable nil
-      :type (or null string))
-     (Struct:Property
-      :name mutable
-      :keyword :mutable
-      :default-value nil
-      :documentation "Whether this property is mutable after its construction.
- Defaults to `nil'."
-      :mutable nil
-      :type boolean)
-     (Struct:Property
-      :name type
-      :keyword :type
-      :default-value nil
-      :documentation "The type of this property."
-      :mutable nil
-      :type nil))))
-
-(define-symbol-prop 'Struct:Type Struct:Type:definition-symbol
-  '(Struct:MetaType
-    :name Struct:Type
-    :properties
-    ((Struct:Property
-      :name name
-      :keyword :name
-      :default-value nil
-      :documentation "The name of this struct-type."
-      :mutable nil
-      :type symbol)
-     (Struct:Property
-      :name documentation
-      :keyword :documentation
-      :default-value nil
-      :documentation "The documentation of this struct-type."
-      :mutable nil
-      :type (or null string))
-     (Struct:Property
-      :name properties
-      :keyword :properties
-      :default-value nil
-      :documentation "The properties of this struct-type."
-      :mutable nil
-      :type list)
-     (Struct:Property
-      :name mutable
-      :keyword :mutable
-      :default-value t
-      :documentation "Whether this type is mutable after its construction.
-Defaults to `t'."
-      :mutable nil
-      :type boolean))))
-
 (defsubst Struct:unsafe-get (struct property &optional default)
   "Returns STRUCT's current value of PROPERTY.
 
@@ -105,6 +23,81 @@ Returns DEFAULT if value is nil."
 (defsubst Struct:unsafe-properties (struct)
   "Returns STRUCT's properties."
   (cdr struct))
+
+(define-symbol-prop 'Struct:Property Struct:Type:definition-symbol
+  `(Struct:MetaType
+    :name Struct:Property
+    :properties
+    ,(--map
+      (cons (Commons:symbol-to-keyword (Struct:unsafe-get it :name)) it)
+      '((Struct:Property
+         :name name
+         :default-value nil
+         :documentation "The name of this propertỵ."
+         :mutable nil
+         :type symbol)
+        (Struct:Property
+         :name default-value
+         :default-value nil
+         :documentation "The default value of this propertỵ."
+         :mutable nil
+         :type nil)
+        (Struct:Property
+         :name documentation
+         :default-value nil
+         :documentation "The documentation of this propertỵ."
+         :mutable nil
+         :type (or null string))
+        (Struct:Property
+         :name mutable
+         :default-value nil
+         :documentation "Whether this property is mutable after its construction.
+
+Defaults to `nil'."
+         :mutable nil
+         :type boolean)
+        (Struct:Property
+         :name type
+         :default-value nil
+         :documentation "The type of this property."
+         :mutable nil
+         :type nil)))))
+
+(define-symbol-prop 'Struct:Type Struct:Type:definition-symbol
+  `(Struct:MetaType
+    :name Struct:Type
+    :properties
+    ,(--map
+      (cons (Commons:symbol-to-keyword (Struct:unsafe-get it :name)) it)
+      '((Struct:Property
+         :name name
+         :default-value nil
+         :documentation "The name of this struct-type."
+         :mutable nil
+         :type symbol)
+        (Struct:Property
+         :name documentation
+         :default-value nil
+         :documentation "The documentation of this struct-type."
+         :mutable nil
+         :type (or null string))
+        (Struct:Property
+         :name properties
+         :default-value nil
+         :documentation "The properties of this struct-type.
+
+This is an association-list mapping the keyword-names to their
+corresponding property."
+         :mutable nil
+         :type list)
+        (Struct:Property
+         :name mutable
+         :default-value t
+         :documentation "Whether this type is mutable after its
+construction.
+Defaults to `t'."
+         :mutable nil
+         :type boolean)))))
 
 (defun Struct:Type (&rest property-list)
   "Constructs a new struct-type."
@@ -141,11 +134,6 @@ non-nil, in which case a `wrong-type-argument' is signaled."
       (and ensure
            (signal 'wrong-type-argument (list 'Struct:Name name)))))
 
-(defun Struct:Type:property-names (properties)
-  (--map (Commons:symbol-to-keyword it)
-         (--map (Struct:unsafe-get it :name)
-                properties)))
-
 (defun Struct:Property (&rest property-list)
   "Creates a new struct-property."
   (Struct:construct 'Struct:Property property-list))
@@ -157,14 +145,11 @@ non-nil, in which case a `wrong-type-argument' is signaled."
 (cl-deftype Struct:Property ()
   `(satisfies Struct:Property?))
 
-(defun Struct:Property:find (struct property)
+(defun Struct:Type:get-property (struct property)
   "Returns the `Struct:Property' of STRUCT for PROPERTY.
 
-PROPERTY should have the keyword form.
-
 Returns nil, if PROPERTY does not name a property of struct."
-  (--find (eq property (Struct:unsafe-get it :keyword))
-          (Struct:unsafe-get struct :properties)))
+  (cdr (assq property (Struct:unsafe-get struct :properties))))
 
 (defun Struct:Property:check-type (struct value)
   (when-let ((type (Struct:unsafe-get struct :type)))
@@ -179,12 +164,6 @@ Returns nil, if PROPERTY does not name a property of struct."
                     (Struct:-initial-properties type)
                     (Struct:-construct-properties type)))))
 
-(defun Struct:-empty-properties (type)
-  (--splice (prog1 t (ignore it))
-            (list it nil)
-            (Struct:Type:property-names
-             (Struct:unsafe-get type :properties))))
-
 (defun Struct:-initial-properties (type provided-properties)
   (let* ((initial-properties (Struct:-empty-properties type))
          (property-count (/ (length initial-properties) 2)))
@@ -197,12 +176,19 @@ Returns nil, if PROPERTY does not name a property of struct."
              (nthcdr (* 2 property-count) initial-properties)))
     initial-properties))
 
+(defun Struct:-empty-properties (type)
+  (--splice (prog1 t (ignore it))
+            (list it nil)
+            (-map #'car
+                  (Struct:unsafe-get type :properties))))
+
 (defun Struct:-construct-properties (type properties)
-  (let ((declared-properties (Struct:unsafe-get type :properties))
+  (let ((declared-properties
+         (Struct:unsafe-get type :properties))
         (environment nil)
         (properties-head properties))
     (while declared-properties
-      (let ((property (pop declared-properties))
+      (let ((property (cdr (pop declared-properties)))
             (value (nth 1 properties-head)))
         (unless value
           (when-let (default-value (Struct:unsafe-get property :default-value))
@@ -220,7 +206,7 @@ Returns nil, if PROPERTY does not name a property of struct."
 Throws an error if PROPERTY is not a member of STRUCT.
 
 Returns DEFAULT, if value is `nil'."
-  (unless (Struct:Property:find
+  (unless (Struct:Type:get-property
            (Struct:Type:get (car struct) :ensure)
            property)
     (error "Property is not a member of struct: %s" property))
@@ -235,7 +221,7 @@ Throws an error if
 - PROPERTY is not mutable, or
 - PROPERTY has an associated type and VALUE does not match it."
   (let* ((struct-type (Struct:Type:get (car struct) :ensure))
-         (property-type (Struct:Property:find struct-type property)))
+         (property-type (Struct:Type:get-property struct-type property)))
     (unless property-type
       (error "Property is not a member of struct: %s" property))
     (unless (and (Struct:unsafe-get struct-type :mutable)
