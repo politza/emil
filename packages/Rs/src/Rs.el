@@ -22,10 +22,10 @@
 
 ;; See https://github.com/reactive-streams/reactive-streams-jvm/blob/v1.0.4/README.md#specification
 (Trait:define Rs:Subscriber ()
-  (defmethod Rs:Subscriber:on-subscribe (self (subscription (Trait Rs:Subscription))))
-  (defmethod Rs:Subscriber:on-next (self value))
-  (defmethod Rs:Subscriber:on-error (self (error error)))
-  (defmethod Rs:Subscriber:on-complete (self)))
+  (fn Rs:Subscriber:on-subscribe (self (subscription (Trait Rs:Subscription))))
+  (fn Rs:Subscriber:on-next (self value))
+  (fn Rs:Subscriber:on-error (self (error error)))
+  (fn Rs:Subscriber:on-complete (self)))
 
 (Struct:define Rs:PartialSubscriber
   "A subscriber which is only interested in some events."
@@ -42,7 +42,7 @@
     (Rs:Subscription:cancel subscription)))
 
 (Trait:implement Rs:Subscriber Rs:PartialSubscriber
-  (defmethod Rs:Subscriber:on-subscribe (self (subscription (Trait Rs:Subscription)))
+  (fn Rs:Subscriber:on-subscribe (self (subscription (Trait Rs:Subscription)))
     (if (Struct:get self :cancelled)
         (Rs:Subscription:cancel subscription)
       (Struct:set self :subscription subscription)
@@ -50,32 +50,32 @@
           (funcall on-subscribe subscription)
         (Rs:Subscription:request subscription most-positive-fixnum))))
 
-  (defmethod Rs:Subscriber:on-next (self value)
+  (fn Rs:Subscriber:on-next (self value)
     (unless (Struct:get self :cancelled)
       (when-let (on-next (Struct:get self :on-next))
         (funcall on-next value))))
 
-  (defmethod Rs:Subscriber:on-error (self (error error))
+  (fn Rs:Subscriber:on-error (self (error error))
     (unless (Struct:get self :cancelled)
       (if-let (on-error (Struct:get self :on-error))
           (funcall on-error error)
         (signal (car error) (cdr error)))))
 
-  (defmethod Rs:Subscriber:on-complete (self)
+  (fn Rs:Subscriber:on-complete (self)
     (unless (Struct:get self :cancelled)
       (when-let (on-complete (Struct:get self :on-complete))
         (funcall on-complete)))))
 
 (Trait:define Rs:Publisher ()
-  (defmethod Rs:Publisher:subscribe (self (subscriber (Trait Rs:Subscriber))))
+  (fn Rs:Publisher:subscribe (self (subscriber (Trait Rs:Subscriber))))
 
-  (defmethod Rs:Publisher:subscribe* (self &struct (subscriber Rs:PartialSubscriber))
+  (fn Rs:Publisher:subscribe* (self &struct (subscriber Rs:PartialSubscriber))
     (Rs:Publisher:subscribe self subscriber)
     subscriber))
 
 (Trait:define Rs:Subscription ()
-  (defmethod Rs:Subscription:request (self (count (integer 0 *))))
-  (defmethod Rs:Subscription:cancel (self)))
+  (fn Rs:Subscription:request (self (count (integer 0 *))))
+  (fn Rs:Subscription:cancel (self)))
 
 (Trait:define Rs:Processor (Rs:Publisher Rs:Subscriber))
 

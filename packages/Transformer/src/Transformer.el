@@ -12,7 +12,7 @@
 (require 'dash)
 
 (Trait:define Form ()
-  (defmethod Form:value (self) self))
+  (fn Form:value (self) self))
 
 (Trait:implement Form number)
 (Trait:implement Form string)
@@ -40,7 +40,7 @@
         bindings))
 
 (Trait:define Transformer ()
-  (defmethod Transformer:transform-form (self form &optional data)
+  (fn Transformer:transform-form (self form &optional data)
     (cond
      ((numberp (Form:value form))
       (Transformer:transform-number self form data))
@@ -54,23 +54,23 @@
       (Transformer:transform-cons self form data))
      (t (error "Internal error: form is none of the above: %s" form))))
   
-  (defmethod Transformer:transform-number (self number &optional data)
+  (fn Transformer:transform-number (self number &optional data)
     (ignore self data)
     (Form:value number))
   
-  (defmethod Transformer:transform-string (self string &optional data)
+  (fn Transformer:transform-string (self string &optional data)
     (ignore self data)
     (Form:value string))
   
-  (defmethod Transformer:transform-vector (self vector &optional data)
+  (fn Transformer:transform-vector (self vector &optional data)
     (ignore self data)
     (Form:value vector))
   
-  (defmethod Transformer:transform-symbol (self symbol &optional data)
+  (fn Transformer:transform-symbol (self symbol &optional data)
     (ignore self data)
     (Form:value symbol))
   
-  (defmethod Transformer:transform-cons (self cons &optional data)
+  (fn Transformer:transform-cons (self cons &optional data)
     (let* ((elements (Form:value cons))
            (head (car elements))
            (rest (cdr elements)))
@@ -184,24 +184,24 @@
            (Transformer:transform-while self (car rest) (cdr rest) data)))
         (_ (Transformer:transform-application self head rest data)))))  
   
-  (defmethod Transformer:transform-and (self conditions &optional data)
+  (fn Transformer:transform-and (self conditions &optional data)
     `(and ,@(Transformer:map-transform self conditions data)))
   
-  (defmethod Transformer:transform-catch (self tag body &optional data)
+  (fn Transformer:transform-catch (self tag body &optional data)
     `(catch ,(Transformer:transform-form self tag data)
        ,@(Transformer:map-transform self body data)))
   
-  (defmethod Transformer:transform-cond (self clauses &optional data)
+  (fn Transformer:transform-cond (self clauses &optional data)
     `(cond ,@(Transformer:map-transform self clauses data)))
   
-  (defmethod Transformer:transform-defconst (self symbol init-value &optional
+  (fn Transformer:transform-defconst (self symbol init-value &optional
                                                   doc-string data)
     `(defconst ,(Transformer:transform-form self symbol data)
        ,(Transformer:transform-form self init-value data)
        ,@(and (Form:value doc-string)
               (list (Transformer:transform-form self doc-string data)))))
   
-  (defmethod Transformer:transform-defvar (self symbol &optional init-value
+  (fn Transformer:transform-defvar (self symbol &optional init-value
                                                 doc-string data)
     `(defvar ,(Transformer:transform-form self symbol data)
        ,@(and (Form:value init-value)
@@ -209,18 +209,18 @@
        ,@(and (Form:value doc-string)
               (list (Transformer:transform-form self doc-string data)))))
   
-  (defmethod Transformer:transform-function (self argument &optional data)
+  (fn Transformer:transform-function (self argument &optional data)
     `(function ,(Transformer:transform-form self argument data)))
   
-  (defmethod Transformer:transform-if (self condition then else &optional data)
+  (fn Transformer:transform-if (self condition then else &optional data)
     `(if ,(Transformer:transform-form self condition data)
          ,(Transformer:transform-form self then data)
        ,@(Transformer:map-transform self else data)))
   
-  (defmethod Transformer:transform-interactive (self descriptor modes &optional data)
+  (fn Transformer:transform-interactive (self descriptor modes &optional data)
     `(interactive ,@(Transformer:map-transform self (cons descriptor modes) data)))
   
-  (defmethod Transformer:transform-lambda (self arguments documentation
+  (fn Transformer:transform-lambda (self arguments documentation
                                                 interactive body &optional data)
     `(lambda ,(Transformer:map-transform self arguments data)
        ,@(and (Form:value documentation)
@@ -229,57 +229,57 @@
               (Transformer:transform-form self interactive data))
        ,@(Transformer:map-transform self body data)))
   
-  (defmethod Transformer:transform-let (self bindings body &optional data)
+  (fn Transformer:transform-let (self bindings body &optional data)
     `(let ,(Transformer:transform-let-bindings self bindings data)
        ,@(Transformer:map-transform self body data)))
   
-  (defmethod Transformer:transform-let* (self bindings body &optional data)
+  (fn Transformer:transform-let* (self bindings body &optional data)
     `(let* ,(Transformer:transform-let-bindings self bindings data)
        ,@(Transformer:map-transform self body data)))
   
-  (defmethod Transformer:transform-or (self conditions &optional data)
+  (fn Transformer:transform-or (self conditions &optional data)
     `(or ,@(Transformer:map-transform self conditions data)))
   
-  (defmethod Transformer:transform-prog1 (self first body &optional data)
+  (fn Transformer:transform-prog1 (self first body &optional data)
     `(prog1 ,(Transformer:transform-form self first data)
        ,@(Transformer:map-transform self body data)))
   
-  (defmethod Transformer:transform-prog2 (self first second body &optional data)
+  (fn Transformer:transform-prog2 (self first second body &optional data)
     `(prog2 ,(Transformer:transform-form self first data)
          ,(Transformer:transform-form self second data)
        ,@(Transformer:map-transform self body data)))
   
-  (defmethod Transformer:transform-progn (self body &optional data)
+  (fn Transformer:transform-progn (self body &optional data)
     `(progn ,@(Transformer:map-transform self body data)))
   
-  (defmethod Transformer:transform-quote (self argument &optional data)
+  (fn Transformer:transform-quote (self argument &optional data)
     (ignore self data)
     `(quote ,(Form:value argument)))
   
-  (defmethod Transformer:transform-save-current-buffer (self body &optional data)
+  (fn Transformer:transform-save-current-buffer (self body &optional data)
     `(save-current-buffer ,@(Transformer:map-transform self body data)))
   
-  (defmethod Transformer:transform-save-excursion (self body &optional data)
+  (fn Transformer:transform-save-excursion (self body &optional data)
     `(save-excursion ,@(Transformer:map-transform self body data)))
   
-  (defmethod Transformer:transform-save-restriction (self body &optional data)
+  (fn Transformer:transform-save-restriction (self body &optional data)
     `(save-restriction ,@(Transformer:map-transform self body data)))
   
-  (defmethod Transformer:transform-setq (self definitions &optional data)
+  (fn Transformer:transform-setq (self definitions &optional data)
     `(setq ,@(Transformer:map-transform self definitions data)))
   
-  (defmethod Transformer:transform-setq-default (self definitions &optional data)
+  (fn Transformer:transform-setq-default (self definitions &optional data)
     `(setq-default ,@(Transformer:map-transform self definitions data)))
   
-  (defmethod Transformer:transform-unwind-protect (self form forms &optional data)
+  (fn Transformer:transform-unwind-protect (self form forms &optional data)
     `(unwind-protect ,(Transformer:transform-form self form data)
        ,@(Transformer:map-transform self forms data)))
   
-  (defmethod Transformer:transform-while (self condition body &optional data)
+  (fn Transformer:transform-while (self condition body &optional data)
     `(while ,(Transformer:transform-form self condition data)
        ,@(Transformer:map-transform self body data)))
   
-  (defmethod Transformer:transform-application (self function arguments &optional data)
+  (fn Transformer:transform-application (self function arguments &optional data)
     (if (macrop (Form:value function))
         (Transformer:transform-form
          self

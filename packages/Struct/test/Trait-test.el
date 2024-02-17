@@ -21,10 +21,10 @@
       (Trait:define TestTrait ()
         "TestTrait documentation."
 
-        (defmethod TestTrait:required (self argument)
+        (fn TestTrait:required (self argument)
           "TestTrait:required documentation.")
 
-        (defmethod TestTrait:optional(self argument)
+        (fn TestTrait:optional(self argument)
           "TestTrait:optional documentation."
           (1+ argument)))
 
@@ -82,7 +82,7 @@
     (describe "with an implementation"
       (before-each
         (Trait:implement TestTrait TestStruct
-          (defmethod TestTrait:required (self argument)
+          (fn TestTrait:required (self argument)
             (+ (Struct:get self :property) argument))))
 
       (it "can invoke a default method"
@@ -128,27 +128,27 @@
                 :to-throw 'error
                 '("Method definition should be a non-empty list: foo"))
         (expect (macroexpand-all '(Trait:define TestTrait nil
-                                    (cl-defmethod foo (self))))
+                                    (cl-fn foo (self))))
                 :to-throw 'error
-                '("Method declaration should start with defmethod: cl-defmethod"))
+                '("Method declaration should start with fn: cl-fn"))
         (expect (macroexpand-all '(Trait:define TestTrait nil
-                                    (defmethod 42)))
+                                    (fn 42)))
                 :to-throw 'error
                 '("Method name should be a symbol: 42"))
         (expect (macroexpand-all '(Trait:define TestTrait nil
-                                    (defmethod foo [])))
-                :to-throw 'wrong-type-argument
-                '(listp []))
-        (expect (macroexpand-all '(Trait:define TestTrait nil
-                                    (defmethod foo nil)))
+                                    (fn foo [])))
                 :to-throw 'error
                 '("Trait method must accept at least one argument: foo"))
         (expect (macroexpand-all '(Trait:define TestTrait nil
-                                    (defmethod foo (self) (declare (indent 1)))))
+                                    (fn foo nil)))
+                :to-throw 'error
+                '("Trait method must accept at least one argument: foo"))
+        (expect (macroexpand-all '(Trait:define TestTrait nil
+                                    (fn foo (self) (declare (indent 1)))))
                 :to-throw 'error
                 '("Declare not supported for methods"))
         (expect (macroexpand-all '(Trait:define TestTrait nil
-                                    (defmethod foo ((self TestTrait)))))
+                                    (fn foo ((self TestTrait)))))
                 :to-throw 'error
                 '("First argument can not be typed: (self TestTrait)"))))
 
@@ -176,25 +176,25 @@
                 :to-throw 'error
                 '("Expected a non-empty list: 42"))
         (expect (macroexpand-all '(Trait:implement TestTrait TestStruct
-                                    (cl-defmethod foo ())))
+                                    (cl-fn foo ())))
                 :to-throw 'error
-                '("Method implementation should start with defmethod: cl-defmethod"))
+                '("Method implementation should start with fn: cl-fn"))
         (expect (macroexpand-all '(Trait:implement TestTrait TestStruct
-                                    (defmethod 42)))
+                                    (fn 42)))
                 :to-throw 'error
                 '("Method name should be a symbol: 42"))
         (expect (macroexpand-all '(Trait:implement TestTrait TestStruct
-                                    (defmethod foo [])))
+                                    (fn foo [])))
                 :to-throw 'error
                 '("Invalid method argument-list declaration: []"))
         (expect (macroexpand-all '(Trait:implement TestTrait TestStruct
-                                    (defmethod foo () (declare (indent 1)))))
+                                    (fn foo () (declare (indent 1)))))
                 :to-throw 'error
                 '("Declare not supported for methods"))))
 
     (describe "recognizes runtime-errors"
       (before-each (Trait:define TestTrait ()
-                     (defmethod TestTrait:required (self &optional argument))))
+                     (fn TestTrait:required (self &optional argument))))
 
       (it "rejects if required methods are not implemented"
         (expect (Trait:implement TestTrait TestStruct)
@@ -203,21 +203,21 @@
 
       (it "rejects if non-trait methods are provided"
         (expect (Trait:implement TestTrait TestStruct
-                  (defmethod TestTrait:required (self &optional argument))
-                  (defmethod TestTrait:no-such-method (self)))
+                  (fn TestTrait:required (self &optional argument))
+                  (fn TestTrait:no-such-method (self)))
                 :to-throw 'error
                 '("Method not declared by this trait: TestTrait:no-such-method")))
 
       (it "rejects if method signatures are incompatible"
         (expect (Trait:implement TestTrait TestStruct
-                  (defmethod TestTrait:required (self argument)))
+                  (fn TestTrait:required (self argument)))
                 :to-throw 'error
                 '("Signature incompatible with method declared by trait: TestTrait:required, (self &optional argument), (self argument)")))))
 
   (describe "with a supertrait"
     (before-each
       (Trait:define SuperTrait ()
-        (defmethod SuperTrait:optional (self argument)
+        (fn SuperTrait:optional (self argument)
           (1+ argument)))
 
       (Trait:define TestTrait (SuperTrait))
@@ -236,17 +236,17 @@
   (describe "with Struct:lambda features"
     (before-each
       (Trait:define TestTrait ()
-        (defmethod TestTrait:with-number (self (arg number)))
-        (defmethod TestTrait:with-struct (self (arg TestStruct)))
-        (defmethod TestTrait:with-rest-struct (self &struct (arg TestStruct))))
+        (fn TestTrait:with-number (self (arg number)))
+        (fn TestTrait:with-struct (self (arg TestStruct)))
+        (fn TestTrait:with-rest-struct (self &struct (arg TestStruct))))
 
       (Trait:implement TestTrait TestStruct
-        (defmethod TestTrait:with-number (self (arg number))
+        (fn TestTrait:with-number (self (arg number))
           (+ (Struct:get self :property 0) arg))
-        (defmethod TestTrait:with-struct (self (arg TestStruct))
+        (fn TestTrait:with-struct (self (arg TestStruct))
           (+ (Struct:get self :property 0)
              (Struct:get arg :property 0)))
-        (defmethod TestTrait:with-rest-struct (self &struct (arg TestStruct))
+        (fn TestTrait:with-rest-struct (self &struct (arg TestStruct))
           (+ (Struct:get self :property 0)
              (Struct:get arg :property 0)))))
 

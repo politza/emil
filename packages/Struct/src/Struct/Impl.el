@@ -7,7 +7,7 @@
   (declare (indent 1))
   (Struct:Function:emit-lambda
    (Struct:Function:read 
-     `(defmethod ,arguments ,@body))))
+     `(fn ,arguments ,@body))))
 
 (defmacro Struct:defun (name arguments
                              &optional documentation 
@@ -15,6 +15,6 @@
   "Defines a function NAME with some struct related features."
   (Struct:Function:emit-definition
    (Struct:Function:read 
-     `(defmethod ,name ,arguments ,documentation ,@body))))
+     `(fn ,name ,arguments ,documentation ,@body))))
 
 (provide 'Struct/Impl)

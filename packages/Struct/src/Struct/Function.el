@@ -6,9 +6,12 @@
 
 (defconst Struct:Function:arrow-symbol '->)
 
-(defconst Struct:Function:fn-symbol 'defmethod)
+(defconst Struct:Function:fn-symbol 'fn)
 
 (defconst Struct:Function:namespace-separator ':)
+
+(defmacro fn (&rest args)
+  (declare (indent defun) (doc-string 3)))
 
 (Struct:define Struct:Function
   "Defines a declared function."
