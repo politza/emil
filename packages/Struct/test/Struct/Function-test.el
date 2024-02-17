@@ -4,13 +4,17 @@
 (require 'Struct/Function)
 
 (describe "Function"
+  (before-each (setq Struct:Function:fn-symbol 'fn))
+  (after-each (setq Struct:Function:fn-symbol 'defmethod))
+  
   (describe "read"
     (it "basic"
       (expect
-       (Struct:Function:read 'Test
-         '(fn add ((a number) &optional (b number 0) -> number)
+       (Struct:Function:read
+           '(fn add ((a number) &optional (b number 0) -> number)
               "Returns A plus B."
-              (+ a b)))
+              (+ a b))
+         'Test)
        :to-equal
        '(Struct:Function
          :name add
@@ -32,8 +36,9 @@
     
     (it "documentation, but no body"
       (expect
-       (Struct:Function:read 'Test
-         '(fn test () "documentation"))
+       (Struct:Function:read
+           '(fn test () "documentation")
+         'Test)
        :to-equal
        '(Struct:Function
          :name test
@@ -45,8 +50,9 @@
 
     (it "documentation and nil body"
       (expect
-       (Struct:Function:read 'Test
-         '(fn test () "documentation" nil))
+       (Struct:Function:read
+           '(fn test () "documentation" nil)
+         'Test)
        :to-equal
        '(Struct:Function
          :name test
@@ -58,8 +64,9 @@
 
     (it "no documentation and no body"
       (expect
-       (Struct:Function:read 'Test
-         '(fn test ()))
+       (Struct:Function:read
+           '(fn test ())
+         'Test)
        :to-equal
        '(Struct:Function
          :name test
@@ -71,8 +78,9 @@
 
     (it "no documentation and nil body"
       (expect
-       (Struct:Function:read 'Test
-         '(fn test () nil))
+       (Struct:Function:read
+           '(fn test () nil)
+         'Test)
        :to-equal
        '(Struct:Function
          :name test
@@ -84,8 +92,9 @@
 
     (it "no documentation and double-nil body"
       (expect
-       (Struct:Function:read 'Test
-         '(fn test () nil nil))
+       (Struct:Function:read
+           '(fn test () nil nil)
+         'Test)
        :to-equal
        '(Struct:Function
          :name test
@@ -97,96 +106,111 @@
 
     (it "invalid keyword"
       (expect
-       (Struct:Function:read 'Test
-         '(defun test ()))
+       (Struct:Function:read
+           '(defun test ())
+         'Test)
        :to-throw))
 
     (it "invalid name"
       (expect
-       (Struct:Function:read 'Test
-         '(fn (test) ()))
+       (Struct:Function:read
+           '(fn (test) ())
+         'Test)
        :to-throw))
 
     (it "invalid arguments"
       (expect
-       (Struct:Function:read 'Test
-         '(fn test []))
+       (Struct:Function:read
+           '(fn test [])
+         'Test)
        :to-throw))
 
     (it "-> used without argument"
       (expect
-       (Struct:Function:read 'Test
-         '(fn test (a ->)))
+       (Struct:Function:read
+           '(fn test (a ->))
+         'Test)
        :to-throw))
 
     (it "-> in wrong position"
       (expect
-       (Struct:Function:read 'Test
-         '(fn test (a -> b c)))
+       (Struct:Function:read
+           '(fn test (a -> b c))
+         'Test)
        :to-throw))
 
     (it "&struct and &rest used together"
       (expect
-       (Struct:Function:read 'Test
-         '(fn test (&struct a &rest b)))
+       (Struct:Function:read
+           '(fn test (&struct a &rest b))
+         'Test)
        :to-throw))
 
     (it "specifier used multiple times"
       (expect
-       (Struct:Function:read 'Test
-         '(fn test (&optional a &optional b)))
+       (Struct:Function:read
+           '(fn test (&optional a &optional b))
+         'Test)
        :to-throw))
 
     (it "specifier used without argument"
       (expect
-       (Struct:Function:read 'Test
-         '(fn test (a &optional)))
+       (Struct:Function:read
+           '(fn test (a &optional))
+         'Test)
        :to-throw))
 
     (it "&optional used after &rest"
       (expect
-       (Struct:Function:read 'Test
-         '(fn test (&rest a &optional b)))
+       (Struct:Function:read
+           '(fn test (&rest a &optional b))
+         'Test)
        :to-throw))
 
     (it "declare used"
       (expect
-       (Struct:Function:read 'Test
-         '(fn test () (declare (debug t))))
+       (Struct:Function:read
+           '(fn test () (declare (debug t)))
+         'Test)
        :to-throw)))
 
   (describe "emit-arguments"
     (it "regular arguments"
       (expect (Struct:Function:emit-arguments
-               (Struct:Function:read 'Test
-                 '(fn test (a b c))))
+               (Struct:Function:read
+                 '(fn test (a b c))
+                 'Test))
               :to-equal
               '(a b c)))
 
     (it "optional arguments"
       (expect (Struct:Function:emit-arguments
-               (Struct:Function:read 'Test
-                 '(fn test (&optional a b c))))
+               (Struct:Function:read
+                 '(fn test (&optional a b c))
+                 'Test))
               :to-equal
               '(&optional a b c)))
 
     (it "rest argument"
       (expect (Struct:Function:emit-arguments
-               (Struct:Function:read 'Test
-                 '(fn test (&rest a))))
+               (Struct:Function:read
+                 '(fn test (&rest a))
+                 'Test))
               :to-equal
               '(&rest a)))
 
     (it "struct argument"
       (expect (Struct:Function:emit-arguments
-               (Struct:Function:read 'Test
-                 '(fn test (&struct a))))
+               (Struct:Function:read
+                 '(fn test (&struct a))
+                 'Test))
               :to-equal
               '(&rest a)))
 
     (it "mixed arguments"
       (expect (Struct:Function:emit-arguments
-               (Struct:Function:read 'Test
-                 '(fn test (a &optional b &rest c))))
+               (Struct:Function:read
+                 '(fn test (a &optional b &rest c))
+                 'Test))
               :to-equal
               '(a &optional b &rest c)))))

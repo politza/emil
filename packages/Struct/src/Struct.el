@@ -12,7 +12,7 @@
 (require 'dash)
 (require 'Struct/Primitives)
 (require 'Struct/Doc)
-(require 'Struct/Impl)
+
 (require 'Struct/Syntax)
 
 (defconst Struct:syntax-highlight-symbol 'Struct:syntax-highlight-symbol

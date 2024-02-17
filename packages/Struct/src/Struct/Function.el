@@ -6,7 +6,7 @@
 
 (defconst Struct:Function:arrow-symbol '->)
 
-(defconst Struct:Function:fn-symbol 'fn)
+(defconst Struct:Function:fn-symbol 'defmethod)
 
 (defconst Struct:Function:namespace-separator ':)
 
@@ -34,8 +34,8 @@ namespace."
    "A list of forms defining this function."
    :type list))
 
-(defun Struct:Function:read (namespace form)
-  (declare (indent 1))
+(defun Struct:Function:read (form &optional namespace)
+  (declare (indent 0))
   (cl-check-type form cons)
   (cl-check-type namespace symbol)
   (-let (((fn name arguments documentation . body) form)
@@ -57,7 +57,9 @@ namespace."
     (-let* (((arguments . return-type)
              (Struct:Function:read-arguments arguments))
             (qualified-name
-             (intern (format "%s%s%s" namespace separator name))))
+             (if namespace
+                 (intern (format "%s%s%s" namespace separator name))
+               name)))
       (Struct:Function* name qualified-name arguments
                         return-type documentation body))))
 
@@ -84,7 +86,10 @@ Returns a cons of (ARGUMENTS . RETURN_TYPE)."
                         (not (memq (car form)
                                    '(&optional &rest &struct))))
              (error "Specifier is missing an argument: %s" argument))
-           (setq kind (if (eq argument '&struct) '&rest argument))
+           (when (and (memq argument '(&rest &struct))
+                      (cdr form))
+             (error "Extra argument after &rest or &struct: %s" form))
+           (setq kind argument)
            (push argument kinds))
           ((guard (eq argument Struct:Function:arrow-symbol))
            (unless form
@@ -95,6 +100,11 @@ Returns a cons of (ARGUMENTS . RETURN_TYPE)."
           (argument
            (push (Struct:Argument:read argument kind) arguments)))))
     (cons (nreverse arguments) return-type)))
+
+(defun Struct:Function:emit-definition (self &optional transformer)
+  `(defalias ',(Struct:get self :qualified-name)
+     ,(Struct:Function:emit-lambda self transformer)
+     ,(Struct:get self :documentation)))
 
 (defun Struct:Function:emit-lambda (self &optional transformer)
   `(lambda ,(Struct:Function:emit-arguments self)
@@ -110,7 +120,7 @@ Returns a cons of (ARGUMENTS . RETURN_TYPE)."
       (let ((argument (pop arguments)))
         (-let ((kind (Struct:get argument :kind)))
           (when (and kind (not (eq kind previous-kind)))
-            (push kind result)
+            (push (if (eq kind '&struct) '&rest kind) result)
             (setq previous-kind kind))
           (push (Struct:get argument :name) result))))
     (nreverse result)))
@@ -143,7 +153,8 @@ Returns a cons of (ARGUMENTS . RETURN_TYPE)."
                           (Struct:Function:-struct-argument-handler
                            ',(Struct:get it :type)
                            ,(Struct:get it :name)))
-                     (Struct:Type:get (Struct:get it :name) :ensure))
+                     ;; (Struct:Type:get (Struct:get it :type) :ensure)
+                     )
                    (-filter #'Struct:Argument:struct? arguments)))))
 
 (defun Struct:Function:-struct-argument-handler (type rest)

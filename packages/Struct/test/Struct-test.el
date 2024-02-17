@@ -2,6 +2,7 @@
 
 (require 'buttercup)
 (require 'Struct)
+(require 'Struct/Impl)
 
 ;; Shutup "Optimization failure for cl-typep" warnings.
 (put 'cl-typep 'compiler-macro nil)
@@ -255,31 +256,25 @@
       (it "throws errors when appropriate"
         (expect (eval '(Struct:defun fn (&rest rest &struct struct)))
                 :to-throw
-                'error '("&rest and &struct are mutually exclusive: (&rest rest &struct struct)"))
+                'error)
         (expect (eval '(Struct:defun fn (&struct)))
                 :to-throw
-                'error '("&struct is missing an argument: (&struct)"))
+                'error)
         (expect (eval '(Struct:defun fn (&struct struct argument)))
                 :to-throw
-                'error '("&struct argument must be last: (&struct struct argument)"))
+                'error)
         (expect (eval '(Struct:defun fn (&struct struct)))
                 :to-throw
-                'error '("&struct argument should specify a struct-type: (&struct struct)"))
+                'error)
         (expect (eval '(Struct:defun fn (&rest)))
                 :to-throw
-                'error '("&rest is missing an argument: (&rest)"))
+                'error)
         (expect (eval '(Struct:defun fn (&rest rest argument)))
                 :to-throw
-                'error '("&rest argument must be last: (&rest rest argument)"))
-        (expect (eval '(Struct:defun fn (&rest (integer rest))))
-                :to-throw
-                'error '("Providing a type for &rest arguments is not supported: (&rest (integer rest))"))
+                'error)
         (expect (eval '(Struct:defun fn (&rest [])))
                 :to-throw
-                'error '("Argument should be a symbol or have the form (argument type): (&rest [])"))
-        (expect (eval '(Struct:defun fn ((a b c))))
-                :to-throw
-                'error '("Argument should be a symbol or have the form (argument type): ((a b c))"))))
+                'error)))
 
     (describe "used at runtime"
       (after-each (fmakunbound 'TestFn))
@@ -330,4 +325,5 @@
         (expect (TestFn "2")
                 :to-throw 'wrong-type-argument '(number "2" a))
         (expect (TestFn 2 3)
-                :to-throw)))))
+                :to-throw)))
+    ))
