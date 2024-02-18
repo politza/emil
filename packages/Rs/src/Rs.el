@@ -29,14 +29,14 @@
 
 (Struct:define Rs:PartialSubscriber
   "A subscriber which is only interested in some events."
-  (on-subscribe :type function)
-  (on-next :type function)
-  (on-error :type function)
-  (on-complete :type function)
-  (subscription :type (Trait Rs:Subscription))
-  (cancelled :type boolean))
+  (on-subscribe :type (or null function))
+  (on-next :type (or null function))
+  (on-error :type (or null function))
+  (on-complete :type (or null function))
+  (subscription :type (or null (Trait Rs:Subscription)) :mutable t)
+  (cancelled :type boolean :mutable t))
 
-(Struct:defun Rs:PartialSubscriber:cancel ((self Rs:PartialSubscriber))
+(defun Rs:PartialSubscriber:cancel (self)
   (Struct:set self :cancelled t)
   (when-let (subscription (Struct:get self :subscription))
     (Rs:Subscription:cancel subscription)))

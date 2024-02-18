@@ -219,6 +219,7 @@ Throws an error if
 - PROPERTY is not a member of STRUCT, or
 - PROPERTY is immutable, or
 - PROPERTY has an associated type and VALUE does not match it."
+  (declare (indent 2))
   (let* ((struct-type (Struct:Type:get (car struct) :ensure))
          (property-type (Struct:Type:get-property struct-type property)))
     (unless property-type
