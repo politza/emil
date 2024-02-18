@@ -87,6 +87,14 @@ Returns DEFAULT if value is nil."
 This is an association-list mapping the keyword-names to their
 corresponding property."
          :mutable nil
+         :type list)
+        (Struct:Property
+         :name functions
+         :default nil
+         :documentation "Implemented functions associated with this struct-type.
+
+This association-list maps function-names to their declaration."
+         :mutable t
          :type list)))))
 
 (defun Struct:Type (&rest property-list)
@@ -222,6 +230,7 @@ Throws an error if
 
 (defun Struct:update (struct property fn)
   "Sets STRUCT's PROPERTY using update-function FN."
+  (declare (indent 2))
   (Struct:set struct property
               (funcall fn (Struct:get struct property))))
 

@@ -2,6 +2,7 @@
 
 (require 'Struct)
 (require 'Struct/Argument)
+(require 'Commons)
 
 (defconst Struct:Function:arrow-symbol '->)
 
@@ -44,7 +45,20 @@ namespace."
    :type (or null string))
   (body
    "A list of forms defining this function."
-   :type list))
+   :type list)
+  (filename
+   "The filename in which this function was declared."
+   :default (Commons:evaluation-context-filename)
+   :type (or null string)))
+
+(defun Struct:Function:declared-in (struct filename)
+  (let ((function-filename (Struct:get struct :filename)))
+    (cond
+     ((or (null function-filename)
+          (null filename))
+      (eq function-filename filename))
+     (t
+      (file-equal-p function-filename filename)))))
 
 (defun Struct:Function:read (form &optional namespace)
   (declare (indent 0))

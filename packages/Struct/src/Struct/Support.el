@@ -6,10 +6,10 @@
   'Struct:Support:complete-properties-symbol)
 
 (defconst Struct:Support:syntax-keywords
-  '(("(\\(Struct:define\\|Trait:define\\)[ \t]+\\(\\(?:\\sw\\|\\s_\\)+\\)?"
+  '(("(\\(Struct:\\(?:implement\\|define\\)\\|Trait:define\\)[ \t]+\\(\\(?:\\sw\\|\\s_\\)+\\)?"
      (1 font-lock-keyword-face)
      (2 font-lock-type-face nil t))
-    ("(\\(Struct:defun\\|fn\\)[ \t]+\\(\\(?:\\sw\\|\\s_\\)+\\)?"
+    ("(\\(fn\\)[ \t]+\\(\\(?:\\sw\\|\\s_\\)+\\)?"
      (1 font-lock-keyword-face)
      (2 font-lock-function-name-face nil t))
     ("(\\(Trait:implement\\)[ \t]+\\(\\(?:\\sw\\|\\s_\\)+\\)?[ \t]*\\(\\(?:\\sw\\|\\s_\\)+\\)?"
