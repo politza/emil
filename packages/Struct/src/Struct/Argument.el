@@ -20,6 +20,14 @@ This may be one of `&optional', `&rest', `&struct' for optional, rest
 and struct arguments; or nil for regular ones."
    :type (member &optional &rest &struct nil)))
 
+(defun Struct:Argument:equivalent? (argument other)
+  (cl-check-type argument Struct:Argument)
+  (cl-check-type other Struct:Argument)
+  (and (equal (Struct:get argument :type)
+              (Struct:get other :type))
+       (eq (Struct:get argument :kind)
+           (Struct:get other :kind))))
+
 (defun Struct:Argument:read (form &optional kind)
   "Reads an argument from FORM.
 

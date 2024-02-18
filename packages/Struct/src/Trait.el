@@ -2,6 +2,7 @@
 
 (require 'Struct)
 (require 'Struct/Impl)
+(require 'Struct/Function)
 (require 'dash)
 (require 'cl-macs)
 
@@ -16,7 +17,7 @@ The trait-definition is put on the symbol's property-list using this value.")
    "The name of this trait."
    :type symbol)
   (methods
-   "An association-list mapping method-names to their definitions."
+   "An association-list mapping method-names to their definition."
    :type list)
   (implementing-types
    "A list of types implementing this trait."
@@ -36,15 +37,9 @@ which case a `wrong-type-argument' is signaled."
 
 (Struct:define Trait:Method
   "Represents a trait-method."
-  (name
-   "The name of this method."
-   :type symbol)
-  (arguments
-   "The declared argument list of this method."
-   :type list)
-  (documentation
-   "A string describing this method."
-   :type (or null string))
+  (function
+   "The function-declaration of this method."
+   :type Struct:Function)
   (default-implementation
    "An optional default implementation of this method. If not
 provided, this method is required for implementors to implement."
@@ -62,23 +57,7 @@ provided, this method is required for implementors to implement."
 This is the case, if METHOD does not define a default implementation."
   (null (Struct:get method :default-implementation)))
 
-(defun Trait:Method:arity (method)
-  "Returns the number of accepted arguments of METHOD.
-
-The value is a pair `\(MIN . MAX\)'. See also `func-arity'."
-  (func-arity `(lambda ,(Struct:get method :arguments))))
-
-(eval-and-compile
-  (defun Trait:-emit-method-declarations (methods)
-    (when (-every? #'consp methods)
-      (-map (-lambda ((_ name arguments))
-              (when (and name (symbolp name) (listp arguments))
-                `(declare-function
-                  ,name nil ,(ignore-errors
-                               (Struct:lambda-normalize-arguments arguments)))))
-            methods))))
-
-(defmacro Trait:define (name supertraits &optional documentation &rest methods)
+(defmacro Trait:define (name supertraits &optional documentation &rest body)
   "Defines a new trait named NAME.
 
 (fn NAME ([SUPERTRAIT]*) [DOCUMENTATION]? [(fn METHOD-NAME ARGUMENTS [DOCUMENTATION]? . BODY)]*)"
@@ -90,45 +69,34 @@ The value is a pair `\(MIN . MAX\)'. See also `func-arity'."
     (signal 'wrong-type-argument `((list symbol) ,supertraits)))
   (unless (or (null documentation)
               (stringp documentation))
-    (push documentation methods)
+    (push documentation body)
     (setq documentation nil))
 
-  `(progn
-     (eval-and-compile
-       ,@(Trait:-emit-method-declarations methods))
+  (let ((methods (-map #'Struct:Function:read body)))
+  `(eval-and-compile
+     ,@(--map (Struct:Function:emit-declaration it) methods)
      (Trait:define*
       (Trait :name ',name
              :supertraits (copy-sequence ',supertraits)
              :methods
-             (list ,@(--map (Trait:-construct-method name it) methods))))))
+             (list ,@(--map (Trait:-construct-method-definition name it) methods)))))))
 
-(defun Trait:-construct-method (trait method)
-  (unless (consp method)
-    (error "Method definition should be a non-empty list: %s" method))
-  (-let (((head name arguments documentation . body) method))
-    (unless (eq 'fn head)
-      (error "Method declaration should start with fn: %s" head))
-    (unless (symbolp name)
-      (error "Method name should be a symbol: %s" name))
-    (unless (consp arguments)
-      (error "Trait method must accept at least one argument: %s" name))
-    (unless (symbolp (car arguments))
-      (error "First argument can not be typed: %s" (car arguments)))
-    (unless (or (stringp documentation)
-                (null documentation))
-      (push documentation body)
-      (setq documentation nil))
-    (when (eq 'declare (car-safe (car body)))
-      (error "Declare not supported for methods"))
-
+(defun Trait:-construct-method-definition (trait function)
+  (let ((name (Struct:get function :qualified-name))
+        (arguments (Struct:get function :arguments))
+        (body? (not (null (Struct:get function :body)))))
+    (unless arguments
+      (error "A method requires at least one argument: %s" name))
+    (when (Struct:get (car arguments) :type)
+      (error "Self argument of method can not be typed: %s" name))
+    (when (Struct:get (car arguments) :default)
+      (error "Self argument of method can not have a default: %s" name))
     `(cons ',name
            (Trait:Method
-            :name ',name
-            :documentation ,documentation
+            :function (copy-sequence ',function)
             :default-implementation
-            ,(and body
-                  `(Struct:lambda ,name ,arguments ,@body))
-            :arguments (copy-sequence ',arguments)
+            ,(and body?
+                  (Struct:Function:emit-lambda function))
             :dispatch-function
             (lambda (&rest arguments)
               (Trait:dispatch ',trait ',name arguments))))))
@@ -145,8 +113,6 @@ The value is a pair `\(MIN . MAX\)'. See also `func-arity'."
       (put (car it) 'function-documentation
            `(Trait:Method:documentation ',name ',(car it))))
     (put name Trait:definition-symbol trait)
-    (put name 'function-documentation
-         `(Trait:documentation ',name))
     name))
 
 (defun Trait:undefine (name)
@@ -158,7 +124,6 @@ idempotent."
     (--each (Struct:get trait :methods)
       (fmakunbound (car it))
       (put (car it) 'function-documentation nil))
-    (put name 'function-documentation nil)
     (put name Trait:definition-symbol nil)))
 
 (defun Trait:documentation (name)
@@ -171,9 +136,10 @@ idempotent."
   (-> (cdr (assq name (->
                        (Trait:get trait :ensure)
                        (Struct:get :methods))))
+      (Struct:get :declaration)
       (Struct:get :documentation)))
 
-(defmacro Trait:implement (trait type &rest methods)
+(defmacro Trait:implement (trait type &rest body)
   "Defines an implementation of TRAIT for TYPE.
 
 (fn TRAIT TYPE [(fn METHOD-NAME ARGUMENTS . BODY)]*)"
@@ -182,73 +148,58 @@ idempotent."
     (signal 'wrong-type-argument `(symbol ,trait)))
   (unless (symbolp type)
     (signal 'wrong-type-argument `(symbol ,type)))
+  (let ((functions (-map #'Struct:Function:read body)))
+    `(eval-and-compile
+       (Trait:unimplement ',trait ',type)
+       (Trait:-check-implementation ',trait ',type (copy-sequence ',functions))   
+       (Trait:implement*
+        ',trait ',type
+        (list ,@(-map #'Trait:-construct-method-impl functions))))))
 
-  `(Trait:implement*
-    ',trait ',type
-    (list ,@(--map (Trait:-construct-implementation trait it) methods))))
-
-(defun Trait:-construct-implementation (trait method)
-  (unless (consp method)
-    (error "Expected a non-empty list: %s" method))
-  (-let (((head name arguments . body) method))
-    (unless (eq 'fn head)
-      (error "Method implementation should start with fn: %s" head))
-    (unless (symbolp name)
-      (error "Method name should be a symbol: %s" name))
-    (unless (listp arguments)
-      (error "Invalid method argument-list declaration: %s" arguments))
-    (when (eq 'declare (car-safe (car body)))
-      (error "Declare not supported for methods"))
-
-    `(list ',name ',arguments (Struct:lambda ,trait ,arguments ,@body))))
-
-(defun Trait:implement* (trait type implementations)
-  "Defines an implementation of TRAIT for TYPE."
-  (-let* ((trait-struct (Trait:get trait :ensure))
-          ((&plist :supertraits :methods) (Struct:properties trait-struct)))
+(defun Trait:-check-implementation (trait type functions)
+  (-let* ((entries (--annotate (Struct:get it :qualified-name) functions))
+          (struct (Trait:get trait :ensure))
+          (supertraits (Struct:get struct :supertraits))
+          (methods (Struct:get struct :methods)))
     (--each supertraits
-      (unless (memq type (Struct:get (Trait:get it :ensure)
-                                     :implementing-types))
+      (unless (memq type (Struct:get (Trait:get it :ensure) :implementing-types))
         (error "Required supertrait not implemented by type: %s" it)))
     (--each methods
-      (unless (or (assq (car it) implementations)
+      (unless (or (assq (car it) entries)
                   (not (Trait:Method:required? (cdr it))))
         (error "Required method not implemented: %s" (car it))))
-    (--each implementations
+    (--each entries
       (unless (assq (car it) methods)
         (error "Method not declared by this trait: %s" (car it))))
     (--each methods
-      (-when-let ((name arguments)
-                  (assq (car it) implementations))
-        (let ((declared-arguments (Struct:get (cdr it) :arguments)))
-          (unless (Trait:-compatible-arguments?
-                   declared-arguments
-                   arguments)
-            (error "Signature incompatible with method declared by trait: %s, %s, %s"
-                   (car it)
-                   declared-arguments
-                   arguments)))))
-    (Struct:update trait-struct :implementing-types (-partial #'cons type))
-    (--each methods
-      (-when-let ((_ _ impl) (assq (car it) implementations))
+      (when-let (entry (assq (car it) entries))
+        (unless (Struct:Function:equivalent-arguments?
+                 (cdr entry) (Struct:get (cdr it) :function))
+          (error "Signature incompatible with method declared by trait: %s, %s"
+                 trait (car it)))))))
+
+(defun Trait:-construct-method-impl (function)
+  `(cons ',(Struct:get function :qualified-name)
+        ,(Struct:Function:emit-lambda function)))
+
+(defun Trait:implement* (trait type functions)
+  "Defines an implementation of TRAIT for TYPE."
+  (let ((struct (Trait:get trait :ensure)))
+    (Struct:update struct :implementing-types (-partial #'cons type))
+    (--each (Struct:get struct :methods)
+      (when-let (entry (assq (car it) functions))
         (Struct:update (cdr it) :implementations
-                       (-partial #'cons (cons type impl)))))
+          (-partial #'cons (cons type (cdr entry))))))
     type))
 
-(defun Trait:-compatible-arguments? (declared-arguments arguments)
-  (and (= (length declared-arguments)
-          (length arguments))
-       (-every? (-lambda ((declared-argument . argument))
-                  (cond
-                   ((memq declared-argument '(&rest &optional &struct))
-                    (eq declared-argument argument))
-                   ((symbolp declared-argument)
-                    (symbolp argument))
-                   ((consp argument)
-                    (equal (cdr declared-argument)
-                           (cdr argument)))
-                   (t nil)))
-                (-zip-pair declared-arguments arguments))))
+(defun Trait:unimplement (trait type)
+  (when-let (struct (Trait:get trait))
+    (Struct:update struct :implementing-types (-partial #'remove type))
+    (--each (Struct:get struct :methods)
+      (Struct:update (cdr it) :implementations
+        (lambda (implementations)
+          (remove (assq type implementations) implementations))))
+    nil))
 
 (defun Trait:dispatch (trait method arguments)
   "Dispatch call of TRAIT's METHOD using ARGUMENTS."

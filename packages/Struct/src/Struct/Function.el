@@ -10,7 +10,7 @@
 
 (defconst Struct:Function:namespace-separator ':)
 
-(defmacro fn (&rest args)
+(defmacro fn (&rest _)
   (declare (indent defun) (doc-string 3) (no-font-lock-keyword nil)))
 
 (cl-deftype List (type)
@@ -60,6 +60,16 @@ namespace."
      (t
       (file-equal-p function-filename filename)))))
 
+(defun Struct:Function:equivalent-arguments? (self other)
+  (cl-check-type self Struct:Function)
+  (cl-check-type other Struct:Function)
+  (and (= (length (Struct:get self :arguments))
+          (length (Struct:get other :arguments)))
+       (-every? (-lambda ((argument . other))
+                  (Struct:Argument:equivalent? argument other))
+                (-zip-pair (Struct:get self :arguments)
+                           (Struct:get other :arguments)))))
+
 (defun Struct:Function:read (form &optional namespace)
   (declare (indent 0))
   (cl-check-type form cons)
@@ -78,7 +88,7 @@ namespace."
       (push documentation body)
       (setq documentation nil))
     (when (eq 'declare (car-safe (car body)))
-      (error "Declare form not supported: %s" (caar body)))
+      (error "Declare form not supported: %s" (car body)))
 
     (-let* (((arguments . return-type)
              (Struct:Function:read-arguments arguments))
@@ -127,6 +137,12 @@ Returns a cons of (ARGUMENTS . RETURN_TYPE)."
           (argument
            (push (Struct:Argument:read argument kind) arguments)))))
     (cons (nreverse arguments) return-type)))
+
+(defun Struct:Function:emit-declaration (self)
+  `(declare-function
+    ,(Struct:get self :qualified-name)
+    ,(Struct:get self :filename)
+    ,(Struct:Function:emit-arguments self)))
 
 (defun Struct:Function:emit-definition (self &optional transformer)
   `(defalias ',(Struct:get self :qualified-name)
