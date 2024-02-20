@@ -96,7 +96,7 @@ This is the case, if METHOD does not define a default implementation."
             :function (copy-sequence ',function)
             :default-implementation
             ,(and body?
-                  (Struct:Function:emit-lambda function))
+                  (Struct:Function:emit-lambda function nil t))
             :dispatch-function
             (lambda (&rest arguments)
               (Trait:dispatch ',trait ',name arguments))))))
@@ -181,7 +181,7 @@ idempotent."
 
 (defun Trait:-construct-method-impl (function)
   `(cons ',(Struct:get function :qualified-name)
-        ,(Struct:Function:emit-lambda function)))
+        ,(Struct:Function:emit-lambda function nil t)))
 
 (defun Trait:implement* (trait type functions)
   "Defines an implementation of TRAIT for TYPE."

@@ -8,7 +8,7 @@
   (Struct:-handle-evaluation-context name)
   (let ((functions (-map #'Struct:Function:read body)))
     `(progn
-       ,@(--map (Struct:Function:emit-definition it) functions)
+       ,@(--map (Struct:Function:emit-definition it nil t) functions)
        (Struct:-merge-functions
         (Struct:Type:get ',name :ensure)
         (copy-sequence ',functions))

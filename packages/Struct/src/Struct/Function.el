@@ -45,7 +45,7 @@ namespace."
    :type (or null string))
   (body
    "A list of forms defining this function."
-   :type list)
+   :type list :mutable t)
   (filename
    "The filename in which this function was declared."
    :default (Commons:evaluation-context-filename)
@@ -144,16 +144,16 @@ Returns a cons of (ARGUMENTS . RETURN_TYPE)."
     ,(Struct:get self :filename)
     ,(Struct:Function:emit-arguments self)))
 
-(defun Struct:Function:emit-definition (self &optional transformer)
+(defun Struct:Function:emit-definition (self &optional transformer flush?)
   `(defalias ',(Struct:get self :qualified-name)
-     ,(Struct:Function:emit-lambda self transformer)
+     ,(Struct:Function:emit-lambda self transformer flush?)
      ,(Struct:get self :documentation)))
 
-(defun Struct:Function:emit-lambda (self &optional transformer)
+(defun Struct:Function:emit-lambda (self &optional transformer flush?)
   `(lambda ,(Struct:Function:emit-arguments self)
      ,@(when-let (documentation (Struct:get self :documentation))
          (list documentation))
-     ,@(Struct:Function:emit-body self transformer)))
+     ,@(Struct:Function:emit-body self transformer flush?)))
 
 (defun Struct:Function:emit-arguments (self)
   (let ((previous-kind nil)
@@ -168,9 +168,11 @@ Returns a cons of (ARGUMENTS . RETURN_TYPE)."
           (push (Struct:get argument :name) result))))
     (nreverse result)))
 
-(defun Struct:Function:emit-body (self &optional transformer)
+(defun Struct:Function:emit-body (self &optional transformer flush?)
   (let ((body (append (Struct:Function:emit-body-preamble self)
                       (Struct:get self :body))))
+    (when flush?
+      (Struct:set self :body nil))
     (if transformer
         (funcall transformer body)
       body)))
