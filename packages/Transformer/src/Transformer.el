@@ -75,6 +75,8 @@
            (head (car elements))
            (rest (cdr elements)))
       (pcase (Form:value head)
+        ((pred macrop)
+         (Transformer:transform-macro self head rest data))
         (`and (Transformer:transform-and self rest data))
         (`catch
             (unless (symbolp (Form:value (car rest)))
@@ -144,13 +146,6 @@
               (Transformer:syntax-error "prog1 should contain a first form: %s"
                 rest (cons 'prog1 rest)))
           (Transformer:transform-prog1 self (car rest) (cdr rest) data))
-        (`prog2
-            (unless (>= (length rest) 2)
-              (Transformer:syntax-error
-                  "prog2 should contain a first and second form: %s"
-                rest (cons 'prog2 rest)))
-            (Transformer:transform-prog2
-             self (car rest) (cadr rest) (cddr rest) data))
         (`progn (Transformer:transform-progn self rest data))
         (`quote
          (unless (= 1 (length rest))
@@ -163,18 +158,16 @@
           (Transformer:transform-save-excursion self rest data))
         (`save-restriction
           (Transformer:transform-save-restriction self rest data))
-        ((or `setq `setq-default)
+        (`setq
          (unless (= 0 (% (length rest) 2))
-           (Transformer:syntax-error "%s should have an even number of arguments: %s"
-             head rest (cons head rest)))
+           (Transformer:syntax-error "setq should have an even number of arguments: %s"
+             rest (cons head rest)))
          (--each rest
            (unless (or (= 1 (% it-index 2))
                        (symbolp (Form:value it)))
-             (Transformer:syntax-error "%s place should be a symbol: %s"
-               head it elements)))
-         (if (eq (Form:value head) 'setq)
-             (Transformer:transform-setq self rest data)
-           (Transformer:transform-setq-default self rest data)))
+             (Transformer:syntax-error "setq place should be a symbol: %s"
+               it elements)))
+         (Transformer:transform-setq self rest data))
         ((or `unwind-protect `while)
          (unless (>= (length rest) 1)
            (Transformer:syntax-error "%s should have at least one argument: %s"
@@ -195,14 +188,14 @@
     `(cond ,@(Transformer:map-transform self clauses data)))
   
   (fn Transformer:transform-defconst (self symbol init-value &optional
-                                                  doc-string data)
+                                           doc-string data)
     `(defconst ,(Transformer:transform-form self symbol data)
        ,(Transformer:transform-form self init-value data)
        ,@(and (Form:value doc-string)
               (list (Transformer:transform-form self doc-string data)))))
   
   (fn Transformer:transform-defvar (self symbol &optional init-value
-                                                doc-string data)
+                                         doc-string data)
     `(defvar ,(Transformer:transform-form self symbol data)
        ,@(and (Form:value init-value)
               (list (Transformer:map-transform self init-value data)))
@@ -210,7 +203,8 @@
               (list (Transformer:transform-form self doc-string data)))))
   
   (fn Transformer:transform-function (self argument &optional data)
-    `(function ,(Transformer:transform-form self argument data)))
+    (ignore self data)
+    `(function ,(Form:value argument)))
   
   (fn Transformer:transform-if (self condition then else &optional data)
     `(if ,(Transformer:transform-form self condition data)
@@ -221,7 +215,7 @@
     `(interactive ,@(Transformer:map-transform self (cons descriptor modes) data)))
   
   (fn Transformer:transform-lambda (self arguments documentation
-                                                interactive body &optional data)
+                                         interactive body &optional data)
     `(lambda ,(Transformer:map-transform self arguments data)
        ,@(and (Form:value documentation)
               (list (Transformer:transform-form self documentation data)))
@@ -244,11 +238,6 @@
     `(prog1 ,(Transformer:transform-form self first data)
        ,@(Transformer:map-transform self body data)))
   
-  (fn Transformer:transform-prog2 (self first second body &optional data)
-    `(prog2 ,(Transformer:transform-form self first data)
-         ,(Transformer:transform-form self second data)
-       ,@(Transformer:map-transform self body data)))
-  
   (fn Transformer:transform-progn (self body &optional data)
     `(progn ,@(Transformer:map-transform self body data)))
   
@@ -268,9 +257,6 @@
   (fn Transformer:transform-setq (self definitions &optional data)
     `(setq ,@(Transformer:map-transform self definitions data)))
   
-  (fn Transformer:transform-setq-default (self definitions &optional data)
-    `(setq-default ,@(Transformer:map-transform self definitions data)))
-  
   (fn Transformer:transform-unwind-protect (self form forms &optional data)
     `(unwind-protect ,(Transformer:transform-form self form data)
        ,@(Transformer:map-transform self forms data)))
@@ -286,7 +272,13 @@
          (macroexpand (-map #'Form:value (cons function arguments)))
          data)
       `(,(Transformer:transform-form self function)
-        ,@(Transformer:map-transform self arguments data)))))
+        ,@(Transformer:map-transform self arguments data))))
+
+  (fn Transformer:transform-macro (self macro arguments &optional data)
+    (Transformer:transform-form
+     self
+     (macroexpand (-map #'Form:value (cons macro arguments)))
+     data)))
 
 (Struct:define Transformer:Identity)
 (Trait:implement Transformer Transformer:Identity)
