@@ -1,5 +1,6 @@
 ;; -*- lexical-binding: t -*-
 
+(require 'cl-macs)
 (require 'dash)
 (require 'Commons)
 (require 'Struct)
