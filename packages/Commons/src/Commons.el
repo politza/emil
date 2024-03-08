@@ -56,5 +56,36 @@
    (load-file-name 'load)
    (t 'eval)))
 
+(defmacro Commons:define-error (name message &optional parent)
+  "Defines a new error type and a corresponding constructor.
+
+Defines a new error signal by passing NAME, MESSAGE and PARENT to
+`define-error' unevaluated.
+
+Additionally defines a function named NAME, which accepts the
+same arguments as the `error' function and signals an error of
+the new type with the formatted string as error-data."
+  (declare (indent 1))
+  (cl-check-type name symbol)
+  (cl-check-type message string)
+  (cl-check-type parent (or null symbol))
+  `(progn
+     (define-error ',name ,message ',parent)
+     (defun ,name (fmt &rest arguments)
+       ,(format
+         "Signals `%s' with ARGUMENTS applied to FMT as data."
+         name)
+       (declare (indent 1))
+       (signal ',name (apply fmt arguments)))))
+
+(defun Commons:constant-symbol? (symbol)
+  "Returns non-nil, if SYMBOL is a constant symbol.
+
+Constant symbols are `nil', `t' and all keywords. Signals a
+`wrong-type-argument', if SYMBOL is not a symbol."
+  (cl-check-type symbol symbol)
+  (or (memq symbol '(nil t))
+      (keywordp symbol)))
+
 (provide 'Commons)
 ;;; Commons.el ends here
