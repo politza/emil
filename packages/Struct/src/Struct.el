@@ -79,7 +79,7 @@ as splice-syntax.
           (type (apply #'Struct:Type struct-properties))
           (macro-name (intern (concat (symbol-name name) "*")))
           (predicate-name (intern (concat (symbol-name name) "?"))))
-    `(progn
+    `(eval-and-compile
        (defun ,name (&rest properties)
          (Struct:construct ',name properties))
 

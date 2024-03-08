@@ -8,10 +8,10 @@
 
 (describe "Struct:Pcase"
   (before-each
-    (Struct:define TestStruct
-      (property-0) (property-1))
-    (Struct:define OtherTestStruct
-      (property-0) (property-1)))
+    (eval '(Struct:define TestStruct
+             (property-0) (property-1)))
+    (eval '(Struct:define OtherTestStruct
+             (property-0) (property-1))))
   
   (after-each
     (Struct:undefine 'TestStruct)
