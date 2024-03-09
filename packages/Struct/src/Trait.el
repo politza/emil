@@ -174,7 +174,7 @@ idempotent."
         (error "Method not declared by this trait: %s" (car it))))
     (--each methods
       (when-let (entry (assq (car it) entries))
-        (unless (Struct:Function:equivalent-arguments?
+        (unless (Struct:Function:subtype?
                  (cdr entry) (Struct:get (cdr it) :function))
           (error "Signature incompatible with method declared by trait: %s, %s"
                  trait (car it)))))))

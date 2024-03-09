@@ -70,6 +70,39 @@ namespace."
                 (-zip-pair (Struct:get self :arguments)
                            (Struct:get other :arguments)))))
 
+(defun Struct:Function:subtype? (self other)
+  (cl-check-type self Struct:Function)
+  (cl-check-type other Struct:Function)
+  (let ((other-arity (Struct:Function:arity other))
+        (self-arity (Struct:Function:arity self)))
+    (and (<= (car self-arity) (car other-arity))
+         (>= (cdr self-arity) (cdr other-arity))
+         (-every? (-lambda ((self-argument . other-argument))
+                    (or (null (Struct:get self-argument :type))
+                        (equal (Struct:get self-argument :type)
+                               (Struct:get other-argument :type))))
+                  (-zip-pair (Struct:get self :arguments)
+                             (Struct:get other :arguments)))
+         (or (null (Struct:get other :return-type))
+             (equal (Struct:get self :return-type)
+                    (Struct:get other :return-type))))))
+
+(defun Struct:Function:arity (self)
+  "Calculates the number of accepted arguments of this function.
+
+Returns a cons \(MIN . MAX\) denoting the minimally and maximally
+accepted number of arguments. MAX may be `most-positive-fixnum', if a
+`&rest' or `&struct' argument is present."
+  (let* ((arguments (Struct:get self :arguments))
+         (min (or (--find-index (Struct:get it :kind) arguments)
+                  (length arguments)))
+         (max (if (and arguments
+                       (memq (Struct:get (car (last arguments)) :kind)
+                             '(&rest &struct)))
+                  most-positive-fixnum
+                (length arguments))))
+    (cons min max)))
+
 (defun Struct:Function:read (form &optional namespace)
   (declare (indent 0))
   (cl-check-type form cons)
