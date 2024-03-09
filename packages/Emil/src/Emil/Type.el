@@ -9,6 +9,7 @@
 ;; Shut up cl-type-check's compiler warnings.
 (cl-deftype Emil:Type:Var ())
 (cl-deftype Emil:Type:VarInst ())
+(cl-deftype Emil:Type:VarInstGenerator ())
 
 (Trait:define Emil:Type ()
   (fn Emil:Type:monomorph? (self)
@@ -36,6 +37,14 @@ become free in a type during type-checking."
 
 Returns the substituted type."
     self)
+
+  (fn Emil:Type:instantiate (self (generator Emil:Type:VarInstGenerator))
+    (ignore generator)
+    self)
+
+  (fn Emil:Type:parameters (self)
+    "Returns the ordered list of paramters of this types constructor."
+    nil)
 
   (fn Emil:Type:print (self)
     "Returns a readable representation of this type."))
@@ -132,7 +141,22 @@ type, excluding `Never' and itself.")
                   (Emil:Type:free-variables
                    (Struct:get self :rest-type)))
              (Emil:Type:free-variables
-                    (Struct:get self :return-type)))))
+                    (Struct:get self :return-type))))
+
+  (fn Emil:Type:instantiate (self (generator Emil:Type:VarInstGenerator))
+    (Emil:Type:Fn*
+     ,@self
+     :argument-types (--map (Emil:Type:VarInstGenerator:next generator)
+                            (Struct:get self :argument-types))
+     :rest-type (if (Struct:get self :rest-type)
+                    (Emil:Type:VarInstGenerator:next generator))
+     :return-type (Emil:Type:VarInstGenerator:next generator)))
+
+  (fn Emil:Type:parameters (self)
+    `(,@(Struct:get self :argument-types)
+      ,@(if (Struct:get self :rest-type)
+            (list (Struct:get self :rest-type)))
+      ,@(list (Struct:get self :return-type)))))
 
 (Struct:define Emil:Type:Forall
   "Represents a polymorphic type."
@@ -178,6 +202,16 @@ Currently, only function types are supported."
 
   (fn Emil:Type:free-variables (self)
     (list self)))
+
+(Struct:define Emil:Type:VarInstGenerator
+  "Generator for instances of type `Emil:Type:VarInst'."
+  (counter :type number :default -1 :mutable t))
+
+(defun Emil:Type:VarInstGenerator:next (self)
+  (Emil:Type:VarInst
+   :name (->> (Struct:update self :counter #'1+)
+              (format "t%d")
+              (intern))))
 
 (defun Emil:Type:read (form)
   "Reads a type from form FORM and returns it.

@@ -10,15 +10,16 @@
   "Provides a context for type-inference.
 
 The entries of the context are organized as a stack, i.e. entries are
-added and removed from the left."
+added and removed at/from the left and it should be read bottom to
+top."
   (entries :type list))
 
 (Struct:define Emil:Context:Binding
   "Maps a variable to some type.
 
 The term variable refers to a programmer's variable, i.e. not a
-type-variable. Note, that type may be incomplete: It may refer to yet
-to be solved type-variables."
+type-variable. Note, that type may be incomplete, i.e. it may refer to
+yet to be resolved type-variables."
   (variable :type symbol)
   (type :type (Trait Emil:Type)))
 
@@ -43,9 +44,9 @@ assignments."
   (fn Emil:Context:hole (self (variable Emil:Type:VarInst))
     "Splits this context at VARIABLE.
 
-Returns a list of 2 new contexts \(LEFT-CONTEXT RIGHT-CONTEXT\)
-representing the entries left resp. right of VARIABLE, which itself is
-not included in neither.
+Returns a list of 2 new contexts \(TOP BOTTOM\) representing the
+entries above resp. below VARIABLE, which itself is not included
+in neither. Remember that the context read bottom to top.
 
 Returns `nil', if VARIABLE is not a member of this context."
     (when-let (tail (member variable (Struct:get self :entries)))
@@ -59,15 +60,15 @@ Returns `nil', if VARIABLE is not a member of this context."
     "Splits this context at VARIABLE and OTHER.
 
 This works similar to `Emil:Context:hole', except that the entries are
-split twice. Returns a triple of 3 new contexts \(LEFT MID RIGHT\),
-given that the entries of this context look like \(LEFT (VARIABLE) MID
-(OTHER) RIGHT\) appended together.
+split twice. Returns a triple of 3 new contexts \(TOP CENTER BOTTOM\),
+given that the entries of this context look like \(TOP (VARIABLE) CENTER
+(OTHER) BOTTOM\) appended together.
 
 Returns `nil', if either VARIABLE or OTHER is not a member of this
 context; or if OTHER appears in front of VARIABLE."
-    (-when-let* ((left (Emil:Context:hole self variable))
-                 (right (Emil:Context:hole (nth 1 left) other)))
-      (cons (car left) right)))
+    (-when-let* ((top (Emil:Context:hole self variable))
+                 (bottom (Emil:Context:hole (nth 1 top) other)))
+      (cons (car top) bottom)))
 
   (fn Emil:Context:lookup-binding (self (variable symbol) -> (Trait Emil:Type))
     "Lookup VARIABLE in this context.
@@ -88,8 +89,7 @@ Returns variable's type; or `nil', if VARIABLE is not bound in this
 context."
     (-some-> (--find (pcase it
                        ((Struct Emil:Context:SolvedVarInst :variable other)
-                        (equal (Struct:get variable :name)
-                               (Struct:get other :name))))
+                        (equal variable other)))
                      (Struct:get self :entries))
       (Struct:get :type)))
 
@@ -102,7 +102,7 @@ Returns an empty context, if ENTRY is not present in this one."
      (cdr (--drop-while (not (equal it entry))
                         (Struct:get self :entries)))))
 
-  (fn Emil:Context:well-formed-type? (self (type (Trait Emil:Type)))
+  (fn Emil:Context:well-formed? (self (type (Trait Emil:Type)))
     "Returns non-nil, if TYPE is well-formed given this context."
     (let ((entries (Struct:get self :entries)))
       (pcase-exhaustive type
@@ -118,13 +118,13 @@ Returns an empty context, if ENTRY is not present in this one."
          (not (null (or (member type entries)
                         (Emil:Context:lookup-solved self type)))))
         ((Struct Emil:Type:Fn argument-types rest-type return-type)
-         (and (--every? (Emil:Context:well-formed-type? self it)
+         (and (--every? (Emil:Context:well-formed? self it)
                         argument-types)
-              (Emil:Context:well-formed-type? self return-type)
+              (Emil:Context:well-formed? self return-type)
               (or (null rest-type)
-                  (Emil:Context:well-formed-type? self rest-type))))
+                  (Emil:Context:well-formed? self rest-type))))
         ((Struct Emil:Type:Forall variables type)
-         (Emil:Context:well-formed-type?
+         (Emil:Context:well-formed?
           (Emil:Context :entries (append variables entries nil))
           type)))))
 
@@ -132,8 +132,8 @@ Returns an empty context, if ENTRY is not present in this one."
     "Resolves the given TYPE against this context.
 
 This will substitute any solved instantiated type-variables with their
-resolved type. This applies recursively; both to the TYPE and its
-unresolved type-variables."
+resolved type. This applies recursively; both within the TYPE, as well
+as with regards to its unresolved type-variables."
     (pcase-exhaustive type
       ((or (Struct Emil:Type:Any)
            (Struct Emil:Type:Never)
@@ -155,6 +155,40 @@ unresolved type-variables."
       ((Struct Emil:Type:Forall variables type)
        (Emil:Type:Forall*
         variables
-        :type (Emil:Context:resolve self type))))))
+        :type (Emil:Context:resolve self type)))))
+
+  (fn Emil:Context:concat (self &rest contexts-and-entries)
+    "Concat this context with the provided CONTEXTS-AND-ENTRIES.
+
+Each argument may either be a context or a single entry."
+    (Emil:Context
+     :entries (--mapcat (pcase it
+                          ((Struct Emil:Context entries)
+                           entries)
+                          (_ (list it)))
+                        (cons self contexts-and-entries))))
+
+  (fn Emil:Context:member? (self entry)
+    (member entry (Struct:get self :entries))))
+
+(Trait:define Emil:Environment ()
+  (fn Emil:Environment:lookup (self (variable symbol) &optional related)
+    "Looks up VARIABLE in an environment and returns its type.
+
+Optional argument RELATED is a related environment, which may provide
+additional bindings pertaining to this one. Typically a local
+environment used by a global one.
+
+Returns `nil', if VARIABLE is not bound in this environment."))
+
+(Trait:implement Emil:Environment Emil:Context
+  (fn Emil:Environment:lookup (self variable &optional _related)
+    "Looks up VARIABLE in the current, local environment.
+
+Argument RELATED is ignored.
+
+Returns `nil', if VARIABLE is not present in this environment."
+    (-some->> (Emil:Context:lookup-binding self variable)
+      (Emil:Context:resolve self))))
 
 (provide 'Emil/Context)

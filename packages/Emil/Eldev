@@ -6,3 +6,4 @@
 
 (eldev-use-local-dependency "../Commons")
 (eldev-use-local-dependency "../Struct")
+(eldev-use-local-dependency "../Transformer")

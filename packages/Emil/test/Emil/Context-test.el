@@ -259,44 +259,44 @@
                (Emil:Type:Var :name 'c))
               :to-equal (Emil:Context))))
 
-  (describe "Emil:Context:well-formed-type?"
+  (describe "Emil:Context:well-formed?"
     (describe "basic"
       (it "Emil:Type:Basic"
-        (expect (Emil:Context:well-formed-type?
+        (expect (Emil:Context:well-formed?
                  (Emil:Context)
                  (Emil:Type:Never))
                 :to-equal t))
 
       (it "Emil:Type:Var / true"
-        (expect (Emil:Context:well-formed-type?
+        (expect (Emil:Context:well-formed?
                  (Emil:Context
                   :entries (list (Emil:Type:Var :name 'a)))
                  (Emil:Type:Var :name 'a))
                 :to-equal t))
 
       (it "Emil:Type:Var / false"
-        (expect (Emil:Context:well-formed-type?
+        (expect (Emil:Context:well-formed?
                  (Emil:Context
                   :entries (list (Emil:Type:Var :name 'a)))
                  (Emil:Type:Var :name 'b))
                 :to-equal nil))
 
       (it "Emil:Type:VarInst / true"
-        (expect (Emil:Context:well-formed-type?
+        (expect (Emil:Context:well-formed?
                  (Emil:Context
                   :entries (list (Emil:Type:VarInst :name 'a)))
                  (Emil:Type:VarInst :name 'a))
                 :to-equal t))
 
       (it "Emil:Type:VarInst / false"
-        (expect (Emil:Context:well-formed-type?
+        (expect (Emil:Context:well-formed?
                  (Emil:Context
                   :entries (list (Emil:Type:VarInst :name 'a)))
                  (Emil:Type:VarInst :name 'b))
                 :to-equal nil))
 
       (it "Emil:Type:VarInst / true via lookup"
-        (expect (eval '(Emil:Context:well-formed-type?
+        (expect (eval '(Emil:Context:well-formed?
                         (Emil:Context
                          :entries (list (Emil:Context:SolvedVarInst
                                          :variable (Emil:Type:VarInst :name 'a)
@@ -305,7 +305,7 @@
                 :to-equal t))
 
       (it "Emil:Type:Fn / false"
-        (expect (eval '(Emil:Context:well-formed-type?
+        (expect (eval '(Emil:Context:well-formed?
                         (Emil:Context
                          :entries (list (Emil:Context:SolvedVarInst
                                          :variable (Emil:Type:VarInst :name 'a)
@@ -317,7 +317,7 @@
                 :to-equal nil))
 
       (it "Emil:Type:Fn / true"
-        (expect (eval '(Emil:Context:well-formed-type?
+        (expect (eval '(Emil:Context:well-formed?
                         (Emil:Context
                          :entries (list (Emil:Context:SolvedVarInst
                                          :variable (Emil:Type:VarInst :name 'a)
@@ -330,7 +330,7 @@
         )
 
       (it "Emil:Type:Forall / false"
-        (expect (eval '(Emil:Context:well-formed-type?
+        (expect (eval '(Emil:Context:well-formed?
                         (Emil:Context
                          :entries (list (Emil:Type:Var :name 'a)))
                         (Emil:Type:Forall
@@ -339,7 +339,7 @@
                 :to-equal nil))
 
       (it "Emil:Type:Forall / true"
-        (expect (eval '(Emil:Context:well-formed-type?
+        (expect (eval '(Emil:Context:well-formed?
                         (Emil:Context
                          :entries (list (Emil:Type:Var :name 'a)))
                         (Emil:Type:Forall
@@ -415,4 +415,35 @@
                 :to-equal
                 (eval '(Emil:Type:Forall
                         :variables (list (Emil:Type:Var :name 'a))
-                        :type (Emil:Type:Never))))))))
+                        :type (Emil:Type:Never)))))))
+
+  (describe "Emil:Environment:lookup"
+    (it "looks up a bound variable"
+      (expect (eval '(Emil:Environment:lookup
+                        (Emil:Context
+                         :entries (list (Emil:Context:Binding
+                                         :variable 'a
+                                         :type (Emil:Type:Any))))
+                        'a))
+                :to-equal (Emil:Type:Any)))
+    
+    (it "resolves a bound variable"
+      (expect (eval '(Emil:Environment:lookup
+                        (Emil:Context
+                         :entries (list (Emil:Context:SolvedVarInst
+                                         :variable (Emil:Type:VarInst :name 'b)
+                                         :type (Emil:Type:Any))
+                                        (Emil:Context:Binding
+                                         :variable 'a
+                                         :type (Emil:Type:VarInst :name 'b))))
+                        'a))
+                :to-equal (Emil:Type:Any)))
+
+    (it "returns nil, if a variable is not bound"
+      (expect (eval '(Emil:Environment:lookup
+                        (Emil:Context
+                         :entries (list (Emil:Context:Binding
+                                         :variable 'a
+                                         :type (Emil:Type:Any))))
+                        'b))
+                :to-equal nil))))
