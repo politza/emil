@@ -1,5 +1,7 @@
 ;;; -*- lexical-binding: t; -*-
 
+(require 'dash)
+
 (defvar Feature:current-packages nil
   "A list of packages used by some feature.
 

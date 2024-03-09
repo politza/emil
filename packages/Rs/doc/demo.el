@@ -17,6 +17,7 @@
            :on-error (lambda (error)
                        (message "On Error: %s"
                                 (error-message-string error))))))
+    (ignore subscription)
     (run-with-timer
      1 nil (lambda nil
              (Rs:Publisher:Submission:next publisher 0)))
@@ -38,6 +39,7 @@
                       (message "%s" message))
            :on-complete (lambda ()
                           (message "Done.")))))
+    (ignore subscription)
     (dotimes (n 10)
       (Rs:Publisher:Submission:next publisher (format "%s%%" (* 10 (1+ n)))))
     (Rs:Publisher:Submission:complete publisher)))
