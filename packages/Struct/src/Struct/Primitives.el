@@ -121,21 +121,11 @@ This association-list maps function-names to their declaration."
   (not (null (Struct:Type:get name))))
 
 (defsubst Struct:name (value)
-  "Returns the name of a struct value.
+  "Returns the struct-name of the given VALUE.
 
-This just returns the `car' of value, checking that it is a symbol,
-but does not otherwise check that it actually refers to a defined
-struct type.
-
-Signals `wrong-type-argument', if VALUE is not a `cons' or its first
-element is not a symbol or a constant symbol (`t', `nil' or a
-keyword)."
-  (let ((name (car-safe value)))
-    (unless (and (symbolp name)
-                 (not (memq name '(nil t)))
-                 (not (keywordp name)))
-      (signal 'wrong-type-argument `(Struct:Name ,name)))
-    name))
+Returns nil, if VALUE is not a struct type."
+  (and (Struct:Type:get (car-safe value))
+       (car value)))
 
 (cl-deftype Struct:Name ()
   `(satisfies Struct:Name?))
@@ -145,7 +135,8 @@ keyword)."
 
 Returns nil, if NAME does not name a struct-type; unless ENSURE is
 non-nil, in which case a `wrong-type-argument' is signaled."
-  (or (get name Struct:Type:definition-symbol)
+  (or (and (symbolp name)
+           (get name Struct:Type:definition-symbol))
       (and ensure
            (signal 'wrong-type-argument (list 'Struct:Name name)))))
 
@@ -217,6 +208,10 @@ Returns nil, if PROPERTY does not name a property of struct."
         (setq properties-head (nthcdr 2 properties-head))))
     properties))
 
+(defun Struct? (object)
+  "Return non-nil, if OBJECT is a struct type."
+  (Struct:Type:get (car-safe object)))
+
 (defun Struct:get (struct property &optional default)
   "Returns STRUCT's current value of PROPERTY.
 
@@ -250,7 +245,9 @@ Throws an error if
   (Struct:unsafe-set struct property value))
 
 (defun Struct:update (struct property fn)
-  "Sets STRUCT's PROPERTY using update-function FN."
+  "Sets STRUCT's PROPERTY using update-function FN.
+
+Returns the updated value."
   (declare (indent 2))
   (Struct:set struct property
               (funcall fn (Struct:get struct property))))
