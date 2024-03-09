@@ -311,8 +311,8 @@
                                          :variable (Emil:Type:VarInst :name 'a)
                                          :type (Emil:Type:Never))))
                         (Emil:Type:Fn
-                         :argument-types (list (Emil:Type:VarInst :name 'b))
-                         :return-type (Emil:Type:Basic :name 'number)
+                         :arguments (list (Emil:Type:VarInst :name 'b))
+                         :returns (Emil:Type:Basic :name 'number)
                          :min-arity 1)))
                 :to-equal nil))
 
@@ -323,8 +323,8 @@
                                          :variable (Emil:Type:VarInst :name 'a)
                                          :type (Emil:Type:Never))))
                         (Emil:Type:Fn
-                         :argument-types (list (Emil:Type:VarInst :name 'a))
-                         :return-type (Emil:Type:Basic :name 'number)
+                         :arguments (list (Emil:Type:VarInst :name 'a))
+                         :returns (Emil:Type:Basic :name 'number)
                          :min-arity 1)))
                 :to-equal t)
         )
@@ -334,7 +334,7 @@
                         (Emil:Context
                          :entries (list (Emil:Type:Var :name 'a)))
                         (Emil:Type:Forall
-                         :variables (list (Emil:Type:Var :name 'b))
+                         :parameters (list (Emil:Type:Var :name 'b))
                          :type (Emil:Type:Var :name 'c))))
                 :to-equal nil))
 
@@ -343,7 +343,7 @@
                         (Emil:Context
                          :entries (list (Emil:Type:Var :name 'a)))
                         (Emil:Type:Forall
-                         :variables (list (Emil:Type:Var :name 'b))
+                         :parameters (list (Emil:Type:Var :name 'b))
                          :type (Emil:Type:Var :name 'b))))
                 :to-equal t))))
 
@@ -389,18 +389,20 @@
                                          :variable (Emil:Type:VarInst :name 'c)
                                          :type (Emil:Type:Void))))
                         (Emil:Type:Fn
-                         :argument-types (list (Emil:Type:VarInst :name 'a))
-                         :rest-type (Emil:Type:VarInst :name 'c)
-                         :return-type (Emil:Type:VarInst :name 'b)
+                         :arguments (list (Emil:Type:VarInst :name 'a)
+                                          (Emil:Type:VarInst :name 'c))
+                         :rest? t
+                         :returns (Emil:Type:VarInst :name 'b)
                          :min-arity 1)))
                 :to-equal
                 (Emil:Type:Fn
-                 :argument-types (list (Emil:Type:Any))
-                 :rest-type (Emil:Type:Void)
-                 :return-type (Emil:Type:Never)
+                 :arguments (list (Emil:Type:Any)
+                                  (Emil:Type:Void))
+                 :rest? t
+                 :returns (Emil:Type:Never)
                  :min-arity 1)))
 
-      (it "Emil:Type:ForAll"
+      (it "Emil:Type:Forall"
         (expect (eval '(Emil:Context:resolve
                         (Emil:Context
                          :entries (list (Emil:Context:SolvedVarInst
@@ -410,11 +412,11 @@
                                          :variable (Emil:Type:VarInst :name 'b)
                                          :type (Emil:Type:Never))))
                         (Emil:Type:Forall
-                         :variables (list (Emil:Type:Var :name 'a))
+                         :parameters (list (Emil:Type:Var :name 'a))
                          :type (Emil:Type:VarInst :name 'b))))
                 :to-equal
                 (eval '(Emil:Type:Forall
-                        :variables (list (Emil:Type:Var :name 'a))
+                        :parameters (list (Emil:Type:Var :name 'a))
                         :type (Emil:Type:Never)))))))
 
   (describe "Emil:Environment:lookup"

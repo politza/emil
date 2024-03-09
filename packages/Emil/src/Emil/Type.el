@@ -9,7 +9,7 @@
 ;; Shut up cl-type-check's compiler warnings.
 (cl-deftype Emil:Type:Var ())
 (cl-deftype Emil:Type:VarInst ())
-(cl-deftype Emil:Type:VarInstGenerator ())
+(cl-deftype Emil:Type:Generator ())
 
 (Trait:define Emil:Type ()
   (fn Emil:Type:monomorph? (self)
@@ -37,14 +37,6 @@ become free in a type during type-checking."
 
 Returns the substituted type."
     self)
-
-  (fn Emil:Type:instantiate (self (generator Emil:Type:VarInstGenerator))
-    (ignore generator)
-    self)
-
-  (fn Emil:Type:parameters (self)
-    "Returns the ordered list of paramters of this types constructor."
-    nil)
 
   (fn Emil:Type:print (self)
     "Returns a readable representation of this type."))
@@ -101,67 +93,98 @@ type, excluding `Never' and itself.")
 
 (Struct:define Emil:Type:Fn
   "Represents the function type."
-  (argument-types
-   "The list of argument types excluding &rest."
+  (arguments
+   "The list of argument types."
    :type (List (Trait Emil:Type)))
-  (rest-type
-   "The type of the optional &rest argument."
-   :type (or null (Trait Emil:Type)))
-  (return-type
+  (rest?
+   "Whether the last argument is a &rest one."
+   :type boolean)
+  (returns
    "The return type of this function."
    :type (Trait Emil:Type))
   (min-arity
-   "The minimum number of arguments required."
+   "The minimum number of required arguments."
    :type number))
+
+(Struct:implement Emil:Type:Fn
+  (fn Emil:Type:Fn:instantiate (self (generator Emil:Type:Generator))
+    "Instantiate this function with type-variables.
+
+Returns a variant of this function in which all types are
+replaced with instances of type-variables."
+    (Emil:Type:Fn*
+     ,@self
+     :arguments (--map (Emil:Type:Generator:next generator)
+                       (Struct:get self :arguments))
+     :returns (Emil:Type:Generator:next generator)))
+
+  (fn Emil:Type:Fn:arguments (self)
+    "Returns the list of argument-types."
+    (Struct:get self :arguments))
+
+  (fn Emil:Type:Fn:butrest-arguments (self)
+    "Returns the list of argument-types, excluding the &rest one."
+    (if (Struct:get self :rest?)
+        (-butlast (Struct:get self :arguments))
+      (Struct:get self :arguments)))
+
+  (fn Emil:Type:Fn:rest-argument (self)
+    "Returns the &rest argument, if present."
+    (if (Struct:get self :rest?)
+        (-last-item (Struct:get self :arguments))))
+
+  (fn Emil:Type:Fn:returns (self)
+    "Returns the return type."
+    (Struct:get self :returns))
+
+  (fn Emil:Type:Fn:arity (self)
+    "Returns the minimal and maximal accepted number of arguments.
+
+Returns a cons \(MIN . MAX\), where MAX may be `most-positive-fixnum',
+if the function uses a &rest argument."
+    (let ((min (Struct:get self :min-arity))
+          (max (if (Struct:get self :rest?)
+                   most-positive-fixnum
+                 (length (Struct:get self :arguments)))))
+      (cons min max))))
 
 (Trait:implement Emil:Type Emil:Type:Fn
   (fn Emil:Type:print (self)
     (let ((fixed (-take (Struct:get self :min-arity)
-                                  (Struct:get self :argument-types)))
+                        (Struct:get self :arguments)))
           (optional (-drop (Struct:get self :min-arity)
-                                     (Struct:get self :argument-types)))
-          (rest (Struct:get self :rest-type)))
+                           (Emil:Type:Fn:butrest-arguments self)))
+          (rest (Emil:Type:Fn:rest-argument self)))
       `(-> (,@(-map #'Emil:Type:print fixed)
             ,@(if optional '(&optional))
             ,@(-map #'Emil:Type:print optional)
             ,@(if rest (list '&rest (Emil:Type:print rest))))
-           ,(Emil:Type:print (Struct:get self :return-type)))))
+           ,(Emil:Type:print (Struct:get self :returns)))))
 
   (fn Emil:Type:monomorph? (self)
     (and (--every? (Emil:Type:monomorph? it)
-                   (Struct:get self :argument-types))
-         (or (not (Struct:get self :rest-type))
-             (Emil:Type:monomorph? (Struct:get self :rest-type)))
-         (Emil:Type:monomorph? (Struct:get self :return-type))))
+                   (Struct:get self :arguments))
+         (Emil:Type:monomorph? (Struct:get self :returns))))
 
   (fn Emil:Type:free-variables (self)
     (-concat (-mapcat #'Emil:Type:free-variables
-                      (Struct:get self :argument-types))
-             (and (Struct:get self :rest-type)
-                  (Emil:Type:free-variables
-                   (Struct:get self :rest-type)))
+                      (Struct:get self :arguments))
              (Emil:Type:free-variables
-                    (Struct:get self :return-type))))
+                    (Struct:get self :returns))))
 
-  (fn Emil:Type:instantiate (self (generator Emil:Type:VarInstGenerator))
+  (fn Emil:Type:substitute (self (source Emil:Type:Var)
+                                 (target Emil:Type:VarInst))
     (Emil:Type:Fn*
      ,@self
-     :argument-types (--map (Emil:Type:VarInstGenerator:next generator)
-                            (Struct:get self :argument-types))
-     :rest-type (if (Struct:get self :rest-type)
-                    (Emil:Type:VarInstGenerator:next generator))
-     :return-type (Emil:Type:VarInstGenerator:next generator)))
-
-  (fn Emil:Type:parameters (self)
-    `(,@(Struct:get self :argument-types)
-      ,@(if (Struct:get self :rest-type)
-            (list (Struct:get self :rest-type)))
-      ,@(list (Struct:get self :return-type)))))
+     :arguments (--map (Emil:Type:substitute it source target)
+                       (Struct:get self :arguments))
+     :returns (Emil:Type:substitute (Struct:get self :returns)
+                                    source target))))
 
 (Struct:define Emil:Type:Forall
   "Represents a polymorphic type."
-  (variables
-   "The list of variables of type `Emil:Type:Var'."
+  (parameters
+   "The list of parameters of type `Emil:Type:Var'."
    :type list)
   (type
    "The type this type parameterizes.
@@ -169,16 +192,32 @@ type, excluding `Never' and itself.")
 Currently, only function types are supported."
    :type (Trait Emil:Type)))
 
+(Struct:implement Emil:Type:Forall
+  (fn Emil:Type:Forall:parameters (self)
+    "Returns the list of parameters"
+    (Struct:get self :parameters))
+
+  (fn Emil:Type:Forall:type (self)
+    "Returns the parameterized type."
+    (Struct:get self :type)))
+
 (Trait:implement Emil:Type Emil:Type:Forall
   (fn Emil:Type:print (self)
     (Emil:Type:print (Struct:get self :type)))
 
   (fn Emil:Type:monomorph? (self)
     (ignore self)
-    (null (Struct:get self :variables)))
+    (null (Struct:get self :parameters)))
 
   (fn Emil:Type:free-variables (self)
-    (Emil:Type:free-variables (Struct:get self :type))))
+    (Emil:Type:free-variables (Struct:get self :type)))
+
+  (fn Emil:Type:substitute (self (source Emil:Type:Var)
+                                 (target Emil:Type:VarInst))
+    (Emil:Type:Forall*
+     ,@self
+     :type (Emil:Type:substitute (Struct:get self :type)
+                                 source target))))
 
 (Struct:define Emil:Type:Var
   "Represents a type-variable."
@@ -188,7 +227,13 @@ Currently, only function types are supported."
 
 (Trait:implement Emil:Type Emil:Type:Var
   (fn Emil:Type:print (self)
-    `(quote ,(Struct:get self :name))))
+    `(quote ,(Struct:get self :name)))
+
+  (fn Emil:Type:substitute (self (source Emil:Type:Var)
+                                 (target Emil:Type:VarInst))
+    (if (equal self source)
+        target
+      self)))
 
 (Struct:define Emil:Type:VarInst
   "Represents an instance of a type-variable."
@@ -203,11 +248,11 @@ Currently, only function types are supported."
   (fn Emil:Type:free-variables (self)
     (list self)))
 
-(Struct:define Emil:Type:VarInstGenerator
+(Struct:define Emil:Type:Generator
   "Generator for instances of type `Emil:Type:VarInst'."
   (counter :type number :default -1 :mutable t))
 
-(defun Emil:Type:VarInstGenerator:next (self)
+(defun Emil:Type:Generator:next (self)
   (Emil:Type:VarInst
    :name (->> (Struct:update self :counter #'1+)
               (format "t%d")
@@ -251,54 +296,58 @@ type will be polymorphic."
      (unless allow-type-variables
        (Emil:invalid-type-form "Type variables not allowed here: %s" form))
      (when (Commons:constant-symbol? name)
-       (Emil:invalid-type-form "Constant symbol used as type variable: %s in %s"
-         name form))
+       (Emil:invalid-type-form
+        "Constant symbol used as type variable: %s in %s"
+        name form))
      (unless (string-match-p "\\`[a-zA-Z]" (symbol-name name))
-       (Emil:invalid-type-form "Type variables should start with a letter: %s in %s"
-         name form))
+       (Emil:invalid-type-form
+        "Type variables should start with a letter: %s in %s" name form))
      (Emil:Type:Var :name name))
     (`(-> ,arguments ,returns)
      (Emil:Type:-read-fn arguments returns))
     (_ (Emil:invalid-type-form "Failed to read form as a type: %s" form))))
 
-(defun Emil:Type:-read-fn (arguments returns)
+(defun Emil:Type:-read-fn (arguments-form returns-form)
   (let ((optional? nil)
         (rest? nil)
         (min-arity 0)
-        (argument-types nil)
-        (rest-type nil)
-        (return-type (Emil:Type:-read returns t))
-        (type-variables nil)
-        (form (list arguments returns)))
-    (while arguments
-      (let ((argument (pop arguments)))
-        (pcase argument
+        (arguments nil)
+        (returns (Emil:Type:-read returns-form t))
+        (parameters nil)
+        (form (list arguments-form returns-form)))
+    (while arguments-form
+      (let ((argument-form (pop arguments-form)))
+        (pcase argument-form
           ('&optional
            (when rest?
              (Emil:invalid-type-form "&optional can not follow &rest: %s" form))
-           (unless arguments
-             (Emil:invalid-type-form "&optional should be followed by an argument: %s" form))
+           (unless arguments-form
+             (Emil:invalid-type-form
+              "&optional should be followed by an argument: %s" form))
            (setq optional? t))
           ('&rest
-           (unless (= 1 (length arguments))
-             (Emil:invalid-type-form "&rest should be followed by one argument: %s" form))
-           (setq rest-type (Emil:Type:-read (pop arguments) t))
-           (when (Emil:Type:Var? rest-type)
-             (cl-pushnew rest-type type-variables :test #'equal)))
-          (_
-           (let ((type (Emil:Type:-read argument t)))
-             (push type argument-types)
+           (unless (= 1 (length arguments-form))
+             (Emil:invalid-type-form
+              "&rest should be followed by one argument: %s" form))
+           (let ((type (Emil:Type:-read (pop arguments-form) t)))
+             (push type arguments)
              (when (Emil:Type:Var? type)
-               (cl-pushnew type type-variables :test #'equal))
+               (cl-pushnew type parameters :test #'equal)))
+           (setq rest? t))
+          (_
+           (let ((type (Emil:Type:-read argument-form t)))
+             (push type arguments)
+             (when (Emil:Type:Var? type)
+               (cl-pushnew type parameters :test #'equal))
              (unless optional?
                (cl-incf min-arity)))))))
 
-    (setq argument-types (nreverse argument-types))
-    (when (Emil:Type:Var? return-type)
-      (cl-pushnew return-type type-variables :test #'equal))
-    (let ((type (Emil:Type:Fn* argument-types rest-type return-type min-arity)))
-      (if type-variables
-          (Emil:Type:Forall* :variables type-variables type)
+    (setq arguments (nreverse arguments))
+    (when (Emil:Type:Var? returns)
+      (cl-pushnew returns parameters :test #'equal))
+    (let ((type (Emil:Type:Fn* arguments rest? returns min-arity)))
+      (if parameters
+          (Emil:Type:Forall* parameters type)
         type))))
 
 (provide 'Emil/Type)
