@@ -48,23 +48,23 @@
        ((consp value)
         (apply #'Transformer:transform-cons self form value data))
        (t (error "Internal error: form is none of the above: %s" form)))))
-  
+
   (fn Transformer:transform-number (self form number &rest data)
     (ignore self form data)
     number)
-  
+
   (fn Transformer:transform-string (self form string &rest data)
     (ignore self form data)
     string)
-  
+
   (fn Transformer:transform-vector (self form vector &rest data)
     (ignore self form data)
     vector)
-  
+
   (fn Transformer:transform-symbol (self form symbol &rest data)
     (ignore self form data)
     symbol)
-  
+
   (fn Transformer:transform-cons (self form cons &rest data)
     (let* ((elements (Form:value cons))
            (head (car elements))
@@ -101,6 +101,10 @@
          (unless (= 1 (length rest))
            (Transformer:syntax-error "function should have exactly one argument: %s"
              rest (cons 'function rest)))
+         (unless (or (symbolp (car rest))
+                     (eq 'lambda (car-safe (car rest))))
+           (Transformer:syntax-error "function argument should be a symbol or lambda-form: %s"
+             rest (cons 'function rest)))
          (apply #'Transformer:transform-function self form (car rest) data))
         (`if (when (< (length rest) 2)
                (Transformer:syntax-error
@@ -111,19 +115,6 @@
         (`interactive
          (apply #'Transformer:transform-interactive
                 self form (car rest) (cdr rest) data))
-        (`lambda
-          (unless (and (listp (Form:value (car rest)))
-                       (-every? #'symbolp (-map #'Form:value (car rest))))
-            (Transformer:syntax-error
-                "lambda arguments should be a list of symbols: %s"
-              (car rest) (cons 'lambda rest)))
-          (let ((arguments (pop rest))
-                (documentation (and (stringp (Form:value (car rest)))
-                                    (pop rest)))
-                (interactive (and (eq 'interactive (car-safe (Form:value (car rest))))
-                                  (pop rest))))
-            (apply #'Transformer:transform-lambda
-             self form arguments documentation interactive rest data)))
         ((or `let `let*)
          (unless (and (listp (Form:value (car rest)))
                       (--every? (or (symbolp it)
@@ -174,21 +165,23 @@
                     self form (car rest) (cdr rest) data)
            (apply #'Transformer:transform-while
                   self form (car rest) (cdr rest) data)))
-        (_ (apply #'Transformer:transform-application self form head rest data)))))  
-  
+        (_ (when (special-form-p head)
+             (warn "internal error: unknown special form: %s" (cons head rest)))
+           (apply #'Transformer:transform-application self form head rest data)))))
+
   (fn Transformer:transform-and (self form conditions &rest data)
     (ignore form)
     `(and ,@(apply #'Transformer:map-transform self conditions data)))
-  
+
   (fn Transformer:transform-catch (self form tag body &rest data)
     (ignore form)
     `(catch ,(apply #'Transformer:transform-form self tag data)
        ,@(apply #'Transformer:map-transform self body data)))
-  
+
   (fn Transformer:transform-cond (self form clauses &rest data)
     (ignore form)
     `(cond ,@(apply #'Transformer:map-transform self clauses data)))
-  
+
   (fn Transformer:transform-defconst (self form symbol init-value &optional
                                            doc-string &rest data)
     (ignore form)
@@ -196,7 +189,7 @@
        ,(apply #'Transformer:transform-form self init-value data)
        ,@(and (Form:value doc-string)
               (list (apply #'Transformer:transform-form self doc-string data)))))
-  
+
   (fn Transformer:transform-defvar (self form symbol &optional init-value
                                          doc-string &rest data)
     (ignore form)
@@ -205,85 +198,75 @@
               (list (apply #'Transformer:map-transform self init-value data)))
        ,@(and (Form:value doc-string)
               (list (apply #'Transformer:transform-form self doc-string data)))))
-  
+
   (fn Transformer:transform-function (self form argument &rest data)
     (ignore self form data)
     `(function ,(Form:value argument)))
-  
+
   (fn Transformer:transform-if (self form condition then else &rest data)
     (ignore form)
     `(if ,(apply #'Transformer:transform-form self condition data)
          ,(apply #'Transformer:transform-form self then data)
        ,@(apply #'Transformer:map-transform self else data)))
-  
+
   (fn Transformer:transform-interactive (self form descriptor modes &rest data)
     (ignore form)
     `(interactive
       ,@(apply #'Transformer:map-transform self (cons descriptor modes) data)))
   
-  (fn Transformer:transform-lambda (self form arguments documentation
-                                         interactive body &rest data)
-    (ignore form)
-    `(lambda ,(apply #'Transformer:map-transform self arguments data)
-       ,@(and (Form:value documentation)
-              (list (apply #'Transformer:transform-form self documentation data)))
-       ,@(and (Form:value interactive)
-              (apply #'Transformer:transform-form self interactive data))
-       ,@(apply #'Transformer:map-transform self body data)))
-  
   (fn Transformer:transform-let (self form bindings body &rest data)
     (ignore form)
     `(let ,(apply #'Transformer:transform-let-bindings self bindings data)
        ,@(apply #'Transformer:map-transform self body data)))
-  
+
   (fn Transformer:transform-let* (self form bindings body &rest data)
     (ignore form)
     `(let* ,(apply #'Transformer:transform-let-bindings self bindings data)
        ,@(apply #'Transformer:map-transform self body data)))
-  
+
   (fn Transformer:transform-or (self form conditions &rest data)
     (ignore form)
     `(or ,@(apply #'Transformer:map-transform self conditions data)))
-  
+
   (fn Transformer:transform-prog1 (self form first body &rest data)
     (ignore form)
     `(prog1 ,(apply #'Transformer:transform-form self first data)
        ,@(apply #'Transformer:map-transform self body data)))
-  
+
   (fn Transformer:transform-progn (self form body &rest data)
     (ignore form)
     `(progn ,@(apply #'Transformer:map-transform self body data)))
-  
+
   (fn Transformer:transform-quote (self form argument &rest data)
     (ignore self form data)
     `(quote ,(Form:value argument)))
-  
+
   (fn Transformer:transform-save-current-buffer (self form body &rest data)
     (ignore form)
     `(save-current-buffer ,@(apply #'Transformer:map-transform self body data)))
-  
+
   (fn Transformer:transform-save-excursion (self form body &rest data)
     (ignore form)
     `(save-excursion ,@(apply #'Transformer:map-transform self body data)))
-  
+
   (fn Transformer:transform-save-restriction (self form body &rest data)
     (ignore form)
     `(save-restriction ,@(apply #'Transformer:map-transform self body data)))
-  
+
   (fn Transformer:transform-setq (self form definitions &rest data)
     (ignore form)
     `(setq ,@(apply #'Transformer:map-transform self definitions data)))
-  
+
   (fn Transformer:transform-unwind-protect (self form unwind-form forms &rest data)
     (ignore form)
     `(unwind-protect ,(apply #'Transformer:transform-form self unwind-form data)
        ,@(apply #'Transformer:map-transform self forms data)))
-  
+
   (fn Transformer:transform-while (self form condition body &rest data)
     (ignore form)
     `(while ,(apply #'Transformer:transform-form self condition data)
        ,@(apply #'Transformer:map-transform self body data)))
-  
+
   (fn Transformer:transform-application (self form function arguments &rest data)
     (ignore form)
     (if (macrop (Form:value function))

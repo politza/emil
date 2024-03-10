@@ -63,13 +63,6 @@
           (expect (Transformer:transform '(interactive "p"))
                   :to-equal '(interactive "p")))
         
-        (it "lambda"
-          ;; lambda is actually a macro expanding to (function (lambda ... )).
-          (expect (Transformer:transform
-                   '(lambda (arg) "documentation" body-0 body-1))
-                  :to-equal
-                  '(function (lambda (arg) "documentation" body-0 body-1))))
-        
         (it "let"
           (expect (Transformer:transform
                    '(let ((binding-0 value-0)
