@@ -15,12 +15,12 @@ top."
   (entries :type list))
 
 (Struct:define Emil:Context:Binding
-  "Maps a variable to some type.
+  "Maps a name to some type.
 
-The term variable refers to a programmer's variable, i.e. not a
-type-variable. Note, that type may be incomplete, i.e. it may refer to
-yet to be resolved type-variables."
-  (variable :type symbol)
+Name refers to a programmer's variable, i.e. not a type-variable.
+Note, that type may be incomplete, i.e. it may refer to yet to be
+resolved type-variables."
+  (name :type symbol)
   (type :type (Trait Emil:Type)))
 
 (defvar Emil:Context:Marker:counter 0)
@@ -35,13 +35,13 @@ monotonically increasing counter stored in the variable
 `Emil:Context:Marker:counter'."
   (token :default (cl-incf Emil:Context:Marker:counter)))
 
-(Struct:define Emil:Context:SolvedVarInst
-  "Maps an instance of a variable-type to some type.
+(Struct:define Emil:Context:Solution
+  "Maps a `Emil:Context:Existential' some type.
 
 During type-inference, instances of type-variables of polymorphic
 types are resolved to other types. This struct keeps track of these
 assignments."
-  (variable :type Emil:Type:Existential)
+  (existential :type Emil:Type:Existential)
   (type :type (Trait Emil:Type)))
 
 (Struct:implement Emil:Context
@@ -80,7 +80,7 @@ context; or if OTHER appears in front of VARIABLE."
 Returns variable's type; or `nil', if VARIABLE is not bound in this
 context."
     (-some-> (--find (pcase it
-                       ((Struct Emil:Context:Binding :variable other)
+                       ((Struct Emil:Context:Binding :name other)
                         (equal variable other)))
                      (Struct:get self :entries))
       (Struct:get :type)))
@@ -92,7 +92,7 @@ context."
 Returns variable's type; or `nil', if VARIABLE is not bound in this
 context."
     (-some-> (--find (pcase it
-                       ((Struct Emil:Context:SolvedVarInst :variable other)
+                       ((Struct Emil:Context:Solution :existential other)
                         (equal variable other)))
                      (Struct:get self :entries))
       (Struct:get :type)))
