@@ -34,7 +34,7 @@
   (check-transformer
    :type Emil:CheckTransformer)
   (generator
-   :type Emil:ExistentialsGenerator :default (Emil:ExistentialsGenerator))
+   :type Emil:ExistentialGenerator :default (Emil:ExistentialGenerator))
   (messages :type list))
 
 (Struct:define Emil:Message
@@ -55,7 +55,7 @@
 
 (Trait:implement Transformer Emil:CheckTransformer)
 
-(Struct:define Emil:ExistentialsGenerator
+(Struct:define Emil:ExistentialGenerator
   "Generator for instances of type `Emil:Type:Existential'."
   (counter :type number :default -1 :mutable t))
 
