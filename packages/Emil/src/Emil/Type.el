@@ -239,7 +239,7 @@ Currently, only function types are supported."
 
 (Trait:implement Emil:Type Emil:Type:Existential
   (fn Emil:Type:print (self)
-    `(quote (quote ,(Struct:get self :name))))
+    `(quote ,(Struct:get self :name)))
 
   (fn Emil:Type:free-variables (self)
     (list (Struct:get self :name))))
