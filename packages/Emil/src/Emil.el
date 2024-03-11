@@ -16,6 +16,7 @@
 (require 'Emil/Context)
 (require 'Emil/Message)
 (require 'Emil/Util)
+(require 'Emil/Env)
 
 (Struct:define Emil:ExistentialGenerator
   "Generator for instances of type `Emil:Type:Existential'."
@@ -26,6 +27,9 @@
    :name (Emil:Util:NameGenerator:next (Struct:get self :generator))))
 
 (Struct:define Emil
+  (environment
+   "The environment for looking up non-local variables and functions."
+   :type (Trait Emil:Env) :default (Emil:Env:empty))
   (generator
    :type Emil:ExistentialGenerator :default (Emil:ExistentialGenerator))
   (messages :type list))
@@ -72,6 +76,16 @@
     (-map (lambda (_)
             (Emil:generate-existential self))
           (-repeat count nil)))
+
+  (fn Emil:lookup-variable (self context variable)
+    (or (Emil:Context:lookup-variable context variable)
+        (Emil:Env:lookup-variable (Struct:get self :environment)
+                                  variable context)))
+
+  (fn Emil:lookup-function (self context function)
+    (or (Emil:Context:lookup-function context function)
+        (Emil:Env:lookup-function (Struct:get self :environment)
+                                  function context)))
 
   (fn Emil:instantiate-arrow (self (type Emil:Type:Arrow))
     "Instantiates the function-type with existentials.
@@ -302,14 +316,14 @@ replaced with instances of `Emil:Type:Existential'."
   (fn Transformer:transform-vector (_self _form vector &optional context &rest _)
     (cons (Emil:Type:Basic :name (type-of vector)) context))
 
-  (fn Transformer:transform-symbol (_self _form symbol &optional context &rest _)
+  (fn Transformer:transform-symbol (self _form symbol &optional context &rest _)
     (cond
      ((null symbol)
       (cons (Emil:Type:Null) context))
      ((or (eq symbol t) (keywordp symbol))
       (cons (Emil:Type:Basic :name 'symbol) context))
      (t
-      (if-let (type (Emil:Context:lookup-binding context symbol))
+      (if-let (type (Emil:lookup-variable self context symbol))
           (cons type context)
         (error "Unbound variable: %s" symbol)))))
 
@@ -361,9 +375,9 @@ replaced with instances of `Emil:Type:Existential'."
                 arguments returns :min-arity (length arguments))
                (Emil:Context:drop-until-after intermediate-context marker))))
       ((pred symbolp)
-       (if-let (type (Emil:Context:lookup-binding context argument))
+       (if-let (type (Emil:lookup-function self context argument))
            (cons type context)
-         (error "Unbound variable: %s" argument)))))
+         (error "Unbound function: %s" argument)))))
 
   (fn Transformer:transform-if (self _form condition then else
                                      &optional context &rest _)
@@ -417,10 +431,10 @@ replaced with instances of `Emil:Type:Existential'."
           (cdr (Emil:infer-do self context conditions))))
 
   (fn Transformer:transform-prog1 (self _form first body &optional context &rest _)
-    (-let (((first-type . initial-context)
+    (-let (((first-type . first-context)
             (Transformer:transform-form self first context)))
       (cons first-type
-            (cdr (Emil:infer-do self initial-context body)))))
+            (cdr (Emil:infer-do self first-context body)))))
 
   (fn Transformer:transform-progn (self _form body &optional context &rest _)
     (Emil:infer-do self context body))
@@ -453,11 +467,11 @@ replaced with instances of `Emil:Type:Existential'."
                                         &optional context &rest _)
     (Emil:infer-do self context (cons condition body)))
 
-  (fn Transformer:transform-application (self _form function arguments
+  (fn Transformer:transform-application (self form function arguments
                                               &optional context &rest _)
 
     (-let (((arrow-type . result-context)
-            (Transformer:transform-form self function context)))
+            (Transformer:transform-function self form function context)))
       (Emil:infer-application
        self result-context
        (Emil:Context:resolve result-context arrow-type)
@@ -470,9 +484,9 @@ replaced with instances of `Emil:Type:Existential'."
      (macroexpand (-map #'Form:value (cons macro arguments)))
      context)))
 
-(defun Emil:infer-form (form)
+(defun Emil:infer-form (form &optional environment)
   (-let* (((type . context)
-           (Emil:infer (Emil) form (Emil:Context))))
+           (Emil:infer (Emil* environment) form (Emil:Context))))
     (Emil:Type:pretty-print (Emil:Context:resolve context type))))
 
 (provide 'Emil)

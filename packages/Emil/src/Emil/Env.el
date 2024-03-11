@@ -80,4 +80,8 @@ ones until some environment returns a non-`nil' value."
     (--some (Emil:Env:lookup-function it function context)
             (Struct:get self :environments))))
 
+(defun Emil:Env:empty ()
+  "Returns an empty environment."
+  (Emil:Env:Alist :variables nil :functions nil))
+
 (provide 'Emil/Env)
