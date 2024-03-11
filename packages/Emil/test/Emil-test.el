@@ -63,7 +63,7 @@
       (it "multiple bindings"
         (expect (Emil:infer-form '(let ((a 0) (b [])) b))
                 :to-equal 'vector))
-t
+      t
       (it "shadowed binding"
         (expect (Emil:infer-form '(let ((a 0))
                                     (let ((a [])
@@ -113,4 +113,89 @@ t
 
       (it "two arguments"
         (expect (Emil:infer-form '((lambda (x y) y) [] 0))
-                :to-equal 'integer)))))
+                :to-equal 'integer)))
+
+    (describe "and"
+      (it "basic"
+        (expect (Emil:infer-form '(and 0 1 2))
+                :to-equal 'Any)))
+
+    (describe "catch"
+      (it "basic"
+        (expect (Emil:infer-form '(catch 'tag 0 1 2))
+                :to-equal 'Any)))
+
+    (describe "cond"
+      (it "basic"
+        (expect (Emil:infer-form '(cond (nil 0 1) (t 2 3)))
+                :to-equal 'Any)))
+
+    (describe "defconst"
+      (it "basic"
+        (expect (Emil:infer-form '(defconst a (prog1 nil t) "doc"))
+                :to-equal 'symbol)))
+
+    (describe "defvar"
+      (it "basic"
+        (expect (Emil:infer-form '(defvar a (prog1 nil t) "doc"))
+                :to-equal 'symbol)))
+
+    (describe "if"
+      (it "basic"
+        (expect (Emil:infer-form '(if 0 1 2 3))
+                :to-equal 'Any)))
+
+    (describe "interactive"
+      (it "basic"
+        (expect (Emil:infer-form '(interactive "p"))
+                :to-equal 'Any)))
+
+    (describe "or"
+      (it "basic"
+        (expect (Emil:infer-form '(or 0 1 2))
+                :to-equal 'Any)))
+
+    (describe "prog1"
+      (it "basic"
+        (expect (Emil:infer-form '(prog1 0 [] []))
+                :to-equal 'integer)))
+
+    (describe "progn"
+      (it "basic"
+        (expect (Emil:infer-form '(progn 0 1 []))
+                :to-equal 'vector)))
+
+    (describe "quote"
+      (it "basic"
+        (expect (Emil:infer-form '(quote x))
+                :to-equal 'Any)))
+
+    (describe "save-current-buffer"
+      (it "basic"
+        (expect (Emil:infer-form '(save-current-buffer 0 1 []))
+                :to-equal 'vector)))
+
+    (describe "save-excursion"
+      (it "basic"
+        (expect (Emil:infer-form '(save-excursion 0 1 []))
+                :to-equal 'vector)))
+
+    (describe "save-restriction"
+      (it "basic"
+        (expect (Emil:infer-form '(save-restriction 0 1 []))
+                :to-equal 'vector)))
+
+    (describe "setq"
+      (it "basic"
+        (expect (Emil:infer-form '(setq a 0 b 1))
+                :to-equal 'Any)))
+
+    (describe "unwind-protect"
+      (it "basic"
+        (expect (Emil:infer-form '(unwind-protect [] 1 2))
+                :to-equal 'vector)))
+
+    (describe "while"
+      (it "basic"
+        (expect (Emil:infer-form '(while 0 1 []))
+                :to-equal 'vector)))))
