@@ -41,15 +41,15 @@
 
       (it "identity"
         (expect (Emil:infer-form '(lambda (x) x))
-                :to-equal '(-> ('t0) 't0)))
+                :to-equal '(-> ('a) 'a)))
 
       (it "two arguments"
         (expect (Emil:infer-form '(lambda (x y) y))
-                :to-equal '(-> ('t0 't1) 't1)))
+                :to-equal '(-> ('a 'b) 'b)))
 
       (it "convoluted identity"
         (expect (Emil:infer-form '(lambda (x) ((lambda (y) y) x)))
-                :to-equal '(-> ('t0) 't0))))
+                :to-equal '(-> ('a) 'a))))
 
     (describe "let"
       (it "empty"
@@ -63,7 +63,7 @@
       (it "multiple bindings"
         (expect (Emil:infer-form '(let ((a 0) (b [])) b))
                 :to-equal 'vector))
-
+t
       (it "shadowed binding"
         (expect (Emil:infer-form '(let ((a 0))
                                     (let ((a [])
@@ -74,7 +74,7 @@
       (it "lambda binding"
         (expect (Emil:infer-form '(let ((fn (lambda (a) 0)))
                                     fn))
-                :to-equal '(-> ('t0) integer))))
+                :to-equal '(-> ('a) integer))))
 
     (describe "let*"
       (it "empty"
@@ -99,7 +99,7 @@
       (it "lambda binding"
         (expect (Emil:infer-form '(let* ((fn (lambda (a) 0)))
                                     fn))
-                :to-equal '(-> ('t0) integer))))
+                :to-equal '(-> ('a) integer))))
 
     (describe "application"
       (it "identity"
@@ -109,7 +109,7 @@
       (it "convoluted identity"
         (expect (Emil:infer-form '((lambda (x) ((lambda (y) y) x))
                                    (lambda (z) z)))
-                :to-equal '(-> ('t6) 't6)))
+                :to-equal '(-> ('a) 'a)))
 
       (it "two arguments"
         (expect (Emil:infer-form '((lambda (x y) y) [] 0))

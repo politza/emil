@@ -15,15 +15,15 @@
 (require 'Emil/Type)
 (require 'Emil/Context)
 (require 'Emil/Message)
+(require 'Emil/Util)
 
 (Struct:define Emil:ExistentialGenerator
   "Generator for instances of type `Emil:Type:Existential'."
-  (counter :type (integer 0 *) :default 0 :mutable t))
+  (generator :default (Emil:Util:NameGenerator)))
 
 (defun Emil:ExistentialGenerator:next (self)
-  (let ((name (intern (format "t%d" (Struct:get self :counter)))))
-    (Struct:update self :counter #'1+)
-    (Emil:Type:Existential* name)))
+  (Emil:Type:Existential
+   :name (Emil:Util:NameGenerator:next (Struct:get self :generator))))
 
 (Struct:define Emil
   (generator
@@ -510,7 +510,7 @@ replaced with instances of `Emil:Type:Existential'."
 (defun Emil:infer-form (form)
   (-let* (((type . context)
            (Emil:infer (Emil) form (Emil:Context))))
-    (Emil:Type:print (Emil:Context:resolve context type))))
+    (Emil:Type:pretty-print (Emil:Context:resolve context type))))
 
 (provide 'Emil)
 ;;; Emil.el ends here
