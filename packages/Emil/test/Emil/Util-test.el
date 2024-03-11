@@ -9,7 +9,7 @@
     :var (subject)
 
     (before-each (setq subject (Emil:Util:NameGenerator)))
-    
+
     (it "starts with single letters"
       (expect (Emil:Util:NameGenerator:next subject)
               :to-equal 'a)
