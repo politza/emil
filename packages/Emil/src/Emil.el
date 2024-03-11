@@ -487,7 +487,7 @@ replaced with instances of `Emil:Type:Existential'."
 (defun Emil:infer-form (form &optional environment)
   (-let* (((type . context)
            (Emil:infer (Emil* environment) form (Emil:Context))))
-    (Emil:Type:pretty-print (Emil:Context:resolve context type))))
+    (Emil:Type:print-normalized (Emil:Context:resolve context type))))
 
 (provide 'Emil)
 ;;; Emil.el ends here

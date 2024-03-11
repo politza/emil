@@ -238,26 +238,26 @@
                                  :type (Emil:Type:Never)))
               :to-equal 'Never)))
 
-  (describe "Emil:Type:pretty-print"
+  (describe "Emil:Type:print-normalized"
     (it "basic"
-      (expect (Emil:Type:pretty-print (Emil:Type:read 'integer))
+      (expect (Emil:Type:print-normalized (Emil:Type:read 'integer))
               :to-equal 'integer))
 
     (it "monomorph function"
-      (expect (Emil:Type:pretty-print (Emil:Type:read '(-> (integer) string)))
+      (expect (Emil:Type:print-normalized (Emil:Type:read '(-> (integer) string)))
               :to-equal '(-> (integer) string)))
 
     (it "polymorph function"
-      (expect (Emil:Type:pretty-print (Emil:Type:read '(-> ('x 'y) 'y)))
+      (expect (Emil:Type:print-normalized (Emil:Type:read '(-> ('x 'y) 'y)))
               :to-equal '(-> ('a 'b) 'b)))
 
     (it "mixed function"
-      (expect (Emil:Type:pretty-print (Emil:Type:read
+      (expect (Emil:Type:print-normalized (Emil:Type:read
                                        '(-> (string 'y) 'y)))
               :to-equal '(-> (string 'a) 'a)))
 
     (it "nested function"
-      (expect (Emil:Type:pretty-print
+      (expect (Emil:Type:print-normalized
                (Emil:Type:read '(-> ((-> ('x) 'y) 'x 'y)
                                     (-> ('x 'y) 'z))))
               :to-equal '(-> ((-> ('a) 'b) 'a 'b)

@@ -347,12 +347,15 @@ type will be polymorphic."
           (Emil:Type:Forall* parameters type)
         type))))
 
-(defun Emil:Type:pretty-print (type)
+(defun Emil:Type:print-normalized (type)
+  "Return a normalized, readable representation of TYPE.
+
+This renames all type-variables with more comprehensible ones."
   (let ((generator (Emil:Util:NameGenerator))
         (names nil))
     (cl-labels ((generate ()
                   (Emil:Util:NameGenerator:next generator))
-                (pretty-print (type)
+                (normalize (type)
                   (pcase-exhaustive type
                     ((pred symbolp) type)
                     (`(quote ,name)
@@ -361,7 +364,7 @@ type will be polymorphic."
                        (push (cons name (generate)) names)
                        (list 'quote (cdr (car names)))))
                     ((pred consp)
-                     (-map #'pretty-print type)))))
-      (pretty-print (Emil:Type:print type)))))
+                     (-map #'normalize type)))))
+      (normalize (Emil:Type:print type)))))
 
 (provide 'Emil/Type)
