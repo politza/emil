@@ -309,10 +309,9 @@ replaced with instances of `Emil:Type:Existential'."
      ((or (eq symbol t) (keywordp symbol))
       (cons (Emil:Type:Basic :name 'symbol) context))
      (t
-      (let ((type (Emil:Context:lookup-binding context symbol)))
-        (unless type
-          (error "Unbound variable: %s" symbol))
-        (cons type context)))))
+      (if-let (type (Emil:Context:lookup-binding context symbol))
+          (cons type context)
+        (error "Unbound variable: %s" symbol)))))
 
   (fn Transformer:transform-and (self _form conditions &optional context &rest _)
     (cons (Emil:Type:Any)

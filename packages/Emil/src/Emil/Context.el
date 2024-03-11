@@ -6,6 +6,7 @@
 (require 'Struct)
 (require 'Struct/Pcase)
 (require 'Trait)
+(require 'Emil/Env)
 
 (Struct:define Emil:Context
   "Provides a context for type-inference.
@@ -188,24 +189,22 @@ ones, which are discarded."
   (fn Emil:Context:member? (self entry)
     (member entry (Struct:get self :entries))))
 
-(Trait:define Emil:Environment ()
-  (fn Emil:Environment:lookup (self (variable symbol) &optional related)
-    "Looks up VARIABLE in an environment and returns its type.
-
-Optional argument RELATED is a related environment, which may provide
-additional bindings pertaining to this one. Typically a local
-environment used by a global one.
-
-Returns `nil', if VARIABLE is not bound in this environment."))
-
-(Trait:implement Emil:Environment Emil:Context
-  (fn Emil:Environment:lookup (self variable &optional _related)
+(Trait:implement Emil:Env Emil:Context
+  (fn Emil:Env:lookup-variable (self variable _context)
     "Looks up VARIABLE in the current, local environment.
 
-Argument RELATED is ignored.
+Argument CONTEXT is ignored.
 
 Returns `nil', if VARIABLE is not present in this environment."
     (-some->> (Emil:Context:lookup-binding self variable)
-      (Emil:Context:resolve self))))
+      (Emil:Context:resolve self)))
+
+  (fn Emil:Env:lookup-function (_self _function _context)
+    "Looks up FUNCTION in the current, local environment.
+
+Argument CONTEXT is ignored.
+
+Returns `nil', if FUNCTION is not present in this environment."
+    nil))
 
 (provide 'Emil/Context)
