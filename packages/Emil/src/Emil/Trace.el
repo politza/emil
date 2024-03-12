@@ -24,7 +24,7 @@
 (defvar Emil:Trace:current-context nil)
 
 (defun Emil:Trace:traced-functions ()
-  "Returns a list of `Transformer' methods."
+  "Returns a list functions to trace."
   (-difference
    (append
     Emil:Trace:included-functions
@@ -32,7 +32,7 @@
    Emil:Trace:excluded-functions))
 
 (define-minor-mode Emil:Trace:mode
-  "Trace methods calls."
+  "Trace methods calls of type-inference."
   :group 'emacs
   :global t
   (cond
@@ -48,6 +48,9 @@
     (setq Emil:Trace:current-context nil))))
 
 (defun Emil:Trace:pretty-print-context (context prefix)
+  "Return CONTEXT as a pretty-printed string.
+
+Prefix each line of the result with PREFIX."
   (cond
    ((and context (not (eq context Emil:Trace:current-context)))
     (setq Emil:Trace:current-context context)
