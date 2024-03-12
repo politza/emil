@@ -26,6 +26,15 @@
   (Emil:Type:Existential
    :name (Emil:Util:NameGenerator:next (Struct:get self :generator))))
 
+(defmacro Emil:is (_type form)
+  "Declare that FORM is of type TYPE.
+
+Apart from that, this just expands to FORM.
+
+\(fn TYPE FORM\)"
+  (declare (indent 1))
+  form)
+
 (Struct:define Emil
   (environment
    "The environment for looking up non-local variables and functions."
@@ -483,10 +492,18 @@ replaced with instances of `Emil:Type:Existential'."
 
   (fn Transformer:transform-macro (self _form macro arguments
                                         &optional context &rest _)
-    (Transformer:transform-form
-     self
-     (macroexpand (-map #'Form:value (cons macro arguments)))
-     context)))
+    (cond
+     ((eq (Form:value macro) 'Emil:is)
+      (unless (= 2 (length arguments))
+        (error "Syntax error: Emil:is: %s" arguments))
+      (let ((type (Emil:Type:read (Form:value (nth 0 arguments)))))
+        (cons type
+              (Emil:check self (Form:value (nth 1 arguments)) type context))))
+     (t
+      (Transformer:transform-form
+       self
+       (macroexpand (-map #'Form:value (cons macro arguments)))
+       context)))))
 
 (defun Emil:infer-form (form &optional environment)
   (-let* (((type . context)
