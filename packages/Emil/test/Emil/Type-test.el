@@ -67,7 +67,28 @@
                               (Emil:Type:Never))
                   :rest? t
                   :returns (Emil:Type:Void)
-                  :min-arity 2)))))
+                  :min-arity 2)))
+
+      (it "nested polymorph"
+        (expect (Emil:Type:read '(-> ((-> ('a) 'b) 'a) 'b))
+                :to-equal
+                '(Emil:Type:Forall
+                  :parameters ((Emil:Type:Variable :name a)
+                               (Emil:Type:Variable :name b))
+                  :type (Emil:Type:Arrow
+                         :arguments ((Emil:Type:Arrow
+                                      :arguments ((Emil:Type:Variable :name a))
+                                      :rest? nil
+                                      :returns (Emil:Type:Variable :name b)
+                                      :min-arity 1)
+                                     (Emil:Type:Variable :name a))
+                         :rest? nil
+                         :returns (Emil:Type:Variable :name b)
+                         :min-arity 2))))
+
+      (it "invalid polymorph function"
+        (expect (Emil:Type:read '(-> 'a 'b))
+                :to-throw 'Emil:invalid-type-form))))
 
   (describe "Emil:Type:monomorph?"
     (it "Null"
