@@ -175,9 +175,9 @@ as with regards to its unresolved type-variables."
   (fn Emil:Context:concat (&rest contexts-and-entries)
     "Concat all arguments CONTEXTS-AND-ENTRIES.
 
-Each argument may either be a context an entry or a list of entries.
-Returns a context with all arguments concatenated, except for `nil'
-ones, which are discarded."
+Each argument may either be a context, an entry or a, possibly
+empty, list of entries. Returns a context with all arguments
+concatenated."
     (Emil:Context
      :entries
      (--mapcat (pcase it
