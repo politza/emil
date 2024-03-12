@@ -75,7 +75,7 @@ the new type with the formatted string as error-data."
        ,(format
          "Signals `%s' with ARGUMENTS applied to FMT as data."
          name)
-       (signal ',name (apply fmt arguments)))))
+       (signal ',name (list (apply #'format fmt arguments))))))
 
 (defun Commons:constant-symbol? (symbol)
   "Returns non-nil, if SYMBOL is a constant symbol.
