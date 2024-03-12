@@ -89,11 +89,17 @@
         (expect (Emil:infer-form '(let* ((a 0) (b a)) b))
                 :to-equal 'integer))
 
-      (it "shadowed binding"
+      (it "shadowed nested binding"
         (expect (Emil:infer-form '(let ((a 0))
                                     (let* ((a [])
                                            (b a))
                                       b)))
+                :to-equal 'vector))
+
+      (it "shadowed bindings"
+        (expect (Emil:infer-form '(let* ((a 0)
+                                         (a []))
+                                    a))
                 :to-equal 'vector))
 
       (it "lambda binding"
@@ -207,6 +213,12 @@
                  (Emil:Env:Alist:read '((a . integer)) nil))
                 :to-equal 'integer))
 
+      (it "basic function"
+        (expect (Emil:infer-form
+                 '#'fn
+                 (Emil:Env:Alist:read nil '((fn . (-> (integer) string)))))
+                :to-equal '(-> (integer) string)))
+
       (it "funcall let-bound function"
         (expect
          (Emil:infer-form
@@ -227,4 +239,25 @@
            nil
            '((funcall . (-> ((-> ('a) 'b) 'a) 'b))
              (length . (-> (string) integer)))))
+         :to-equal 'integer))
+
+      (it "let shadows environment"
+        (expect
+         (Emil:infer-form
+          '(let ((fill-column "string"))
+             fill-column)
+          (Emil:Env:Alist:read
+           '((fill-column . integer))
+           nil))
+         :to-equal 'string))
+      
+      (it "let* shadows environment"
+        (expect
+         (Emil:infer-form
+          '(let* ((fill-column "string")
+                  (a (length fill-column)))
+             a)
+          (Emil:Env:Alist:read
+           '((fill-column . integer))
+           '((length . (-> (string) integer)))))
          :to-equal 'integer)))))
