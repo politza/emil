@@ -17,6 +17,7 @@
 (require 'Emil/Message)
 (require 'Emil/Util)
 (require 'Emil/Env)
+(require 'Emil/TypedForm)
 
 (Struct:define Emil:ExistentialGenerator
   "Generator for instances of type `Emil:Type:Existential'."
@@ -34,16 +35,6 @@ Apart from that, this just expands to FORM.
 \(fn TYPE FORM\)"
   (declare (indent 1))
   form)
-
-(Struct:define Emil:TypedForm
-  (form
-   "The encapsulated form.")
-  (source
-   "The source location of this form.")
-  (type
-   "The type of this form.")
-  (context
-   "The context pertaining to this form."))
 
 (Struct:define Emil
   (environment

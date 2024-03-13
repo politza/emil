@@ -13,7 +13,19 @@
 (require 'dash)
 
 (Trait:define Transformer:Form ()
-  (fn Transformer:Form:value (self) self))
+  (fn Transformer:Form:value (self) self)
+  (fn Transformer:Form:source (self -> (Trait Transformer:source))
+    (ignore self)
+    nil))
+
+(Trait:define Transformer:Position ()
+  (fn Transformer:Position:start (self))
+  (fn Transformer:Position:end (self)))
+
+(Trait:define Transformer:Source ()
+  (fn Transformer:Source:position (self -> (Trait Transformer:Position)))
+  (fn Transformer:Source:filename (self -> (or null string)))
+  (fn Transformer:Source:buffer (self -> (or null buffer))))
 
 (Commons:define-error Transformer:syntax-error "Syntax Error")
 

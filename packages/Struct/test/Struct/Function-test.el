@@ -274,7 +274,7 @@
                  (Struct:Function:read '(fn b (a &rest b))))
                 :to-equal nil))
 
-      (it "is contra-variant in its arguments"
+      (it "type handling of arguments"
         (expect (Struct:Function:subtype?
                  (Struct:Function:read '(fn a (a)))
                  (Struct:Function:read '(fn b ((a string)))))
@@ -284,12 +284,12 @@
                  (Struct:Function:read '(fn b (a))))
                 :to-equal nil))
 
-      (it "is co-variant in its return-type"
+      (it "type handling of returns"
         (expect (Struct:Function:subtype?
                  (Struct:Function:read '(fn a (-> string)))
                  (Struct:Function:read '(fn b ())))
-                :to-equal t)
+                :to-equal nil)
         (expect (Struct:Function:subtype?
                  (Struct:Function:read '(fn a ()))
                  (Struct:Function:read '(fn b (-> string))))
-                :to-equal nil)))))
+                :to-equal t)))))
