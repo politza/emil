@@ -39,9 +39,9 @@ Apart from that, this just expands to FORM.
   (form
    "The encapsulated form.")
   (source
-   "The source location of the form.")
+   "The source location of this form.")
   (type
-   "The type of the form")
+   "The type of this form.")
   (context
    "The context pertaining to this form."))
 
@@ -62,7 +62,10 @@ Apart from that, this just expands to FORM.
       ((Struct Emil:Type:Forall parameters :type forall-type)
        (let* ((marker (Emil:Context:Marker))
               (intermediate-context
-               (Emil:Context:concat (reverse parameters) marker context))
+               (Emil:Context:concat
+                (Emil:Context :entries (reverse parameters)
+                              :parent context)
+                marker context))
               (result-context
                (Emil:check self form forall-type intermediate-context)))
          (Emil:Context:drop-until-after result-context marker)))
@@ -83,7 +86,10 @@ Apart from that, this just expands to FORM.
                       (-zip-pair arguments-adjusted argument-types-adjusted)))
               (marker (Emil:Context:Marker))
               (intermediate-context
-               (Emil:Context:concat (reverse bindings) marker context))
+               (Emil:Context:concat
+                (Emil:Context :entries (reverse bindings)
+                              :parent context)
+                marker context))
               (result-context (Emil:check self body returns intermediate-context)))
          (Emil:Context:drop-until-after result-context marker)))
       (_
@@ -181,7 +187,8 @@ replaced with instances of `Emil:Type:Existential'."
             ;; InstLAllR
             (let* ((marker (Emil:Context:Marker))
                    (initial-context (Emil:Context:concat
-                                     (Emil:Context :entries (reverse parameters))
+                                     (Emil:Context :entries (reverse parameters)
+                                                   :parent context)
                                      marker context))
                    (intermediate-context (Emil:instantiate
                                           self initial-context
@@ -194,7 +201,8 @@ replaced with instances of `Emil:Type:Existential'."
                    (marker (Emil:Context:Marker))
                    (initial-context
                     (Emil:Context:concat
-                     (Emil:Context :entries (reverse instances)) marker context))
+                     (Emil:Context :entries (reverse instances)
+                                   :parent context) marker context))
                    (intermediate-context
                     (Emil:instantiate
                      self
@@ -255,7 +263,8 @@ replaced with instances of `Emil:Type:Existential'."
               (marker (Emil:Context:Marker))
               (initial-context
                (Emil:Context:concat
-                (reverse instances)
+                (Emil:Context :entries (reverse instances)
+                              :parent context)
                 marker
                 context))
               (intermediate-context
@@ -269,7 +278,8 @@ replaced with instances of `Emil:Type:Existential'."
        (let* ((marker (Emil:Context:Marker))
               (initial-context
                (Emil:Context:concat
-                (reverse parameters)
+                (Emil:Context :entries (reverse parameters)
+                              :parent context)
                 marker
                 context))
               (intermediate-context
@@ -311,7 +321,10 @@ replaced with instances of `Emil:Type:Existential'."
               (instantiated-type
                (Emil:Type:substitute-all type parameters instances))
               (result-context
-               (Emil:Context:concat (reverse instances) context)))
+               (Emil:Context:concat
+                (Emil:Context :entries (reverse instances)
+                              :parent context)
+                context)))
          (Emil:infer-application
           self result-context instantiated-type arguments)))
       ((Struct Emil:Type:Existential)
@@ -422,7 +435,9 @@ replaced with instances of `Emil:Type:Existential'."
               (marker (Emil:Context:Marker))
               (initial-context
                (Emil:Context:concat
-                (reverse bindings) marker returns
+                (Emil:Context :entries (reverse bindings)
+                              :parent context)
+                marker returns
                 (reverse arguments) context))
               (intermediate-context
                (Emil:check self (cons 'progn body) returns initial-context)))
@@ -459,12 +474,15 @@ replaced with instances of `Emil:Type:Existential'."
             (marker (Emil:Context:Marker))
             (body-context
              (Emil:Context:concat
-              (reverse context-bindings)
+              (Emil:Context :entries (reverse context-bindings)
+                            :parent context)
               marker binding-context))
             ((body-type . result-context)
              (Emil:infer-do self body-context body)))
       (cons (Emil:Context:resolve result-context body-type)
-            (Emil:Context:drop-until-after result-context marker))))
+            (Emil:Context:concat
+             (Emil:Context :parent context)
+             (Emil:Context:drop-until-after result-context marker)))))
 
   (fn Transformer:transform-let* (self _form bindings body &optional context &rest _)
     (-let* ((marker (Emil:Context:Marker))
@@ -473,14 +491,19 @@ replaced with instances of `Emil:Type:Existential'."
               (-let (((type . accumulated-context)
                       (Transformer:transform-form self (cadr it) acc)))
                 (Emil:Context:concat
+                 (Emil:Context :parent acc)
                  (Emil:Context:Binding :variable (car it) :type type)
                  accumulated-context))
-              (Emil:Context:concat marker context)
+              (Emil:Context:concat
+               (Emil:Context :parent context)
+               marker context)
               bindings))
             ((body-type . result-context)
              (Emil:infer-do self body-context body)))
       (cons (Emil:Context:resolve result-context body-type)
-            (Emil:Context:drop-until-after result-context marker))))
+            (Emil:Context:concat
+             (Emil:Context :parent context)
+             (Emil:Context:drop-until-after result-context marker)))))
 
   (fn Transformer:transform-or (self _form conditions &optional context &rest _)
     (cons (Emil:Type:Any)

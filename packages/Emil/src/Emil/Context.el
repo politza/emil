@@ -173,13 +173,14 @@ as with regards to its unresolved type-variables."
         (Emil:Context:Marker? object)
         (Emil:Context:Binding? object)))
 
-  (fn Emil:Context:concat (&rest contexts-and-entries)
+  (fn Emil:Context:concat (self &rest contexts-and-entries)
     "Concat all arguments CONTEXTS-AND-ENTRIES.
 
 Each argument may either be a context, an entry or a, possibly
 empty, list of entries. Returns a context with all arguments
 concatenated."
     (Emil:Context
+     :parent (Struct:get self :parent)
      :entries
      (--mapcat (pcase it
                  ((Struct Emil:Context entries)
@@ -191,7 +192,7 @@ concatenated."
                   it)
                  (_
                   (error "Attempted to concat an invalid context entry: %s" it)))
-               contexts-and-entries)))
+               (cons self contexts-and-entries))))
 
   (fn Emil:Context:member? (self entry)
     (member entry (Struct:get self :entries))))
@@ -203,8 +204,10 @@ concatenated."
 Argument CONTEXT is ignored.
 
 Returns `nil', if VARIABLE is not present in this environment."
-    (-some->> (Emil:Context:lookup-variable self variable)
-      (Emil:Context:resolve self)))
+    (or (-some->> (Emil:Context:lookup-variable self variable)
+          (Emil:Context:resolve self))
+        (and (Struct:get self :parent)
+             (Emil:Env:lookup-variable (Struct:get self :parent) variable))))
 
   (fn Emil:Env:lookup-function (_self _function _context)
     "Looks up FUNCTION in the current, local environment.
