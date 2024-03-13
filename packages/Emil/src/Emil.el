@@ -57,9 +57,12 @@ Apart from that, this just expands to FORM.
                 (Emil:Context :entries (reverse parameters)
                               :parent context)
                 marker context))
+              (typed-form
+               (Emil:check self form forall-type intermediate-context))
               (result-context
-               (Emil:check self form forall-type intermediate-context)))
-         (Emil:Context:drop-until-after result-context marker)))
+               (Emil:Context:drop-until-after
+                (Struct:get typed-form :context) marker)))
+         (Emil:TypedForm* ,@typed-form :context result-context)))
       ((and (Struct Emil:Type:Arrow returns)
             (let `(function (lambda ,arguments . ,body)) form))
        (unless (Emil:Type:Arrow:arity-assignable-from? type (func-arity form))
@@ -81,15 +84,22 @@ Apart from that, this just expands to FORM.
                 (Emil:Context :entries (reverse bindings)
                               :parent context)
                 marker context))
-              (result-context (Emil:check self body returns intermediate-context)))
-         (Emil:Context:drop-until-after result-context marker)))
+              (typed-form (Emil:check self body returns intermediate-context))
+              (result-context
+               (Emil:Context:drop-until-after
+                (Struct:get typed-form :context) marker)))
+         (Emil:TypedForm* ,@typed-form :context result-context)))
       (_
-       (-let (((inferred-type . intermediate-context)
-               (Emil:infer self form context)))
-         (Emil:subtype
-          self intermediate-context
-          (Emil:Context:resolve intermediate-context inferred-type)
-          (Emil:Context:resolve intermediate-context type))))))
+       (let* ((typed-form (Emil:infer self form context))
+              (intermediate-context (Struct:get typed-form :context))
+              (inferred-type (Struct:get typed-form :type)))
+         (Emil:TypedForm*
+          ,@typed-form
+          :context
+          (Emil:subtype
+           self intermediate-context
+           (Emil:Context:resolve intermediate-context inferred-type)
+           (Emil:Context:resolve intermediate-context type)))))))
 
   (fn Emil:generate-existential (self)
     "Returns a new `Emil:Type:Existential'."
@@ -300,9 +310,12 @@ replaced with instances of `Emil:Type:Existential'."
        context)))
 
   (fn Emil:infer-do (self (context Emil:Context) forms)
-    (--reduce-from (Transformer:transform-form self it (cdr acc))
-                   (cons (Emil:Type:Null) context)
-                   forms))
+    (Emil:Util:map-accum
+     (lambda (context form)
+       (let ((result (Transformer:transform-form self form context)))
+         (cons (Struct:get result :context) result)))
+     context
+     forms))
 
   (fn Emil:infer-application (self context arrow-type arguments)
     (pcase-exhaustive arrow-type
@@ -360,53 +373,73 @@ replaced with instances of `Emil:Type:Existential'."
                   (-zip-pair adjusted-arguments argument-types)))))))))
 
 (Trait:implement Transformer Emil
-  (fn Transformer:transform-number (_self _form number &optional context &rest _)
-    (cons (Emil:Type:Basic :name (type-of number)) context))
+  (fn Transformer:transform-number (_self form number &optional context &rest _)
+    (Emil:TypedForm*
+     context form :type (Emil:Type:Basic :name (type-of number))))
 
-  (fn Transformer:transform-string (_self _form string &optional context &rest _)
-    (cons (Emil:Type:Basic :name (type-of string)) context))
+  (fn Transformer:transform-string (_self form string &optional context &rest _)
+    (Emil:TypedForm*
+     context form :type (Emil:Type:Basic :name 'string)))
 
-  (fn Transformer:transform-vector (_self _form vector &optional context &rest _)
-    (cons (Emil:Type:Basic :name (type-of vector)) context))
+  (fn Transformer:transform-vector (_self form vector &optional context &rest _)
+    (Emil:TypedForm*
+     context form :type (Emil:Type:Basic :name (type-of vector))))
 
-  (fn Transformer:transform-symbol (self _form symbol &optional context &rest _)
-    (cond
-     ((null symbol)
-      (cons (Emil:Type:Null) context))
-     ((or (eq symbol t) (keywordp symbol))
-      (cons (Emil:Type:Basic :name 'symbol) context))
-     (t
-      (if-let (type (Emil:lookup-variable self context symbol))
-          (cons type context)
-        (error "Unbound variable: %s" symbol)))))
+  (fn Transformer:transform-symbol (self form symbol &optional context &rest _)
+    (Emil:TypedForm*
+     context form
+     :type (cond
+            ((null symbol)
+             (Emil:Type:Null))
+            ((or (eq symbol t) (keywordp symbol))
+             (Emil:Type:Basic :name 'symbol))
+            (t
+             (or (Emil:lookup-variable self context symbol)
+                 (error "Unbound variable: %s" symbol))))))
 
-  (fn Transformer:transform-and (self _form conditions &optional context &rest _)
-    (cons (Emil:Type:Any)
-          (cdr (Emil:infer-do self context conditions))))
+  (fn Transformer:transform-and (self form conditions &optional context &rest _)
+    (-let (((result-context . forms)
+            (Emil:infer-do self context conditions)))
+      (Emil:TypedForm*
+       :form `(and ,@forms)
+       :context result-context
+       :type (Emil:Type:Any))))
 
-  (fn Transformer:transform-catch (self _form _tag body &optional context &rest _)
-    (cons (Emil:Type:Any)
-          (cdr (Emil:infer-do self context body))))
+  (fn Transformer:transform-catch (self form tag body &optional context &rest _)
+    (-let (((result-context . forms)
+            (Emil:infer-do self context body)))
+      (Emil:TypedForm*
+       :form `(catch ,tag ,@forms)
+       :context result-context
+       :type (Emil:Type:Any))))
 
-  (fn Transformer:transform-cond (self _form clauses &optional context &rest _)
-    (cons (Emil:Type:Any)
-          (cdr (--reduce-from
-                (Emil:infer-do
-                 self (cdr (Transformer:transform-form self (car it) (cdr acc)))
-                 (cdr it))
-                (cons (Emil:Type:Null) context) clauses))))
+  (fn Transformer:transform-cond (self form clauses &optional context &rest _)
+    (-let (((result-context . forms)
+            (Emil:infer-do self context clauses)))
+      (Emil:TypedForm*
+       :form `(cond ,@forms)
+       :context result-context
+       :type (Emil:Type:Any))))
 
-  (fn Transformer:transform-defconst (self _form _symbol init-value &optional
-                                           _doc-string context &rest _)
-    (cons (Emil:Type:Basic :name 'symbol)
-          (cdr (Transformer:transform-form self init-value context))))
+  (fn Transformer:transform-defconst (self form symbol init-value &optional
+                                           doc-string context &rest _)
+    (pcase-let ((Struct Emil:TypedForm :form init-form :context result-context)
+                (Transformer:transform-form self init-value context))
+      (Emil:TypedForm*
+       :form `(defconst ,symbol ,init-form ,doc-string)
+       :context result-context
+       :type (Emil:Type:Basic :name 'symbol))))
 
-  (fn Transformer:transform-defvar (self _form _symbol &optional init-value
-                                         _doc-string context &rest _)
-    (cons (Emil:Type:Basic :name 'symbol)
-          (cdr (Transformer:transform-form self init-value context))))
+  (fn Transformer:transform-defvar (self form symbol &optional init-value
+                                         doc-string context &rest _)
+    (pcase-let ((Struct Emil:TypedForm :form init-form :context result-context)
+                (Transformer:transform-form self init-value context))
+      (Emil:TypedForm*
+       :form `(defvar ,symbol ,init-form ,doc-string)
+       :context result-context
+       :type (Emil:Type:Basic :name 'symbol))))
 
-  (fn Transformer:transform-function (self _form argument
+  (fn Transformer:transform-function (self form argument
                                            &optional context &rest _)
     (pcase-exhaustive argument
       ((and `(lambda ,argument-list . ,body)
@@ -430,26 +463,37 @@ replaced with instances of `Emil:Type:Existential'."
                               :parent context)
                 marker returns
                 (reverse arguments) context))
-              (intermediate-context
-               (Emil:check self (cons 'progn body) returns initial-context)))
-         (cons (Emil:Type:Arrow*
-                arguments returns min-arity rest?)
-               (Emil:Context:drop-until-after intermediate-context marker))))
-      ((pred symbolp)
-       (if-let (type (Emil:lookup-function self context argument))
-           (cons type context)
-         (error "Unbound function: %s" argument)))))
+              (typed-form
+               (Emil:check self (cons 'progn body) returns initial-context))
+              (result-context
+               (Emil:Context:drop-until-after
+                (Struct:get typed-form :context) marker)))
+         (Emil:TypedForm
+          :form `(function (lambda ,argument-list ,@(Struct:get typed-form :form)))
+          :type (Emil:Type:Arrow* arguments returns min-arity rest?)
+          :context result-context))
+       ((pred symbolp)
+        (let ((type (or (Emil:lookup-function self context argument)
+                        (error "Unbound function: %s" argument))))
+          (Emil:TypedForm* type context :form `(function ,argument))))))
 
-  (fn Transformer:transform-if (self _form condition then else
+  (fn Transformer:transform-if (self form condition then else
                                      &optional context &rest _)
-    (cons (Emil:Type:Any)
-          (cdr (Emil:infer-do self context `(,condition ,then ,@else)))))
+    (-let (((result-context condition-form then-form . else-forms)
+            (Emil:infer-do self context `(,condition ,then ,@else))))
+      (Emil:TypedForm
+       :form `(if ,condition-form ,then-form ,@else-forms)
+       :type (Emil:Type:Any)
+       :context result-context)))
 
-  (fn Transformer:transform-interactive (_self _form _descriptor _modes
+  (fn Transformer:transform-interactive (_self form _descriptor _modes
                                                &optional context &rest _)
-    (cons (Emil:Type:Any) context))
+    (Emil:TypedForm
+     :form form
+     :type (Emil:Type:Any)
+     :context context))
 
-  (fn Transformer:transform-let (self _form bindings body &optional context &rest _)
+  (fn Transformer:transform-let (self form bindings body &optional context &rest _)
     (-let* (((binding-context . binding-types)
              (--reduce-from
               (-let (((type . intermediate-context)
@@ -475,7 +519,7 @@ replaced with instances of `Emil:Type:Existential'."
              (Emil:Context :parent context)
              (Emil:Context:drop-until-after result-context marker)))))
 
-  (fn Transformer:transform-let* (self _form bindings body &optional context &rest _)
+  (fn Transformer:transform-let* (self form bindings body &optional context &rest _)
     (-let* ((marker (Emil:Context:Marker))
             (body-context
              (--reduce-from
@@ -496,44 +540,69 @@ replaced with instances of `Emil:Type:Existential'."
              (Emil:Context :parent context)
              (Emil:Context:drop-until-after result-context marker)))))
 
-  (fn Transformer:transform-or (self _form conditions &optional context &rest _)
-    (cons (Emil:Type:Any)
-          (cdr (Emil:infer-do self context conditions))))
+  (fn Transformer:transform-or (self form conditions &optional context &rest _)
+    (-let (((result-context . forms)
+            (Emil:infer-do self context conditions)))
+      (Emil:TypedForm*
+       :form `(or ,@forms)
+       :context result-context
+       :type (Emil:Type:Any))))
 
-  (fn Transformer:transform-prog1 (self _form first body &optional context &rest _)
-    (-let (((first-type . first-context)
-            (Transformer:transform-form self first context)))
-      (cons first-type
-            (cdr (Emil:infer-do self first-context body)))))
+  (fn Transformer:transform-prog1 (self form first body &optional context &rest _)
+    (-let ((first-form 
+            (Transformer:transform-form self first context))
+           ((result-context . body-forms)
+            (Emil:infer-do self (Struct:get first-form :context) body)))
+      (Emil:TypedForm*
+       ,@first-form
+       :form `(prog1 ,first-form ,@body-forms)
+       :context result-context)))
 
-  (fn Transformer:transform-progn (self _form body &optional context &rest _)
-    (Emil:infer-do self context body))
+  (fn Transformer:transform-progn (self form body &optional context &rest _)
+    (let (((result-context . body-forms)
+           (Emil:infer-do self context body)))
+      (Emil:TypedForm
+       :form `(progn ,@body-forms)
+       :type (if body-forms (-last-item body-forms) (Emil:Type:Null))
+       :context result-context))))
 
-  (fn Transformer:transform-quote (_self _form _argument &optional context &rest _)
-    (cons (Emil:Type:Any) context))
+  (fn Transformer:transform-quote (_self form _argument &optional context &rest _)
+    (Emil:TypedForm*
+     form context
+     :type (Emil:Type:Any)))
 
-  (fn Transformer:transform-save-current-buffer (self _form body
+  (fn Transformer:transform-save-current-buffer (self form body
                                                       &optional context &rest _)
-    (Emil:infer-do self context body))
+    (-let (((result-context . forms)
+            (Emil:infer-do self context body)))
+      (Emil:TypedForm*
+       :form `(save-current-buffer ,@forms)
+       :context result-context
+       :type (Emil:Type:Any))))
 
-  (fn Transformer:transform-save-excursion (self _form body
+  (fn Transformer:transform-save-excursion (self form body
                                                  &optional context &rest _)
-    (Emil:infer-do self context body))
+    (-let (((result-context . forms)
+            (Emil:infer-do self context body)))
+      (Emil:TypedForm*
+       :form `(save-current-buffer ,@forms)
+       :context result-context
+       :type (Emil:Type:Any))))
 
-  (fn Transformer:transform-save-restriction (self _form body
+  (fn Transformer:transform-save-restriction (self form body
                                                    &optional context &rest _)
     (Emil:infer-do self context body))
 
-  (fn Transformer:transform-setq (_self _form _definitions
+  (fn Transformer:transform-setq (_self form _definitions
                                         &optional context &rest _)
     (cons (Emil:Type:Any) context))
 
-  (fn Transformer:transform-unwind-protect (self _form body-form unwind-forms
+  (fn Transformer:transform-unwind-protect (self form body-form unwind-forms
                                                  &optional context &rest _)
     (prog1 (Transformer:transform-form self body-form context)
       (Emil:infer-do self context unwind-forms)))
 
-  (fn Transformer:transform-while (self _form condition body
+  (fn Transformer:transform-while (self form condition body
                                         &optional context &rest _)
     (Emil:infer-do self context (cons condition body)))
 
@@ -547,7 +616,7 @@ replaced with instances of `Emil:Type:Existential'."
        (Emil:Context:resolve result-context arrow-type)
        arguments)))
 
-  (fn Transformer:transform-macro (self _form macro arguments
+  (fn Transformer:transform-macro (self form macro arguments
                                         &optional context &rest _)
     (cond
      ((eq (Transformer:Form:value macro) 'Emil:is)
