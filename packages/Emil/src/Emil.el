@@ -223,7 +223,8 @@ replaced with instances of `Emil:Type:Existential'."
       (`(,(Struct Emil:Type:Arrow
                   :arguments left-arguments :returns left-returns)
          ,(Struct Emil:Type:Arrow
-                  :arguments right-arguments :returns right-returns :rest? right-rest?))
+                  :arguments right-arguments :returns right-returns
+                  :rest? right-rest?))
        (unless (Emil:Type:Arrow:arity-assignable-to? left right)
          (error "Function is not arity-compatible: %s, %s" left right))
 
@@ -540,7 +541,8 @@ replaced with instances of `Emil:Type:Existential'."
         (error "Syntax error: Emil:is: %s" arguments))
       (let ((type (Emil:Type:read (Transformer:Form:value (nth 0 arguments)))))
         (cons type
-              (Emil:check self (Transformer:Form:value (nth 1 arguments)) type context))))
+              (Emil:check self (Transformer:Form:value (nth 1 arguments))
+                          type context))))
      (t
       (Transformer:transform-form
        self
