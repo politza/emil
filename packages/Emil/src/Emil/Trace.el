@@ -16,7 +16,11 @@
     Emil:instantiate
     Emil:subtype
     Emil:infer-do
-    Emil:infer-application))
+    Emil:infer-application
+    Emil:Type:Arrow:arity-assignable-from?
+    Emil:Type:Arrow:arity-assignable-to?
+    Emil:Type:Arrow:adjusted-arguments
+    Emil:Type:Arrow:lambda-adjusted-arguments))
 
 (defvar Emil:Trace:excluded-functions
   '(Transformer:transform-form Transformer:transform-cons))
