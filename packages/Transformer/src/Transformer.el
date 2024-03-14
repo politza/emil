@@ -14,9 +14,24 @@
 
 (Trait:define Transformer:Form ()
   (fn Transformer:Form:value (self) self)
+
   (fn Transformer:Form:location (self -> (Trait Transformer:Location))
     (ignore self)
-    nil))
+    nil)
+
+  (fn Transformer:Form:unwrap (self)
+    "Unwrap this form recursively to a plain Lisp one."
+    (Transformer:Form:unwrap-n self most-positive-fixnum))
+  
+  (fn Transformer:Form:unwrap-n (self n)
+    "Unwraps this form and its first N subforms recursively."
+    (let ((value (Transformer:Form:value self)))
+      (cond
+       ((consp value)
+        (append (--map (Transformer:Form:unwrap it)
+                       (-take n value))
+                (-drop n value)))
+       (t value)))))
 
 (Trait:define Transformer:Location()
   (fn Transformer:Location:position (self -> (Trait Transformer:Position)))
