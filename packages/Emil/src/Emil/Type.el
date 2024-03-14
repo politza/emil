@@ -350,13 +350,16 @@ type will be polymorphic."
            :type type)
         type))))
 
+(defun Emil:Type:function? (type)
+  (or (Emil:Type:Arrow? type)
+      (and (Emil:Type:Forall? type)
+           (Emil:Type:Arrow? (Struct:get type :type)))))
+
 (defun Emil:Type:read-function (form)
-  "Like `Emil:Type:read', but reject non-function types with an error."
+  "Like `Emil:Type:read', but rejects non-function types."
   (let ((type (Emil:Type:read form)))
-    (unless (or (Emil:Type:Arrow? type)
-                (and (Emil:Type:Forall? type)
-                     (Emil:Type:Arrow? (Struct:get type :type))))
-      (error "Expected to read an arrow-type: %s" form))
+    (unless (Emil:Type:function? type)
+      (error "Expected to read a function-type: %s" form))
     type))
 
 (Commons:define-error Emil:invalid-type-form
