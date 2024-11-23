@@ -28,7 +28,7 @@ This directory contains the features of the editor.")
     (when (file-exists-p (expand-file-name "Eldev" it))
       (straight-register-package
            `(,(intern (file-name-base it))
-             :local-repo ,it :files ("src/*.el"))))))
+             :local-repo ,it :files ("src/**/*.el"))))))
 
 ;;;###autoload
 (defun Blue:init ()

@@ -18,10 +18,10 @@
     (while (and (cdr list)
                 (keywordp (car list)))
       (push (pop list) property-list)
-      (push (pop list) propert-list))
+      (push (pop list) property-list))
     (list (nreverse property-list) list)))
 
 (defun Commons:split-property-list-end (list)
   (--split-with (not (keywordp it)) list))
 
-(provide 'Commons)
+(provide 'Lang/Commons)
