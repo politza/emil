@@ -2,19 +2,25 @@
 
 (require 'Rs)
 (require 'Struct)
+(require 'ring)
 
 (Struct:define Rs:Sp:Subscription
   "Subscription handling a single subscriber."
-  (subscriber :type (Trait Rs:Subscriber) :required t :read-only t)
-  (publisher :type Rs:SubmissionPublisher :required t :read-only t)
+  (subscriber :type (Trait Rs:Subscriber) :required t)
+  (publisher :type Rs:SubmissionPublisher :required t)
   (buffer-size :default-value Rs:default-buffer-size
-               :type number :required t :read-only t)
+               :type number :required t)
   (buffer :default-value (make-ring buffer-size)
-          :type ring :read-only t :required t)
+          :type ring :required t)
   (request-count :default-value 0
-                 :type (integer 0 *) :required t)
-  (closed? :type boolean)
-  (emitting? :type boolean))
+                 :type (integer 0 *) :required t :mutable t)
+  (closed? :type boolean :mutable t)
+  (emitting? :type boolean :mutable t))
+
+(Struct:define Rs:SubmissionPublisher
+  "A publisher where values can be submitted to."
+  (subscriptions :type list :mutable t)
+  (closed? :type boolean :mutable t))
 
 (Struct:defun Rs:Sp:Subscription:new ((publisher Rs:SubmissionPublisher)
                                       (subscriber (Trait Rs:Subscriber))
@@ -65,7 +71,7 @@
     (Rs:Sp:Subscription:close self)
     (Rs:Subscriber:on-error (Struct:get self :subscriber) error)))
 
-(Struct:defun Rs:Sp:Subscription:complete ((self Rs:Sp:Subscription) error)
+(Struct:defun Rs:Sp:Subscription:complete ((self Rs:Sp:Subscription))
   (unless (Struct:get self :closed?)
     (Rs:Sp:Subscription:close self)
     (Rs:Subscriber:on-complete (Struct:get self :subscriber))))
@@ -78,11 +84,6 @@
   
   (defmethod Rs:Subscription:cancel (self)
     (Rs:Sp:Subscription:close self)))
-
-(Struct:define Rs:SubmissionPublisher
-  "A publisher where values can be submitted to."
-  (subscriptions :type list)
-  (closed? :type boolean))
 
 (Struct:defun Rs:SubmissionPublisher:remove
   ((self Rs:SubmissionPublisher) (subscription Rs:Sp:Subscription))

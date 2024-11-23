@@ -60,7 +60,7 @@ Returns DEFAULT if value is nil."
          :default-value nil
          :documentation "The name of this struct-type."
          :required t
-         :read-only t
+         :mutable nil
          :type symbol)
         (Struct:Property
          :name documentation
@@ -68,7 +68,7 @@ Returns DEFAULT if value is nil."
          :default-value nil
          :documentation "The documentation of this struct-type."
          :required nil
-         :read-only t
+         :mutable nil
          :type (or null string))
         (Struct:Property
          :name properties
@@ -76,15 +76,16 @@ Returns DEFAULT if value is nil."
          :default-value nil
          :documentation "The properties of this struct-type."
          :required nil
-         :read-only t
+         :mutable nil
          :type list)
         (Struct:Property
-         :name read-only
-         :keyword :read-only
-         :default-value nil
-         :documentation "Whether this type is immutable after its construction."
+         :name mutable
+         :keyword :mutable
+         :default-value t
+         :documentation "Whether this type is mutable after its construction.
+Defaults to `t'."
          :required nil
-         :read-only t
+         :mutable nil
          :type boolean))))
 
 (defun Struct:Type:get (name &optional ensure)
@@ -127,7 +128,7 @@ the type itself."
          :default-value nil
          :documentation "The name of this propertỵ."
          :required t
-         :read-only t
+         :mutable nil
          :type symbol)
         (Struct:Property
          :name keyword
@@ -135,7 +136,7 @@ the type itself."
          :default-value (Commons:symbol-to-keyword name)
          :documentation "The name of this propertỵ as a keyword."
          :required t
-         :read-only t
+         :mutable nil
          :type keyword)
         (Struct:Property
          :name default-value
@@ -143,7 +144,7 @@ the type itself."
          :default-value nil
          :documentation "The default value of this propertỵ."
          :required nil
-         :read-only t
+         :mutable nil
          :type nil)
         (Struct:Property
          :name documentation
@@ -151,7 +152,7 @@ the type itself."
          :default-value nil
          :documentation "The documentation of this propertỵ."
          :required nil
-         :read-only t
+         :mutable nil
          :type (or null string))
         (Struct:Property
          :name required
@@ -159,15 +160,16 @@ the type itself."
          :default-value nil
          :documentation "Whether this property can have a `nil' valuẹ."
          :required nil
-         :read-only t
+         :mutable nil
          :type boolean)
         (Struct:Property
-         :name read-only
-         :keyword :read-only
+         :name mutable
+         :keyword :mutable
          :default-value nil
-         :documentation "Whether this property is immutable after its construction."
+         :documentation "Whether this property is mutable after its construction.
+ Defaults to `nil'."
          :required nil
-         :read-only t
+         :mutable nil
          :type boolean)
         (Struct:Property
          :name type
@@ -175,7 +177,7 @@ the type itself."
          :default-value nil
          :documentation "The type of this property."
          :required nil
-         :read-only t
+         :mutable nil
          :type nil))))
 
 (defun Struct:-construct (name arguments)
@@ -374,7 +376,7 @@ See also `%s'.")
     (terpri)
     (--each (Struct:unsafe-get type :properties)
       (-let* (((&plist :name :documentation :default-value
-                       :read-only :required :type)
+                       :mutable :required :type)
                (Struct:unsafe-properties it)))
         (princ (format "- %s" name))
         (when type
@@ -382,8 +384,8 @@ See also `%s'.")
         (princ "	(")
         (when required
           (princ "required, "))
-        (when read-only
-          (princ "read-only, "))
+        (when mutable
+          (princ "mutable, "))
         (princ (format "default: %s)" default-value))
         (terpri)
         (when documentation
@@ -499,7 +501,7 @@ Returns DEFAULT, if value is `nil'."
 Throws an error if
 - PROPERTY is not a member of STRUCT, or
 - VALUE is `nil' and PROPERTY is required, or
-- PROPERTY is read-only, or
+- PROPERTY is not mutable, or
 - PROPERTY has an associated type and VALUE does not match it."
   (let ((property-type (Struct:member? struct property))
         (struct-type (Struct:Type:get (car struct) :ensure)))
@@ -508,9 +510,9 @@ Throws an error if
     (when (and (null value)
                (Struct:unsafe-get property-type :required))
       (error "Attempted to set required property to `nil': %s" property))
-    (when (or (Struct:unsafe-get struct-type :read-only)
-              (Struct:unsafe-get property-type :read-only))
-      (error "Attempted to set read-only property: %s" property))
+    (unless (and (Struct:unsafe-get struct-type :mutable)
+                 (Struct:unsafe-get property-type :mutable))
+      (error "Attempted to set immutable property: %s" property))
     (Struct:-check-property-type property-type value))
   (Struct:unsafe-set struct property value))
 

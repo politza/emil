@@ -13,13 +13,13 @@ The trait-definition is put on the symbol's property-list using this value.")
   "Represents a trait-type."
   (name
     "The name of this trait."
-   :required t :read-only t :type symbol)
+   :required t :type symbol)
   (methods
     "An association-list mapping method-names to their definitions."
    :type list)
   (implementing-types
     "A list of types implementing this trait."
-   :type list)
+   :type list :mutable t)
   (supertraits
     "A list of required traits for implementing this trait."
    :type list))
@@ -36,24 +36,24 @@ which case a `wrong-type-argument' is signaled."
 (Struct:define Trait:Method
   "Represents a trait-method."
   (name
-  "The name of this method."
-   :required t :read-only t :type symbol)
+   "The name of this method."
+   :required t :type symbol)
   (arguments
-  "The declared argument list of this method."
-   :read-only t :type list)
+   "The declared argument list of this method."
+   :type list)
   (documentation
-  "A string describing this method."
-   :read-only t :type string)
+   "A string describing this method."
+   :type string)
   (default-implementation
    "An optional default implementation of this method. If not
 provided, this method is required for implementors to implement."
-   :read-only t :type function)
+   :type function)
   (implementations
    "An alist mapping types to their implementation of this method."
-   :type list)
+   :type list :mutable t)
   (dispatch-function
    "A function responsible for dispatching this method."
-   :required t :read-only t :type function))
+   :required t :type function))
 
 (Struct:defun Trait:Method:required? ((method Trait:Method))
   "Returns non-nil, if implementing METHOD is required.

@@ -16,14 +16,13 @@
         "A test struct."
         (optional
          "An optional property."
-         :default-value 0)
+         :default-value 0 :mutable t)
         (required
          "A required property."
-         :required t)
+         :required t :mutable t)
         (read-only
          "A read-only property."
-         :default-value 0
-         :read-only t)))
+         :default-value 0)))
     
     (it "defines a type"
       (let ((type (Struct:Type:get 'TestStruct :ensure)))
@@ -47,8 +46,8 @@
                   :to-equal "An optional property.")
           (expect (Struct:get optional :required)
                   :to-equal nil)
-          (expect (Struct:get optional :read-only)
-                  :to-equal nil))
+          (expect (Struct:get optional :mutable)
+                  :to-equal t))
 
         (let ((required (nth 1 (Struct:get type :properties))))
           (expect (Struct:get required :name)
@@ -59,8 +58,8 @@
                   :to-equal "A required property.")
           (expect (Struct:get required :required)
                   :to-equal t)
-          (expect (Struct:get required :read-only)
-                  :to-equal nil))
+          (expect (Struct:get required :mutable)
+                  :to-equal t))
 
         (let ((read-only (nth 2 (Struct:get type :properties))))
           (expect (Struct:get read-only :name)
@@ -71,8 +70,8 @@
                   :to-equal "A read-only property.")
           (expect (Struct:get read-only :required)
                   :to-equal nil)
-          (expect (Struct:get read-only :read-only)
-                  :to-equal t))))
+          (expect (Struct:get read-only :mutable)
+                  :to-equal nil))))
 
     (it "defines constructors and predicates"
       (expect (fboundp 'TestStruct) :to-equal t)
@@ -206,7 +205,7 @@
     (before-each
       (Struct:define TestStruct
         "A test struct."
-        :read-only t
+        :mutable nil
         (property
          "An optional property."
          :default-value 0)))
@@ -224,6 +223,7 @@
         (property
          "An integer property."
          :default-value 0
+         :mutable t
          :type integer)))
 
     (after-each
@@ -264,7 +264,7 @@
               :to-equal "Property documentation.")
       (expect (Struct:get property :required)
               :to-be nil)
-      (expect (Struct:get property :read-only)
+      (expect (Struct:get property :mutable)
               :to-be nil)))
 
   (describe "Struct:defun"
