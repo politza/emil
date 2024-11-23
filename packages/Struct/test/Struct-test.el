@@ -8,9 +8,16 @@
     (before-each
       (Struct:define TestStruct
         "A test struct."
-        (optional 0 "An optional property.")
-        (required nil "A required property." :required t)
-        (read-only 0 "A read-only property." :read-only t)))
+        (optional
+         "An optional property."
+         :default-value 0)
+        (required
+         "A required property."
+         :required t)
+        (read-only
+         "A read-only property."
+         :default-value 0
+         :read-only t)))
 
     (after-each
       (Struct:undefine 'TestStruct))
@@ -182,7 +189,9 @@
       (Struct:define TestStruct
         "A test struct."
         :read-only t
-        (property 0 "An optional property.")))
+        (property
+         "An optional property."
+         :default-value 0)))
 
     (after-each
       (Struct:undefine 'TestStruct))
@@ -194,7 +203,10 @@
     (before-each
       (Struct:define TestStruct
         "A test struct."
-        (property 0 "An integer property." :type integer)))
+        (property
+         "An integer property."
+         :default-value 0
+         :type integer)))
 
     (after-each
       (Struct:undefine 'TestStruct))
@@ -228,4 +240,21 @@
     (expect (Struct:define TestStruct)
             :to-be 'TestStruct)
     (expect (Struct:define TestStruct "Documentation.")
-            :to-be 'TestStruct)))
+            :to-be 'TestStruct))
+
+  (it "can define properties with keywords alone"
+    (expect (Struct:define TestStruct
+              (:name property :documentation "Property documentation."))
+            :to-be 'TestStruct)
+    (let ((property (nth 0 (Struct:get (Struct:Type:get 'TestStruct)
+                                       :properties))))
+      (expect (Struct:get property :name)
+              :to-be 'property)
+      (expect (Struct:get property :default-value)
+              :to-be nil)
+      (expect (Struct:get property :documentation)
+              :to-equal "Property documentation.")
+      (expect (Struct:get property :required)
+              :to-be nil)
+      (expect (Struct:get property :read-only)
+              :to-be nil))))
