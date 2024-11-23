@@ -71,11 +71,11 @@ Apart from that, this just expands to FORM.
                (inferred-type
                 (Emil:Context:resolve form-context
                                       (Struct:get typed-form :type)))
-               (result-type
+               (given-type
                 (Emil:Context:resolve form-context type)))
          (cons
-          (Emil:subtype self form-context inferred-type result-type)
-          (Emil:TypedForm* ,@typed-form :type result-type))))))
+          (Emil:subtype self form-context inferred-type given-type)
+          (Emil:TypedForm* ,@typed-form :type given-type))))))
 
   (fn Emil:check-forall (self form (type Emil:Type:Forall)
                               (context Emil:Context)
@@ -89,7 +89,7 @@ Apart from that, this just expands to FORM.
              (Emil:check
               self form forall-type intermediate-context environment)))
       (cons (Emil:Context:drop-until-after result-context marker)
-            (Emil:TypedForm* ,@result-form :type type))))
+            (Emil:TypedForm* ,@result-form type))))
 
   (fn Emil:check-lambda (self form (type Emil:Type:Arrow)
                               (context Emil:Context)
@@ -144,11 +144,11 @@ Apart from that, this just expands to FORM.
                                  :variable type :type variable)
                             center variable bottom))
       ((Struct Emil:Type:Arrow)
-       (Emil:instantiate-arrow
-        self context variable type relation))
+       (Emil:instantiate-arrow self context variable type relation))
       ((Struct Emil:Type:Forall)
-       (Emil:instantiate-forall
-        self context variable type relation))
+       (Emil:instantiate-forall self context variable type relation))
+      ((Struct Emil:Type:Compound)
+       (Emil:instantiate-compound self context variable type relation))
       (_
        (Emil:type-error "Unable to instantiate variable for type: %s, %s"
                         variable type))))
@@ -162,11 +162,11 @@ Apart from that, this just expands to FORM.
             (let `(,top . ,bottom)
               (Emil:Context:hole context variable)))
        (let* ((instance (Emil:arrow-instantiate self type))
-              (solved-var-inst
+              (solution
                (Emil:Context:Solution* variable :type instance))
               (initial-context
                (Emil:Context:concat
-                top solved-var-inst
+                top solution
                 (Emil:Type:Arrow:returns instance)
                 (reverse (Emil:Type:Arrow:arguments instance))
                 bottom))
@@ -224,6 +224,28 @@ Apart from that, this just expands to FORM.
                    relation)))
             (Emil:Context:drop-until-after intermediate-context marker)))))))
 
+  (fn Emil:instantiate-compound (self (context Emil:Context)
+                                      (variable Emil:Type:Existential)
+                                      (type Emil:Type:Compound)
+                                      relation)
+    (pcase-exhaustive type
+      ((and (Struct Emil:Type:Compound parameters)
+            (let `(,top . ,bottom)
+              (Emil:Context:hole context variable)))
+       (let* ((instance (Emil:compound-instantiate self type))
+              (solution
+               (Emil:Context:Solution* variable :type instance))
+              (initial-context
+               (Emil:Context:concat
+                top solution
+                (reverse (Struct:get instance :parameters))
+                bottom)))
+         (--reduce-from
+          (Emil:instantiate self acc (car it) (cdr it) relation)
+          initial-context
+          (-zip-pair (Struct:get instance :parameters)
+                     parameters))))))
+
   (fn Emil:subtype (self (context Emil:Context)
                          (left (Trait Emil:Type))
                          (right (Trait Emil:Type)))
@@ -235,6 +257,9 @@ Apart from that, this just expands to FORM.
                   ,(Struct Emil:Type:Existential)))
             (guard (equal left right)))
        context)
+      (`(,(Struct Emil:Type:Compound)
+         ,(Struct Emil:Type:Compound))
+       (Emil:subtype-compound self context left right))
       (`(,(Struct Emil:Type:Arrow)
          ,(Struct Emil:Type:Arrow))
        (Emil:subtype-arrow self context left right))
@@ -297,6 +322,30 @@ Apart from that, this just expands to FORM.
           self intermediate-context
           (Emil:Context:resolve intermediate-context left-returns)
           (Emil:Context:resolve intermediate-context right-returns))))))
+
+  (fn Emil:subtype-compound (self (context Emil:Context)
+                                  (left Emil:Type:Compound)
+                                  (right Emil:Type:Compound))
+    (pcase-exhaustive (list left right)
+      (`(,(Struct Emil:Type:Compound
+                  :name left-name :parameters left-parameters)
+         ,(Struct Emil:Type:Compound
+                  :name right-name :parameters right-parameters))
+       (unless (eq left-name right-name)
+         (Emil:type-error "%s is not assignable to %s"
+                          (Emil:Type:print left)
+                          (Emil:Type:print right)))
+       (unless (= (length left-parameters)
+                  (length right-parameters))
+         (Emil:type-error "Types have different parameter counts: %s, %s"
+                          (Emil:Type:print left)
+                          (Emil:Type:print right)))
+       (--reduce-from
+        (Emil:subtype self acc
+                      (Emil:Context:resolve acc (car it))
+                      (Emil:Context:resolve acc (cdr it)))
+        context
+        (-zip-pair left-parameters right-parameters)))))
 
   (fn Emil:subtype-default (_self (context Emil:Context)
                                   (left (Trait Emil:Type))
@@ -411,7 +460,15 @@ replaced with instances of `Emil:Type:Existential'."
                  self (length (Emil:Type:Arrow:arguments type)))
      :returns (Emil:generate-existential self)))
 
-  (fn Emil:infer-do (self forms (context Emil:Context) (environment (Trait Emil:Env)))
+  (fn Emil:compound-instantiate (self (type Emil:Type:Compound))
+    "Instantiates the compound-type with existentials."
+    (Emil:Type:Compound*
+     ,@type
+     :parameters (Emil:generate-existentials
+                  self (length (Struct:get type :parameters)))))
+
+  (fn Emil:infer-do (self forms (context Emil:Context)
+                          (environment (Trait Emil:Env)))
     (Emil:Util:map-reduce
      (-lambda (context form)
        (Emil:infer self form context environment))
@@ -554,14 +611,14 @@ replaced with instances of `Emil:Type:Existential'."
        (-let* ((arity (func-arity argument))
                (min-arity (car arity))
                (rest? (eq 'many (cdr arity)))
-               (argument-variables
+               (variables
                 (Emil:Type:Arrow:lambda-variables argument-list))
                (arguments (Emil:generate-existentials
-                           self (length argument-variables)))
+                           self (length variables)))
                (returns (Emil:generate-existential self))
                (bindings (--map (Emil:Context:Binding
                                  :variable (car it) :type (cdr it))
-                                (-zip-pair argument-variables arguments)))
+                                (-zip-pair variables arguments)))
                (marker (Emil:Context:Marker))
                (body-environment (Emil:Env:Alist :parent environment))
                (initial-context
@@ -573,7 +630,7 @@ replaced with instances of `Emil:Type:Existential'."
                                returns initial-context body-environment))
                (type (Emil:Type:Arrow* arguments returns min-arity rest?)))
          (Emil:Env:Alist:update-from body-environment body-context
-                                     argument-variables nil)
+                                     variables nil)
          (cons (Emil:Context:drop-until-after body-context marker)
                (Emil:TypedForm:new
                 (list (car form)
@@ -751,7 +808,7 @@ replaced with instances of `Emil:Type:Existential'."
            (Emil:infer emil form (Emil:Context)
                        (Emil:Env:Alist :parent environment))))
     (when (Emil:has-errors? emil)
-      (signal 'Emil:error (Struct:get emil :messages)))
+      (signal 'Emil:type-error (list (Struct:get emil :messages))))
     (-> (Emil:Context:resolve context (Struct:get typed-form :type))
         Emil:Type:normalize
         Emil:Type:print)))
@@ -762,7 +819,7 @@ replaced with instances of `Emil:Type:Existential'."
            (Emil:infer emil form (Emil:Context)
                        (Emil:Env:Alist :parent environment))))
     (when (Emil:has-errors? emil)
-      (signal 'Emil:error (Struct:get emil :messages)))
+      (signal 'Emil:type-error (list (Struct:get emil :messages))))
     (Emil:TypedForm*
      ,@typed-form
      :type (Emil:Context:resolve context (Struct:get typed-form :type)))))

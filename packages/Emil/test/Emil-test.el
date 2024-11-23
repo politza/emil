@@ -406,10 +406,58 @@
                                       (lambda (a &rest b) a)))
                   :to-equal '(-> ('a &rest 'b) 'a)))))
 
-    (it "generalizing variables requires type annotations"
-      (expect (Emil:infer-type
-               '(list (Emil:is number 0.0) 0)
-               (Emil:Env:Alist:read
-                nil
-                '((list . (-> ('a 'a) 'a)))))
-              :to-equal 'number))))
+    (describe "generalizing variables"
+      (it "without annotation and symbol function"
+        (expect (Emil:infer-type
+                 '(list 0.0 0)
+                 (Emil:Env:Alist:read
+                  nil
+                  '((list . (-> ('a 'a) 'a)))))
+                :to-throw 'Emil:type-error))
+
+      (it "with annotation and symbol function"
+        (expect (Emil:infer-type
+                 '(list (Emil:is number 0.0) 0)
+                 (Emil:Env:Alist:read
+                  nil
+                  '((list . (-> ('a 'a) 'a)))))
+                :to-equal 'number)))
+
+    (describe "compound types"
+      (it "can be inferred"
+        (expect (Emil:infer-type
+                 'list
+                 (Emil:Env:Alist:read '((list . (List string))) nil))
+                :to-equal '(List string)))
+
+      (it "can be checked"
+        (expect (Emil:infer-type
+                 '(map (lambda (a) 0) list)
+                 (Emil:Env:Alist:read
+                  '((list . (List string)))
+                  '((map . (-> ((-> ('a) 'b) (List 'a)) (List 'b))))))
+                :to-equal '(List integer)))
+
+      (it "are covariant"
+        (expect (Emil:infer-type
+                 '(sum list)
+                 (Emil:Env:Alist:read
+                  '((list . (List float)))
+                  '((sum . (-> ((List number)) number)))))
+                :to-equal 'number))
+
+      (it "are rejected if different constructor"
+        (expect (Emil:infer-type
+                 '(sum list)
+                 (Emil:Env:Alist:read
+                  '((list . (Sequence number)))
+                  '((sum . (-> ((List number)) number)))))
+                :to-throw 'Emil:type-error))
+
+      (it "are rejected if different parameter count"
+        (expect (Emil:infer-type
+                 '(sum list)
+                 (Emil:Env:Alist:read
+                  '((list . (List number string)))
+                  '((sum . (-> ((List number)) number)))))
+                :to-throw 'Emil:type-error)))))

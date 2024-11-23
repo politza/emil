@@ -6,7 +6,7 @@
 
 (Trait:define Emil:Env ()
   (fn Emil:Env:lookup-variable (self (variable symbol)
-                                     &optional (context (Trait Emil:Context)))
+                                     &optional (context Emil:Context))
     "Looks up VARIABLE in this environment and returns its type.
 
 Optional CONTEXT contains information pertaining to the current
@@ -16,7 +16,7 @@ be used to lookup local variables and functions.
 Returns `nil', if VARIABLE is not bound in this environment.")
 
   (fn Emil:Env:lookup-function (self (function symbol)
-                                     &optional (context (Trait Emil:Context)))
+                                     &optional (context Emil:Context))
     "Looks up FUNCTION in this environment and returns its type.
 
 See `Emil:Env:lookup-variable' for the CONTEXT argument.
