@@ -128,7 +128,7 @@
       (expect (eval '(Emil:Context:lookup-binding
                       (Emil:Context
                        :entries (list (Emil:Context:Binding
-                                       :name 'b
+                                       :variable 'b
                                        :type (Emil:Type:Never))))
                       'a))
               :to-equal nil))
@@ -137,7 +137,7 @@
       (expect (eval '(Emil:Context:lookup-binding
                       (Emil:Context
                        :entries (list (Emil:Context:Binding
-                                       :name 'a
+                                       :variable 'a
                                        :type (Emil:Type:Never))))
                       'a))
               :to-equal (Emil:Type:Never)))
@@ -146,10 +146,10 @@
       (expect (eval '(Emil:Context:lookup-binding
                       (Emil:Context
                        :entries (list (Emil:Context:Binding
-                                       :name 'a
+                                       :variable 'a
                                        :type (Emil:Type:Any))
                                       (Emil:Context:Binding
-                                       :name 'b
+                                       :variable 'b
                                        :type (Emil:Type:Never))
                                       (Emil:Type:Existential :name 'c)))
                       'b))
@@ -160,7 +160,7 @@
                       (Emil:Context
                        :entries (list (Emil:Type:Existential :name 'a)
                                       (Emil:Context:Binding
-                                       :name 'b
+                                       :variable 'b
                                        :type (Emil:Type:Never))
                                       (Emil:Type:Existential :name 'c)))
                       'a))
@@ -177,7 +177,7 @@
       (expect (eval '(Emil:Context:lookup-solved
                       (Emil:Context
                        :entries (list (Emil:Context:Solution
-                                       :existential (Emil:Type:Existential :name 'b)
+                                       :variable (Emil:Type:Existential :name 'b)
                                        :type (Emil:Type:Never))))
                       (Emil:Type:Existential :name 'a)))
               :to-equal nil))
@@ -186,7 +186,7 @@
       (expect (eval '(Emil:Context:lookup-solved
                       (Emil:Context
                        :entries (list (Emil:Context:Solution
-                                       :existential (Emil:Type:Existential :name 'a)
+                                       :variable (Emil:Type:Existential :name 'a)
                                        :type (Emil:Type:Never))))
                       (Emil:Type:Existential :name 'a)))
               :to-equal (Emil:Type:Never)))
@@ -195,10 +195,10 @@
       (expect (eval '(Emil:Context:lookup-solved
                       (Emil:Context
                        :entries (list (Emil:Context:Solution
-                                       :existential (Emil:Type:Existential :name 'a)
+                                       :variable (Emil:Type:Existential :name 'a)
                                        :type (Emil:Type:Any))
                                       (Emil:Context:Solution
-                                       :existential (Emil:Type:Existential :name 'b)
+                                       :variable (Emil:Type:Existential :name 'b)
                                        :type (Emil:Type:Never))
                                       (Emil:Type:Existential :name 'c)))
                       (Emil:Type:Existential :name 'a)))
@@ -209,7 +209,7 @@
                       (Emil:Context
                        :entries (list (Emil:Type:Existential :name 'a)
                                       (Emil:Context:Solution
-                                       :existential (Emil:Type:Existential :name 'b)
+                                       :variable (Emil:Type:Existential :name 'b)
                                        :type (Emil:Type:Never))
                                       (Emil:Type:Existential :name 'c)))
                       (Emil:Type:Existential :name 'a)))
@@ -299,7 +299,7 @@
         (expect (eval '(Emil:Context:well-formed?
                         (Emil:Context
                          :entries (list (Emil:Context:Solution
-                                         :existential (Emil:Type:Existential :name 'a)
+                                         :variable (Emil:Type:Existential :name 'a)
                                          :type (Emil:Type:Never))))
                         (Emil:Type:Existential :name 'a)))
                 :to-equal t))
@@ -308,7 +308,7 @@
         (expect (eval '(Emil:Context:well-formed?
                         (Emil:Context
                          :entries (list (Emil:Context:Solution
-                                         :existential (Emil:Type:Existential :name 'a)
+                                         :variable (Emil:Type:Existential :name 'a)
                                          :type (Emil:Type:Never))))
                         (Emil:Type:Arrow
                          :arguments (list (Emil:Type:Existential :name 'b))
@@ -320,7 +320,7 @@
         (expect (eval '(Emil:Context:well-formed?
                         (Emil:Context
                          :entries (list (Emil:Context:Solution
-                                         :existential (Emil:Type:Existential :name 'a)
+                                         :variable (Emil:Type:Existential :name 'a)
                                          :type (Emil:Type:Never))))
                         (Emil:Type:Arrow
                          :arguments (list (Emil:Type:Existential :name 'a))
@@ -371,7 +371,7 @@
         (expect (eval '(Emil:Context:resolve
                         (Emil:Context
                          :entries (list (Emil:Context:Solution
-                                         :existential (Emil:Type:Existential :name 'a)
+                                         :variable (Emil:Type:Existential :name 'a)
                                          :type (Emil:Type:Never))))
                         (Emil:Type:Existential :name 'a)))
                 :to-equal (Emil:Type:Never)))
@@ -380,13 +380,13 @@
         (expect (eval '(Emil:Context:resolve
                         (Emil:Context
                          :entries (list (Emil:Context:Solution
-                                         :existential (Emil:Type:Existential :name 'a)
+                                         :variable (Emil:Type:Existential :name 'a)
                                          :type (Emil:Type:Any))
                                         (Emil:Context:Solution
-                                         :existential (Emil:Type:Existential :name 'b)
+                                         :variable (Emil:Type:Existential :name 'b)
                                          :type (Emil:Type:Never))
                                         (Emil:Context:Solution
-                                         :existential (Emil:Type:Existential :name 'c)
+                                         :variable (Emil:Type:Existential :name 'c)
                                          :type (Emil:Type:Void))))
                         (Emil:Type:Arrow
                          :arguments (list (Emil:Type:Existential :name 'a)
@@ -406,10 +406,10 @@
         (expect (eval '(Emil:Context:resolve
                         (Emil:Context
                          :entries (list (Emil:Context:Solution
-                                         :existential (Emil:Type:Existential :name 'a)
+                                         :variable (Emil:Type:Existential :name 'a)
                                          :type (Emil:Type:Any))
                                         (Emil:Context:Solution
-                                         :existential (Emil:Type:Existential :name 'b)
+                                         :variable (Emil:Type:Existential :name 'b)
                                          :type (Emil:Type:Never))))
                         (Emil:Type:Forall
                          :parameters (list (Emil:Type:Variable :name 'a))
@@ -424,7 +424,7 @@
       (expect (eval '(Emil:Environment:lookup
                         (Emil:Context
                          :entries (list (Emil:Context:Binding
-                                         :name 'a
+                                         :variable 'a
                                          :type (Emil:Type:Any))))
                         'a))
                 :to-equal (Emil:Type:Any)))
@@ -433,10 +433,10 @@
       (expect (eval '(Emil:Environment:lookup
                         (Emil:Context
                          :entries (list (Emil:Context:Solution
-                                         :existential (Emil:Type:Existential :name 'b)
+                                         :variable (Emil:Type:Existential :name 'b)
                                          :type (Emil:Type:Any))
                                         (Emil:Context:Binding
-                                         :name 'a
+                                         :variable 'a
                                          :type (Emil:Type:Existential :name 'b))))
                         'a))
                 :to-equal (Emil:Type:Any)))
@@ -445,7 +445,7 @@
       (expect (eval '(Emil:Environment:lookup
                         (Emil:Context
                          :entries (list (Emil:Context:Binding
-                                         :name 'a
+                                         :variable 'a
                                          :type (Emil:Type:Any))))
                         'b))
                 :to-equal nil))))

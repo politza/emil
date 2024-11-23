@@ -48,7 +48,7 @@
        ;; FIXME: &optional and &rest not handled.
        (let* ((bindings
                (--map (Emil:Context:Binding
-                       :name (car it) :type (cdr it))
+                       :variable (car it) :type (cdr it))
                       (-zip-pair arguments argument-types)))
               (marker (Emil:Context:Marker))
               (intermediate-context
@@ -98,13 +98,13 @@ replaced with instances of `Emil:Type:Existential'."
                 (Emil:Context:hole context variable))
               (guard (Emil:Context:well-formed? bottom type)))
          (Emil:Context:concat
-          top (Emil:Context:Solution* :existential variable type) bottom))
+          top (Emil:Context:Solution* variable type) bottom))
         ;; InstLReach / InstRReach
         ((and (Struct Emil:Type:Existential)
               (let `(,top ,center ,bottom)
                 (Emil:Context:double-hole context type variable)))
          (Emil:Context:concat top (Emil:Context:Solution
-                                   :existential type :type variable)
+                                   :variable type :type variable)
                               center variable bottom))
         ;; InstLArr / InstRArr
         ((and (Struct Emil:Type:Arrow)
@@ -112,7 +112,7 @@ replaced with instances of `Emil:Type:Existential'."
                 (Emil:Context:hole context variable)))
          (let* ((instance (Emil:instantiate-arrow self type))
                 (solved-var-inst
-                 (Emil:Context:Solution* :existential variable :type instance))
+                 (Emil:Context:Solution* variable :type instance))
                 (initial-context
                  (Emil:Context:concat
                   top solved-var-inst
@@ -271,7 +271,7 @@ replaced with instances of `Emil:Type:Existential'."
                (instantiated-returns
                 (Emil:Type:Arrow:returns instantiated-type))
                (solution (Emil:Context:Solution
-                          :existential arrow-type :type instantiated-type))
+                          :variable arrow-type :type instantiated-type))
                ((top bottom)
                 (Emil:Context:hole context arrow-type))
                (result-context
@@ -349,7 +349,7 @@ replaced with instances of `Emil:Type:Existential'."
                           self (length argument-list)))
               (returns (Emil:generate-existential self))
               (bindings (--map (Emil:Context:Binding
-                                :name (car it) :type (cdr it))
+                                :variable (car it) :type (cdr it))
                                (-zip-pair argument-list arguments)))
               (marker (Emil:Context:Marker))
               (initial-context
@@ -385,7 +385,7 @@ replaced with instances of `Emil:Type:Existential'."
               bindings))
             (context-bindings
              (--map (Emil:Context:Binding
-                     :name (car it) :type (cdr it))
+                     :variable (car it) :type (cdr it))
                     (-zip-pair (-map #'car bindings)
                                (reverse binding-types))))
             (marker (Emil:Context:Marker))
@@ -404,7 +404,7 @@ replaced with instances of `Emil:Type:Existential'."
               (-let (((type . accumulated-context)
                       (Transformer:transform-form self (cadr it) acc)))
                 (Emil:Context:concat
-                 (Emil:Context:Binding :name (car it) :type type)
+                 (Emil:Context:Binding :variable (car it) :type type)
                  accumulated-context))
               (Emil:Context:concat marker context)
               bindings))
