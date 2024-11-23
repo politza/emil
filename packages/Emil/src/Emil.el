@@ -717,8 +717,9 @@ replaced with instances of `Emil:Type:Existential'."
                        (Emil:Env:Alist :parent environment))))
     (when (Emil:has-errors? emil)
       (signal 'Emil:error (Struct:get emil :messages)))
-    (Emil:Type:print-normalized
-     (Emil:Context:resolve context (Struct:get typed-form :type)))))
+    (-> (Emil:Context:resolve context (Struct:get typed-form :type))
+        Emil:Type:normalize
+        Emil:Type:print)))
 
 (defun Emil:transform (form &optional environment)
   (-let* ((emil (Emil))

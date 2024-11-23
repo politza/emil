@@ -95,7 +95,7 @@ type, excluding `Never' and itself.")
 (Struct:define Emil:Type:Basic
   "Represents a basic custom or builtin type."
   (name
-   "The name of the name."
+   "The name of the type."
    :type symbol))
 
 (Trait:implement Emil:Type Emil:Type:Basic
@@ -111,7 +111,7 @@ type, excluding `Never' and itself.")
    "Whether the last argument is a &rest one."
    :type boolean)
   (returns
-   "The return type of the function."
+   "The return type of this function."
    :type (Trait Emil:Type))
   (min-arity
    "The minimum number of required arguments."
@@ -166,7 +166,7 @@ are also accepted by OTHER; else `nil'."
   (fn Emil:Type:Arrow:arity-assignable-from? (self other)
     "Return `t', if OTHER is arity-wise assignable to this function.
 
-This is the inverse to `Emil:Type:Arrow:arity-assignable-to?', which
+This is the inverse of `Emil:Type:Arrow:arity-assignable-to?', which
 see."
     (-let (((other-min . other-max)
             (Emil:Type:Arrow:normalize-arity other))
@@ -271,7 +271,6 @@ Currently, only function types are supported."
     (Emil:Type:print (Struct:get self :type)))
 
   (fn Emil:Type:monomorph? (self)
-    (ignore self)
     (null (Struct:get self :parameters)))
 
   (fn Emil:Type:free-variables (self)
@@ -390,28 +389,28 @@ The result may contain type-variables."
      (Emil:Type:-read-fn arguments returns))
     (_ (Emil:invalid-type-form "Failed to read form as a type: %s" form))))
 
-(defun Emil:Type:-read-fn (arguments-form returns-form)
+(defun Emil:Type:-read-fn (argument-forms returns-form)
   (let ((optional? nil)
         (rest? nil)
         (min-arity 0)
         (arguments nil)
         (returns (Emil:Type:-read returns-form))
-        (form (list arguments-form returns-form)))
-    (while arguments-form
-      (let ((argument-form (pop arguments-form)))
+        (form (list argument-forms returns-form)))
+    (while argument-forms
+      (let ((argument-form (pop argument-forms)))
         (pcase argument-form
           ('&optional
            (when rest?
              (Emil:invalid-type-form "&optional can not follow &rest: %s" form))
-           (unless arguments-form
+           (unless argument-forms
              (Emil:invalid-type-form
               "&optional should be followed by an argument: %s" form))
            (setq optional? t))
           ('&rest
-           (unless (= 1 (length arguments-form))
+           (unless (= 1 (length argument-forms))
              (Emil:invalid-type-form
               "&rest should be followed by one argument: %s" form))
-           (push (Emil:Type:-read (pop arguments-form))
+           (push (Emil:Type:-read (pop argument-forms))
                    arguments)
            (setq rest? t))
           (_
@@ -422,24 +421,35 @@ The result may contain type-variables."
     (setq arguments (nreverse arguments))
     (Emil:Type:Arrow* arguments rest? returns min-arity)))
 
-(defun Emil:Type:print-normalized (type)
-  "Return a normalized, readable representation of TYPE.
+(defun Emil:Type:normalize (type)
+  "Return a normalized representation of TYPE.
 
-This renames all type-variables with more comprehensible ones."
-  (let ((generator (Emil:Util:NameGenerator))
-        (names nil))
-    (cl-labels ((generate ()
+This renames all type-variables with standard ones."
+  (let* ((generator (Emil:Util:NameGenerator))
+         (replacements nil))
+    (cl-labels ((generate (name)
                   (Emil:Util:NameGenerator:next generator))
+                (replace (type)
+                  (unless (assoc type replacements)
+                    (push (cons type (Emil:Util:NameGenerator:next generator))
+                          replacements))
+                  (cdr (assoc type replacements)))
                 (normalize (type)
                   (pcase-exhaustive type
-                    ((pred symbolp) type)
-                    (`(quote ,name)
-                     (if-let (element (assq name names))
-                         (list 'quote (cdr element))
-                       (push (cons name (generate)) names)
-                       (list 'quote (cdr (car names)))))
-                    ((pred consp)
-                     (-map #'normalize type)))))
-      (normalize (Emil:Type:print type)))))
+                    ((Struct Emil:Type:Forall parameters type)
+                     (Emil:Type:Forall
+                      :parameters (-map #'normalize parameters)
+                      :type (normalize type)))
+                    ((Struct Emil:Type:Arrow arguments returns)
+                     (Emil:Type:Arrow*
+                      ,@type
+                      :arguments (-map #'normalize arguments)
+                      :returns (normalize returns)))
+                    ((Struct Emil:Type:Variable name)
+                     (Emil:Type:Variable :name (replace type)))
+                    ((Struct Emil:Type:Existential name)
+                     (Emil:Type:Existential :name (replace type)))
+                    (_ type))))
+      (normalize type))))
 
 (provide 'Emil/Type)
