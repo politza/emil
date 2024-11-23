@@ -56,13 +56,13 @@ provided, this method is required for implementors to implement."
    "A function responsible for dispatching this method."
    :type function))
 
-(Struct:defun Trait:Method:required? ((method Trait:Method))
+(defun Trait:Method:required? (method)
   "Returns non-nil, if implementing METHOD is required.
 
 This is the case, if METHOD does not define a default implementation."
   (null (Struct:get method :default-implementation)))
 
-(Struct:defun Trait:Method:arity ((method Trait:Method))
+(defun Trait:Method:arity (method)
   "Returns the number of accepted arguments of METHOD.
 
 The value is a pair `\(MIN . MAX\)'. See also `func-arity'."
@@ -133,7 +133,7 @@ The value is a pair `\(MIN . MAX\)'. See also `func-arity'."
             (lambda (&rest arguments)
               (Trait:dispatch ',trait ',name arguments))))))
 
-(Struct:defun Trait:define* ((trait Trait))
+(defun Trait:define* (trait)
   "Defines a new trait according to the given definition."
   (-let (((&plist :name :methods :supertraits)
           (Struct:properties trait)))
