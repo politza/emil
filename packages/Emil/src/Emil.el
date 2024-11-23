@@ -84,125 +84,87 @@ replaced with instances of `Emil:Type:Existential'."
                  self (length (Emil:Type:Arrow:arguments type)))
      :returns (Emil:generate-existential self)))
 
-  (fn Emil:instantiate-left (self (context Emil:Context)
-                                  (variable Emil:Type:Existential)
-                                  (type (Trait Emil:Type)))
-    ;; Figure 10. Instantiation
-    (pcase-exhaustive type
-      ;; InstLSolve
-      ((and (pred Emil:Type:monomorph?)
-            (let `(,top ,bottom)
-              (Emil:Context:hole context variable))
-            (guard (Emil:Context:well-formed? bottom type)))
-       (Emil:Context:concat
-        top (Emil:Context:Solution* :existential variable type) bottom))
-      ;; InstLReach
-      ((and (Struct Emil:Type:Existential)
-            (let `(,top ,center ,bottom)
-              (Emil:Context:double-hole context type variable)))
-       (Emil:Context:concat top (Emil:Context:Solution
-                                 :existential type :type variable)
-                            center variable bottom))
-      ;; InstLArr
-      ((and (Struct Emil:Type:Arrow)
-            (let `(,top ,bottom)
-              (Emil:Context:hole context variable)))
-       (let* ((instance (Emil:instantiate-arrow self type))
-              (solved-var-inst
-               (Emil:Context:Solution* :existential variable :type instance))
-              (initial-context
-               (Emil:Context:concat
-                top solved-var-inst
-                (Emil:Type:Arrow:returns instance)
-                (reverse (Emil:Type:Arrow:arguments instance))
-                bottom))
-              (intermediate-context
-               (--reduce-from
-                (Emil:instantiate-right self acc (car it) (cdr it))
-                initial-context
-                (-zip-pair (Emil:Type:Arrow:arguments type)
-                           (Emil:Type:Arrow:arguments instance)))))
-         (Emil:instantiate-left
-          self
-          intermediate-context
-          (Struct:get instance :returns)
-          (Emil:Context:resolve intermediate-context (Struct:get type :returns)))))
-      ;; InstLAllR
-      ((and (Struct Emil:Type:Forall parameters type)
-            (guard (Emil:Context:member? context variable)))
-       (let* ((marker (Emil:Context:Marker))
-              (initial-context (Emil:Context:concat
-                                (Emil:Context :entries (reverse parameters))
-                                marker context))
-              (intermediate-context (Emil:instantiate-left
-                                     self initial-context variable type)))
-         (Emil:Context:drop-until-after intermediate-context marker)))))
-
-  (fn Emil:instantiate-right (self (context Emil:Context)
-                                   (type (Trait Emil:Type))
-                                   (variable Emil:Type:Existential))
-    ;; Figure 10. Instantiation
-    (pcase-exhaustive type
-      ;; InstRSolve
-      ((and (pred Emil:Type:monomorph?)
-            (let `(,top ,bottom)
-              (Emil:Context:hole context variable))
-            (guard (Emil:Context:well-formed? bottom type)))
-       (Emil:Context:concat
-        top (Emil:Context:Solution* :existential variable type) bottom))
-      ;; InstRReach
-      ((and (Struct Emil:Type:Existential)
-            (let `(,top ,center ,bottom)
-              (Emil:Context:double-hole context type variable)))
-       (Emil:Context:concat top (Emil:Context:Solution
-                                 :existential type :type variable)
-                            center variable bottom))
-      ;; InstRArr
-      ((and (Struct Emil:Type:Arrow)
-            (let `(,top ,bottom)
-              (Emil:Context:hole context variable)))
-       (let* ((instance (Emil:instantiate-arrow self type))
-              (solved-var-inst
-               (Emil:Context:Solution* :existential variable :type instance))
-              (initial-context
-               (Emil:Context:concat
-                top solved-var-inst
-                (Emil:Type:Arrow:returns instance)
-                (reverse (Emil:Type:Arrow:arguments instance))
-                bottom))
-              (intermediate-context
-               (--reduce-from
-                (Emil:instantiate-left self acc (car it) (cdr it))
-                initial-context
-                (-zip-pair (Emil:Type:Arrow:arguments instance)
-                           (Emil:Type:Arrow:arguments type)))))
-         (Emil:instantiate-right
-          self
-          intermediate-context
-          (Emil:Context:resolve
-           intermediate-context (Struct:get type :returns))
-          (Struct:get instance :returns))))
-      ;; InstRAllR
-      ((and (Struct Emil:Type:Forall)
-            (guard (Emil:Context:member? context variable)))
-       (let* ((parameters (Emil:Type:Forall:parameters type))
-              (instances (-map (lambda (_)
-                                 (Emil:generate-existential self))
-                               parameters))
-              (marker (Emil:Context:Marker))
-              (initial-context
-               (Emil:Context:concat
-                (Emil:Context :entries (reverse instances)) marker context))
-              (intermediate-context
-               (Emil:instantiate-right
-                self
-                initial-context
-                (--reduce-from
-                 (Emil:Type:substitute acc (car it) (cdr it))
-                 (Emil:Type:Forall:type type)
-                 (-zip-pair parameters instances))
-                variable)))
-         (Emil:Context:drop-until-after intermediate-context marker)))))
+  (fn Emil:instantiate (self (context Emil:Context)
+                             (variable Emil:Type:Existential)
+                             (type (Trait Emil:Type))
+                             (relation (member :less-or-equal :greater-or-equal)))
+    (let ((inverse-relation
+           (if (eq relation :less-or-equal) :greater-or-equal :less-or-equal)))
+      ;; Figure 10. Instantiation
+      (pcase-exhaustive type
+        ;; InstLSolve / InstRSolve
+        ((and (pred Emil:Type:monomorph?)
+              (let `(,top ,bottom)
+                (Emil:Context:hole context variable))
+              (guard (Emil:Context:well-formed? bottom type)))
+         (Emil:Context:concat
+          top (Emil:Context:Solution* :existential variable type) bottom))
+        ;; InstLReach / InstRReach
+        ((and (Struct Emil:Type:Existential)
+              (let `(,top ,center ,bottom)
+                (Emil:Context:double-hole context type variable)))
+         (Emil:Context:concat top (Emil:Context:Solution
+                                   :existential type :type variable)
+                              center variable bottom))
+        ;; InstLArr / InstRArr
+        ((and (Struct Emil:Type:Arrow)
+              (let `(,top ,bottom)
+                (Emil:Context:hole context variable)))
+         (let* ((instance (Emil:instantiate-arrow self type))
+                (solved-var-inst
+                 (Emil:Context:Solution* :existential variable :type instance))
+                (initial-context
+                 (Emil:Context:concat
+                  top solved-var-inst
+                  (Emil:Type:Arrow:returns instance)
+                  (reverse (Emil:Type:Arrow:arguments instance))
+                  bottom))
+                (intermediate-context
+                 (--reduce-from
+                  (Emil:instantiate self acc (car it) (cdr it)
+                                    inverse-relation)
+                  initial-context
+                  (-zip-pair (Emil:Type:Arrow:arguments instance)
+                             (Emil:Type:Arrow:arguments type)))))
+           (Emil:instantiate
+            self
+            intermediate-context
+            (Struct:get instance :returns)
+            (Emil:Context:resolve intermediate-context
+                                  (Struct:get type :returns))
+            relation)))
+        ((and (Struct Emil:Type:Forall parameters type)
+              (guard (Emil:Context:member? context variable)))
+         (pcase-exhaustive relation
+           (:less-or-equal
+            ;; InstLAllR
+            (let* ((marker (Emil:Context:Marker))
+                   (initial-context (Emil:Context:concat
+                                     (Emil:Context :entries (reverse parameters))
+                                     marker context))
+                   (intermediate-context (Emil:instantiate
+                                          self initial-context
+                                          variable type relation)))
+              (Emil:Context:drop-until-after intermediate-context marker)))
+           (:greater-or-equal
+            ;; InstRAllL
+            (let* ((parameters (Emil:Type:Forall:parameters type))
+                   (instances (Emil:generate-existentials self (length parameters)))
+                   (marker (Emil:Context:Marker))
+                   (initial-context
+                    (Emil:Context:concat
+                     (Emil:Context :entries (reverse instances)) marker context))
+                   (intermediate-context
+                    (Emil:instantiate
+                     self
+                     initial-context
+                     variable
+                     (--reduce-from
+                      (Emil:Type:substitute acc (car it) (cdr it))
+                      (Emil:Type:Forall:type type)
+                      (-zip-pair parameters instances))
+                     relation)))
+              (Emil:Context:drop-until-after intermediate-context marker))))))))
 
   (fn Emil:subtype (self (context Emil:Context)
                          (left (Trait Emil:Type))
@@ -262,11 +224,11 @@ replaced with instances of `Emil:Type:Existential'."
       ;; Instantiate L
       ((and `(,(Struct Emil:Type:Existential name) ,_)
             (guard (not (member name (Emil:Type:free-variables right)))))
-       (Emil:instantiate-left self context left right))
+       (Emil:instantiate self context left right :less-or-equal))
       ;; Instantiate R
       ((and `(,_ ,(Struct Emil:Type:Existential name))
             (guard (not (member name (Emil:Type:free-variables left)))))
-       (Emil:instantiate-right self context left right))
+       (Emil:instantiate self context right left :greater-or-equal))
       ;; Unit
       ((or `(,(Struct Emil:Type:Never) ,_)
            `(,_ ,(Struct Emil:Type:Any))
@@ -483,7 +445,7 @@ replaced with instances of `Emil:Type:Existential'."
                                         &optional context &rest _)
     (cons (Emil:Type:Any) context))
 
-  (fn Transformer:transform-unwind-protect (self form body-form unwind-forms
+  (fn Transformer:transform-unwind-protect (self _form body-form unwind-forms
                                                  &optional context &rest _)
     (prog1 (Transformer:transform-form self body-form context)
       (Emil:infer-do self context unwind-forms)))
