@@ -25,7 +25,7 @@
                 :to-equal
                 'TestStruct)
         (expect (length (Struct:get type :properties)) :to-equal 3)
-        
+
         (let ((optional (nth 0 (Struct:get type :properties))))
           (expect (Struct:get optional :name)
                   :to-equal 'optional)
@@ -62,14 +62,26 @@
           (expect (Struct:get read-only :read-only)
                   :to-equal t))))
 
-    (it "defines constructors"
+    (it "defines constructors and predicates"
       (expect (fboundp 'TestStruct) :to-equal t)
-      (expect (fboundp 'TestStruct*) :to-equal t))
-    
+      (expect (fboundp 'TestStruct*) :to-equal t)
+      (expect (fboundp 'TestStruct?) :to-equal t)
+      (expect (fboundp 'TestStruct-p) :to-equal t))
+
     (it "can be constructed"
       (expect (TestStruct :optional 1 :required "string" :read-only 2)
               :to-equal
               `(TestStruct :optional 1 :required "string" :read-only 2)))
+
+    (it "can type-check a value"
+      (expect (TestStruct? (TestStruct :required 0))
+              :to-equal t)
+      (expect (TestStruct-p (TestStruct :required 0))
+              :to-equal t)
+      (expect (TestStruct? '(NonTestStruct :required 4))
+              :to-equal nil)
+      (expect (TestStruct? 0)
+              :to-equal nil))
 
     (it "keeps properties ordered"
       (expect (TestStruct :read-only 0 :required "string" :optional 1)
