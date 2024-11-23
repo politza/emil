@@ -22,7 +22,7 @@
       ((Struct Emil:Form:Atom value)
        (cond
         ((not (symbolp value)) value)
-        ((Emil:Env:lookup-variable self value env)
+        ((Emil:Syntax:resolve-variable self value env)
          (--reduce `(Struct:unsafe-get ,acc ,(Commons:symbol-to-keyword it))
                    (-map #'intern (split-string (symbol-name value) "[.]"))))
         (t value)))
@@ -134,19 +134,30 @@
 
 (defun Emil:Syntax:resolve-function (self expression &optional env)
   (-when-let* (((function . type)
-                (Emil:Syntax:resolve-expression self expression env))
-               (struct (and (Emil:Type:Basic? type)
-                            (Struct:Type:get (Struct:get type :name)))))
-    (let* ((struct-functions (-map #'cdr (Struct:get struct :functions)))
-           (trait-functions
-            (-flatten-n 1 (--map (--map (Struct:get it :function)
-                                        (Struct:get it :functions))
-                                 (Trait:implemented (Struct:get struct :name)))))
-           (candidates
-            (--filter (eq function (Struct:get it :name))
-                      (append struct-functions trait-functions))))
-      (when (= 1 (length candidates))
-        (car candidates)))))
+                (Emil:Syntax:resolve-expression self expression env)))
+    (let ((functions nil)
+          (struct (and (Emil:Type:Basic? type)
+                       (Struct:Type:get (Struct:get type :name))))
+          (trait (and (Emil:Type:trait? type)
+                      (Trait:get (Struct:get (car (Struct:get type :arguments)) :name)))))
+      (cond
+       (struct
+        (setq functions
+              (append (-map #'cdr (Struct:get struct :functions))
+                      (-flatten-n 1 (--map (--map (Struct:get (cdr it) :function)
+                                                  (Struct:get (Trait:get it :ensure) :functions))
+                                           (Trait:implemented (Struct:get struct :name)))))))
+       (trait
+        (setq functions (--mapcat (--map
+                                   (Struct:get (cdr it) :function)
+                                   (Struct:get (Trait:get it :ensure) :functions))
+                                  (cons (Struct:get trait :name)
+                                        (Struct:get trait :supertraits))))))
+      (let ((candidates
+             (--filter (eq function (Struct:get it :name))
+                       functions)))
+        (when (= 1 (length candidates))
+          (car candidates))))))
 
 (defun Emil:Syntax:transform (function)
   (let ((env (Emil:Syntax
