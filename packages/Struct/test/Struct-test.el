@@ -16,7 +16,7 @@
       (Struct:undefine 'TestStruct))
 
     (it "defines a type"
-      (let ((type (Struct:get-type 'TestStruct)))
+      (let ((type (Struct:Type:get 'TestStruct)))
         (expect type :to-be-truthy)
         (expect (Struct:get type :documentation)
                 :to-equal
@@ -134,7 +134,7 @@
 
     (it "can be undefined"
       (Struct:undefine 'TestStruct)
-      (expect (Struct:get-type 'TestStruct) :to-throw 'error)
+      (expect (Struct:Type:get 'TestStruct) :to-throw 'error)
       (expect (fboundp 'TestStruct) :to-equal nil)
       (expect (fboundp 'TestStruct*) :to-equal nil))
 

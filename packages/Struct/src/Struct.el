@@ -19,28 +19,6 @@
 (defvar Struct:enable-syntax-highlighting t
   "Whether to highlight struct types with face `font-lock-type-face'.")
 
-(defconst Struct:doc-function-constructor
-  "Constructs a struct of type `%s'.\nSee also `%s'.")
-
-(defconst Struct:doc-constructor-first-line
-  "Constructs a struct of type `%s'.")
-
-(defconst Struct:doc-constructor-properties-line
-  "Struct `%s' has the following properties:")
-
-(defconst Struct:doc-constructor-last-line
-  "This macro supports shorthand-syntax, i.e. keyword arguments may be 
-omitted, when using an identifier eponymous with the property 
-name. And also spread-syntax via the `,@' operator, with other values of 
-this type as arguments.
-
-See also `%s*'.")
-
-(defun Struct:get-type (name &optional no-error)
-  (or (get name Struct:Type:symbol)
-      (and (not no-error)
-           (error "Not a struct: %s" name))))
-
 ;;;###autoload
 (defsubst Struct:unsafe-get (struct property)
   (plist-get (cdr struct) property))
@@ -95,6 +73,11 @@ See also `%s*'.")
          :required nil
          :read-only t))))
 
+(defun Struct:Type:get (name &optional no-error)
+  (or (get name Struct:Type:symbol)
+      (and (not no-error)
+           (error "Not a struct: %s" name))))
+
 (defun Struct:Property (&rest property-list)
   (Struct:construct 'Struct:Property property-list))
 
@@ -146,13 +129,13 @@ See also `%s*'.")
          :read-only t))))
 
 (defun Struct:construct (name arguments)
-  (let ((type (Struct:get-type name)))
+  (let ((type (Struct:Type:get name)))
     (cons name (->> arguments
-                    (Struct:initial-property-list type)
-                    (Struct:construct-property-list type)))))
+                    (Struct::initial-property-list type)
+                    (Struct::construct-property-list type)))))
 
-(defun Struct:initial-property-list (type arguments)
-  (let* ((property-list (Struct:empty-property-list type))
+(defun Struct::initial-property-list (type arguments)
+  (let* ((property-list (Struct::empty-property-list type))
          (property-count (/ (length property-list) 2)))
     (while arguments
       (let ((keyword (pop arguments))
@@ -163,18 +146,18 @@ See also `%s*'.")
              (nthcdr (* 2 property-count) property-list)))
     property-list))
 
-(defun Struct:property-keywords (properties)
+(defun Struct::property-keywords (properties)
   (--map (Commons:symbol-to-keyword it)
          (--map (Struct:unsafe-get it :name)
                 properties)))
 
-(defun Struct:empty-property-list (type)
+(defun Struct::empty-property-list (type)
   (--splice (prog1 t (ignore it))
             (list it nil)
-            (Struct:property-keywords
+            (Struct::property-keywords
              (Struct:unsafe-get type :properties))))
 
-(defun Struct:construct-property-list (type initial-property-list)
+(defun Struct::construct-property-list (type initial-property-list)
   (let ((properties (Struct:unsafe-get type :properties))
         (property-list nil)
         (environment nil))
@@ -210,23 +193,23 @@ See also `%s*'.")
            (append struct-declarations
                    (list :name name :documentation documentation
                          :properties
-                         (-map #'Struct:construct-property property-declarations))))
+                         (-map #'Struct::construct-property property-declarations))))
           (type (apply #'Struct:Type Struct:properties))
           (star-name (intern (concat (symbol-name name) "*"))))
     `(prog1
          (defmacro ,name (&rest arguments)
-           ,(Struct:doc-constructor type)
+           ,(Struct::doc-constructor type)
            (declare (no-font-lock-keyword t))
            (list 'Struct:construct
-                 '',name (Struct:expand-syntax arguments)))
+                 '',name (Struct::expand-syntax arguments)))
        (defun ,star-name (&rest arguments)
-         ,(Struct:doc-function-constructor type)
+         ,(Struct::doc-function-constructor type)
          (Struct:construct ',name arguments))
        (put ',name Struct:Type:symbol ',type)
        (when Struct:enable-syntax-highlighting
          (Struct:syntax-highlight-add ',name)))))
 
-(defun Struct:construct-property (declaration)
+(defun Struct::construct-property (declaration)
   (cond
    ((symbolp declaration)
     (Struct:Property :name declaration))
@@ -247,23 +230,40 @@ See also `%s*'.")
    (t
     (error "Invalid property declaration: %s" declaration))))
 
-(defun Struct:doc-function-constructor (type)
+(defconst Struct::doc-function-constructor
+  "Constructs a struct of type `%s'.\nSee also `%s'.")
+
+(defconst Struct::doc-constructor-first-line
+  "Constructs a struct of type `%s'.")
+
+(defconst Struct::doc-constructor-properties-line
+  "Struct `%s' has the following properties:")
+
+(defconst Struct::doc-constructor-last-line
+  "This macro supports shorthand-syntax, i.e. keyword arguments may be 
+omitted, when using an identifier eponymous with the property 
+name. And also spread-syntax via the `,@' operator, with other values of 
+this type as arguments.
+
+See also `%s*'.")
+
+(defun Struct::doc-function-constructor (type)
   (with-output-to-string
-    (princ (format Struct:doc-function-constructor
+    (princ (format Struct::doc-function-constructor
                    (Struct:unsafe-get type :name)
                    (format "%s*" (Struct:unsafe-get type :name))))
     (terpri)))
 
-(defun Struct:doc-constructor (type)
+(defun Struct::doc-constructor (type)
   (with-output-to-string
-    (princ (format Struct:doc-constructor-first-line
+    (princ (format Struct::doc-constructor-first-line
                    (Struct:unsafe-get type :name)))
     (terpri)
     (terpri)
     (princ (Struct:unsafe-get type :documentation))
     (terpri)
     (terpri)
-    (princ (format Struct:doc-constructor-properties-line
+    (princ (format Struct::doc-constructor-properties-line
                    (Struct:unsafe-get type :name)))
     (terpri)
     (terpri)
@@ -289,11 +289,11 @@ See also `%s*'.")
           (terpri))
         (terpri)))
     (terpri)
-    (princ (format Struct:doc-constructor-last-line
+    (princ (format Struct::doc-constructor-last-line
                    (Struct:unsafe-get type :name)))
     (terpri)))
 
-(defun Struct:expand-syntax (arguments)
+(defun Struct::expand-syntax (arguments)
   "Expands shorthand and spread-syntax in ARGUMENTS."
   (let ((expanded-property-list nil))
     (while arguments
@@ -331,10 +331,11 @@ See also `%s*'.")
     (when undefine
       (put name Struct:syntax-highlight-symbol nil))))
 
+;;;###autoload
 (defun Struct:undefine (name)
   (when (memq name '(Struct:Type Struct:Property))
     (error "Attempted to undefine a core type: %s" name))
-  (when-let (type (Struct:get-type name :no-error))
+  (when-let (type (Struct:Type:get name :no-error))
     (put name Struct:Type:symbol nil)
     (Struct:syntax-highlight-remove name :undefine)
     (fmakunbound name)
@@ -344,7 +345,7 @@ See also `%s*'.")
 (defun Struct:member? (struct property)
   (--find (eq property (Struct:unsafe-get it :keyword))
           (Struct:unsafe-get
-           (Struct:get-type (car struct))
+           (Struct:Type:get (car struct))
            :properties)))
 
 ;;;###autoload
@@ -356,7 +357,7 @@ See also `%s*'.")
 ;;;###autoload
 (defun Struct:set (struct property value)
   (let ((Struct:property (Struct:member? struct property))
-        (type (Struct:get-type (car struct))))
+        (type (Struct:Type:get (car struct))))
     (unless Struct:property
       (error "Property is not a member of struct: %s" property))
     (when (and (null value)
