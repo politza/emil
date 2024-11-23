@@ -82,12 +82,21 @@ The value is a pair `\(MIN . MAX\)'. See also `func-arity'."
     (push documentation methods)
     (setq documentation nil))
 
-  `(Trait:define*
-    (Trait :name ',name
-           :supertraits (copy-sequence ',supertraits)
-           :methods
-           (list ,@(--map (Trait:-construct-method name it)
-                          methods)))))
+  `(eval-and-compile
+     ,@(Trait:-emit-method-declarations methods)
+     (Trait:define*
+      (Trait :name ',name
+             :supertraits (copy-sequence ',supertraits)
+             :methods
+             (list ,@(--map (Trait:-construct-method name it) methods))))))
+
+(defun Trait:-emit-method-declarations (methods)
+  (-map (-lambda ((_ name arguments))
+          (when (and name (symbolp name))
+            `(declare-function
+              ,name nil ,(ignore-errors
+                           (Struct:lambda-normalize-arguments arguments)))))
+        methods))
 
 (defun Trait:-construct-method (trait method)
   (unless (consp method)

@@ -536,7 +536,7 @@ This function returns a new property-list everytime its called."
   (declare (indent 1))
   (Struct:lambda-check-arguments arguments)
 
-  `(lambda ,(Struct:-lambda-normalize-arguments arguments)
+  `(lambda ,(Struct:lambda-normalize-arguments arguments)
      ,@(Struct:-lambda-emit-type-checks arguments)
      ,(Struct:-lambda-emit-handle-struct-rest arguments)
      ,@body))
@@ -556,7 +556,7 @@ This function returns a new property-list everytime its called."
     (setq declare nil))
   (Struct:lambda-check-arguments arguments)
 
-  `(defun ,name ,(Struct:-lambda-normalize-arguments arguments)
+  `(defun ,name ,(Struct:lambda-normalize-arguments arguments)
      ,(format "%s\n\n%s" (or documentation "") (cons 'fn arguments))
      ,declare
      ,@(Struct:-lambda-emit-type-checks arguments)
@@ -597,11 +597,12 @@ Throws an error, if ARGUMENTS are incompatible with that macro."
       (error "Argument should be a symbol or have the form (argument type): %s"
              arguments))))
 
-(defun Struct:-lambda-normalize-arguments (arguments)
+(defun Struct:lambda-normalize-arguments (arguments)
   (--map (cond
           ((eq it '&struct) '&rest)
           ((symbolp it) it)
-          (t (car it)))
+          ((consp it) (car it))
+          (t (error "Invalid argument: %s" it)))
          arguments))
 
 (defun Struct:-lambda-emit-type-checks (arguments)
