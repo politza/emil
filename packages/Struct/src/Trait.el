@@ -43,11 +43,11 @@ which case a `wrong-type-argument' is signaled."
    :read-only t :type list)
   (documentation
   "A string describing this method."
-   :read-only t :type (or string null))
+   :read-only t :type string)
   (default-implementation
    "An optional default implementation of this method. If not
 provided, this method is required for implementors to implement."
-   :read-only t :type (or function null))
+   :read-only t :type function)
   (implementations
    "An alist mapping types to their implementation of this method."
    :type list)

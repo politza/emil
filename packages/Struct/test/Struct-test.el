@@ -192,7 +192,15 @@
       (expect (cl-typep (TestStruct :required 1) 'TestStruct)
               :to-be t)
       (expect (cl-typep "TestStruct" 'TestStruct)
-              :to-be nil)))
+              :to-be nil))
+
+    (it "accepts nil for non-required typed properties"
+      (Struct:define TestStruct (property :type number))
+
+      (expect (TestStruct) :to-equal (TestStruct :property nil))
+      (expect (TestStruct :property 0) :to-equal (TestStruct :property 0))
+      (expect (TestStruct :property "0")
+              :to-throw 'wrong-type-argument '(number "0"))))
 
   (describe "with a read-only struct"
     (before-each
