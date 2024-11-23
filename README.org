@@ -24,3 +24,77 @@ Pleas refer to the individual packages which each have their own README.
 + [[file:packages/Emil/README.org][Emil]] :: A type-system for Emacs-Lisp.
 + [[file:packages/Struct/README.org][Struct]] :: A struct-like data-type and a trait abstraction.
 + [[file:packages/Rs/README.org][Rs]] :: A simple [[https://github.com/reactive-streams/reactive-streams-jvm/blob/v1.0.4/README.md#specification][reactive streams]] implementation for demo purposes. 
+
+* Installation
+
+** Using straight
+
+#+begin_src emacs-lisp
+  (progn
+    (straight-register-package
+     '(Commons
+       :type git
+       :host github
+       :repo "politza/emil"
+       :files
+       ("packages/Commons/src/*.el")))
+
+    (straight-register-package
+     '(Struct
+       :type git
+       :host github
+       :repo "politza/emil"
+       :files
+       ("packages/Struct/src/*.el"
+        ("Struct" "packages/Struct/src/Struct/*.el")
+        ("Struct/Support" "packages/Struct/src/Struct/Support/*.el"))))
+
+    (straight-register-package
+     '(Transformer
+       :type git
+       :host github
+       :repo "politza/emil"
+       :files
+       ("packages/Transformer/src/*.el")))
+
+    (straight-register-package
+     '(Emil
+       :type git
+       :host github
+       :repo "politza/emil"
+       :files
+       ("packages/Emil/src/*.el"
+        ("Emil" "packages/Emil/src/Emil/*.el")
+        ("Emil/Support" "packages/Emil/src/Emil/Support/*.el"))))
+
+    (straight-register-package
+     '(Rs
+       :type git
+       :host github
+       :repo "politza/emil"
+       :files
+       ("packages/Rs/src/*.el"
+        ("Rs" "packages/Rs/src/Rs/*.el")
+        ("Rs/Processor" "packages/Rs/src/Rs/Processor/*.el")
+        ("Rs/Publisher" "packages/Rs/src/Rs/Publisher/*.el"))))
+
+    (straight-use-package 'Rs))
+#+end_src
+
+* Configuration
+
+There is some support for extended syntax-hightlighting and completion avaiable, which can be
+enabled like this:
+
+#+begin_src emacs-lisp
+  (add-hook 'emacs-lisp-mode-hook
+    (defun enable-emil-support ()
+      (when (require 'Struct/Support nil t)
+        (Struct:Support:syntax-mode 1)
+        (add-hook 'completion-at-point-functions #'Emil:Support:completion-at-point -10 t))
+      (when (require 'Struct/Support/Imenu nil t)
+        (Struct:Support:Imenu:mode 1))
+      (when (require 'Emil/Support/Completion nil t)
+        (add-hook 'completion-at-point-functions #'Struct:Support:completion-at-point -20 t))
+      (require 'Struct/Support/Edebug nil t)))
+#+end_src
