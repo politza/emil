@@ -1,6 +1,7 @@
 ;; -*- lexical-binding: t -*-
 
 (require 'Struct)
+(require 'Struct/Impl)
 (require 'dash)
 (require 'cl-macs)
 
@@ -80,7 +81,7 @@ The value is a pair `\(MIN . MAX\)'. See also `func-arity'."
 (defmacro Trait:define (name supertraits &optional documentation &rest methods)
   "Defines a new trait named NAME.
 
-(fn NAME ([SUPERTRAIT]*) [DOCUMENTATION]? [(defmethod METHOD-NAME ARGUMENTS [DOCUMENTATION]? . BODY)]*)"
+(fn NAME ([SUPERTRAIT]*) [DOCUMENTATION]? [(fn METHOD-NAME ARGUMENTS [DOCUMENTATION]? . BODY)]*)"
   (declare (indent 2) (doc-string 3))
   (unless (symbolp name)
     (signal 'wrong-type-argument `(symbol ,name)))
@@ -105,9 +106,8 @@ The value is a pair `\(MIN . MAX\)'. See also `func-arity'."
   (unless (consp method)
     (error "Method definition should be a non-empty list: %s" method))
   (-let (((head name arguments documentation . body) method))
-    (Struct:lambda-check-arguments arguments)
-    (unless (eq 'defmethod head)
-      (error "Method declaration should start with defmethod: %s" head))
+    (unless (eq 'fn head)
+      (error "Method declaration should start with fn: %s" head))
     (unless (symbolp name)
       (error "Method name should be a symbol: %s" name))
     (unless (consp arguments)
@@ -176,7 +176,7 @@ idempotent."
 (defmacro Trait:implement (trait type &rest methods)
   "Defines an implementation of TRAIT for TYPE.
 
-(fn TRAIT TYPE [(defmethod METHOD-NAME ARGUMENTS . BODY)]*)"
+(fn TRAIT TYPE [(fn METHOD-NAME ARGUMENTS . BODY)]*)"
   (declare (indent 2))
   (unless (symbolp trait)
     (signal 'wrong-type-argument `(symbol ,trait)))
@@ -191,8 +191,8 @@ idempotent."
   (unless (consp method)
     (error "Expected a non-empty list: %s" method))
   (-let (((head name arguments . body) method))
-    (unless (eq 'defmethod head)
-      (error "Method implementation should start with defmethod: %s" head))
+    (unless (eq 'fn head)
+      (error "Method implementation should start with fn: %s" head))
     (unless (symbolp name)
       (error "Method name should be a symbol: %s" name))
     (unless (listp arguments)
@@ -296,8 +296,6 @@ Otherwise, calls `type-of' on VALUE and return its result."
            (symbolp (car value))
            (car value))
       (type-of value)))
-
-(put 'defmethod 'lisp-indent-function 'defun)
 
 (provide 'Trait)
 ;;; Trait.el ends here

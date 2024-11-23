@@ -77,12 +77,12 @@
     (Rs:Subscriber:on-complete (Struct:get self :subscriber))))
 
 (Trait:implement Rs:Subscription Rs:Sp:Subscription
-  (defmethod Rs:Subscription:request (self (count (integer 0 *)))
+  (fn Rs:Subscription:request (self (count (integer 0 *)))
     (unless (Struct:get self :closed?)
       (Struct:update self :request-count (-partial #'+ count))
       (Rs:Sp:Subscription:emit-some self)))
 
-  (defmethod Rs:Subscription:cancel (self)
+  (fn Rs:Subscription:cancel (self)
     (Rs:Sp:Subscription:close self)))
 
 (Struct:defun Rs:SubmissionPublisher:remove
@@ -109,7 +109,7 @@
       (Rs:Sp:Subscription:complete it))))
 
 (Trait:implement Rs:Publisher Rs:SubmissionPublisher
-  (defmethod Rs:Publisher:subscribe (self (subscriber (Trait Rs:Subscriber)))
+  (fn Rs:Publisher:subscribe (self (subscriber (Trait Rs:Subscriber)))
     (let ((subscription (Rs:Sp:Subscription:new self subscriber)))
       (Struct:update self :subscriptions (-partial #'cons subscription))
       (Rs:Subscriber:on-subscribe subscriber subscription))))
