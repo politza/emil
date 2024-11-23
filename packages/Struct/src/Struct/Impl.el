@@ -24,13 +24,12 @@
            (cons (cons name functions)
                  Struct:declared-functions)))
     `(progn
+       ,@(--map (Struct:Function:emit-definition it transformer :flush)
+                functions)
        (eval-and-compile
          (Struct:-update-functions
           (Struct:Type:get ',name :ensure)
           (copy-sequence ',functions)))
-       ;; FIXME: Functions should be unimplemented, if defining them throws an error.
-       ,@(--map (Struct:Function:emit-definition it transformer :flush)
-                functions)
        ',name)))
 
 (defun Struct:-handle-evaluation-context (name)
