@@ -46,8 +46,8 @@ which case a `wrong-type-argument' is signaled."
   "Returns `t', if NAME is the name of a trait."
   (not (null (get name Trait:definition-symbol))))
 
-(Struct:define Trait:Function
-  "Represents a trait-function."
+(Struct:define Trait:Member
+  "Represents a member of a trait."
   (function
    "The function-declaration of this function."
    :type Struct:Function)
@@ -62,7 +62,7 @@ provided, this function is required for implementors to implement."
    "A function responsible for dispatching this function."
    :type function))
 
-(defun Trait:Function:required? (function)
+(defun Trait:Member:required? (function)
   "Returns non-nil, if implementing FUNCTION is required.
 
 This is the case, if FUNCTION does not define a default implementation."
@@ -88,7 +88,7 @@ This is the case, if FUNCTION does not define a default implementation."
   (-let* (((properties body)
            (Commons:split-property-list properties-and-body))
           (disable-syntax (plist-get properties :disable-syntax))
-          (functions (--map (Struct:Function:read it (unless disable-syntax name))
+          (functions (--map (Trait:Function:read it name disable-syntax)
                             body))
           (transformer (unless (or disable-syntax
                                    (not (require 'Emil nil t)))
@@ -102,25 +102,36 @@ This is the case, if FUNCTION does not define a default implementation."
       (Trait :name ',name
              :supertraits (copy-sequence ',supertraits)
              :functions
-             (list ,@(--map (Trait:-construct-function-definition name it transformer)
+             (list ,@(--map (Trait:-emit-member name it transformer)
                             functions)))))))
 
-(defun Trait:-construct-function-definition (trait function transformer)
-  (let ((name (Struct:get function :qualified-name))
-        (arguments (Struct:get function :arguments))
-        (body? (not (null (Struct:get function :body))))
-        (trait-type `(Trait ,trait)))
+(defun Trait:Function:read (form trait &optional disable-syntax)
+  (let* ((function (Struct:Function:read
+                     form (unless disable-syntax trait)))
+         (name (Struct:get function :qualified-name))
+         (arguments (Struct:get function :arguments))
+         (trait-type `(Trait ,trait)))
     (unless arguments
-      (error "A function requires at least one argument: %s" name))
+      (error "Trait-member requires at least one argument: %s" name))
+    (unless (eq Struct:Function:self-symbol
+                (Struct:get (car arguments) :name))
+      (error "Dispatch argument of trait-member should be named %s: %s"
+             Struct:Function:self-symbol
+             (Struct:get (car arguments) :name)))
     (unless (Struct:get (car arguments) :type)
       (Struct:unsafe-set (car arguments) :type trait-type))
     (unless (equal trait-type (Struct:get (car arguments) :type))
-      (error "Dispatch argument of trait-function must have trait-type %s: %s"
+      (error "Dispatch argument of trait-member should have trait-type %s: %s"
              trait-type name))
     (when (Struct:get (car arguments) :default)
-      (error "Dispatch argument of trait-function can not have a default: %s" name))
+      (error "Dispatch argument of trait-member can not have a default: %s" name))
+    function))
+
+(defun Trait:-emit-member (trait function transformer)
+  (let ((name (Struct:get function :qualified-name))
+        (body? (not (null (Struct:get function :body)))))
     `(cons ',name
-           (Trait:Function
+           (Trait:Member
             :function (copy-sequence ',function)
             :default-implementation
             ,(and body?
@@ -141,7 +152,7 @@ This is the case, if FUNCTION does not define a default implementation."
       (put (car it) 'Emil:Env:function-type
            (Struct:Function:type (Struct:get (cdr it) :function)))
       ;; (put (car it) 'function-documentation
-      ;;      `(Trait:Function:documentation ',name ',(car it)))
+      ;;      `(Trait:Member:documentation ',name ',(car it)))
       )
     (put name Trait:definition-symbol trait)
     name))
@@ -163,7 +174,7 @@ idempotent."
   (-> (Trait:get name :ensure)
       (Struct:get :documentation)))
 
-(defun Trait:Function:documentation (trait name)
+(defun Trait:Member:documentation (trait name)
   "Return a documentation-string for TRAIT's function named NAME."
   (-> (cdr (assq name (->
                        (Trait:get trait :ensure)
@@ -213,7 +224,7 @@ idempotent."
         (error "Required supertrait not implemented by type: %s" it)))
     (--each trait-functions
       (unless (or (assq (car it) function-alist)
-                  (not (Trait:Function:required? (cdr it))))
+                  (not (Trait:Member:required? (cdr it))))
         (error "Required function not implemented: %s" (car it))))
     (--each function-alist
       (unless (assq (car it) trait-functions)

@@ -177,7 +177,7 @@
                                     :disable-syntax t
                                     (fn foo nil)))
                 :to-throw 'error
-                '("A function requires at least one argument: foo"))
+                '("Trait-member requires at least one argument: foo"))
         (expect (macroexpand-all '(Trait:define TestTrait nil
                                     :disable-syntax t
                                     (fn foo (self) (declare (indent 1)))))
@@ -191,13 +191,19 @@
                                     :disable-syntax t
                                     (fn foo ((self number)))))
                 :to-throw 'error
-                '("Dispatch argument of trait-function must have trait-type (Trait TestTrait): foo"))
+                '("Dispatch argument of trait-member should have trait-type (Trait TestTrait): foo"))
 
         (expect (macroexpand-all '(Trait:define TestTrait nil
                                     :disable-syntax t
                                     (fn foo ((self (Trait TestTrait) :default)))))
                 :to-throw 'error
-                '("Dispatch argument of trait-function can not have a default: foo"))))
+                '("Dispatch argument of trait-member can not have a default: foo"))
+
+        (expect (macroexpand-all '(Trait:define TestTrait nil
+                                    :disable-syntax t
+                                    (fn foo ((this (Trait TestTrait) :default)))))
+                :to-throw 'error
+                '("Dispatch argument of trait-member should be named self: this"))))
 
     (describe "recognizes runtime-errors"
       (it "rejects undefined supertraits"
