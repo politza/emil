@@ -558,7 +558,7 @@
 
       (it "three arguments with annotation"
         (expect (Emil:infer-type
-                 '(f (Emil:is "1" Any) [2] 0)
+                 '(f "1" [2] (Emil:is 0 Any))
                  (Emil:Env:Alist:read
                   nil
                   '((f . (-> (&rest 'a) 'a)))))

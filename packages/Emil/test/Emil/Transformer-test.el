@@ -143,16 +143,16 @@
                                      :arguments (x)
                                      :body ((Emil:Form:Atom
                                              :value x
-                                             :type (Emil:Type:Existential :name a)))
+                                             :type (Emil:Type:Basic :name integer)))
                                      :type (Emil:Type:Arrow
-                                            :arguments ((Emil:Type:Existential :name a))
+                                            :arguments ((Emil:Type:Basic :name integer))
                                             :rest? nil
-                                            :returns (Emil:Type:Existential :name a)
+                                            :returns (Emil:Type:Basic :name integer)
                                             :min-arity 1))
                              :type (Emil:Type:Arrow
-                                    :arguments ((Emil:Type:Existential :name a))
+                                    :arguments ((Emil:Type:Basic :name integer))
                                     :rest? nil
-                                    :returns (Emil:Type:Existential :name a)
+                                    :returns (Emil:Type:Basic :name integer)
                                     :min-arity 1))
                             (Emil:Form:Atom
                              :value 0
