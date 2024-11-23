@@ -60,20 +60,48 @@ Apart from that, this just expands to FORM.
   (fn Emil:check (self form type (context Emil:Context)
                        (environment (Trait Emil:Env)))
     (pcase-exhaustive type
-      ((Struct Emil:Type:Forall parameters :type forall-type)
-       (-let* ((marker (Emil:Context:Marker))
-               (intermediate-context
-                (Emil:Context:concat (reverse parameters) marker context))
-               ((result-context . result-form)
-                (Emil:check self form forall-type intermediate-context environment)))
-         (cons (Emil:Context:drop-until-after result-context marker)
-               (Emil:TypedForm* ,@result-form :type type))))
+      ((Struct Emil:Type:Forall)
+       (Emil:check-forall self form type context environment))
+      ((and (Struct Emil:Type:Arrow)
+            (let `(function ,_) (Transformer:Form:unwrap-n form 1)))
+       (Emil:check-lambda self form type context environment))
+      (_
+       (-let* (((form-context . typed-form)
+                (Emil:infer self form context environment))
+               (inferred-type
+                (Emil:Context:resolve form-context
+                                      (Struct:get typed-form :type)))
+               (result-type
+                (Emil:Context:resolve form-context type)))
+         (cons
+          (Emil:subtype self form-context inferred-type result-type)
+          (Emil:TypedForm* ,@typed-form :type result-type))))))
+
+  (fn Emil:check-forall (self form (type Emil:Type:Forall)
+                              (context Emil:Context)
+                              (environment (Trait Emil:Env)))
+    (-let* ((parameters (Struct:get type :parameters))
+            (forall-type (Struct:get type :type))
+            (marker (Emil:Context:Marker))
+            (intermediate-context
+             (Emil:Context:concat (reverse parameters) marker context))
+            ((result-context . result-form)
+             (Emil:check
+              self form forall-type intermediate-context environment)))
+      (cons (Emil:Context:drop-until-after result-context marker)
+            (Emil:TypedForm* ,@result-form :type type))))
+
+  (fn Emil:check-lambda (self form (type Emil:Type:Arrow)
+                              (context Emil:Context)
+                              (environment (Trait Emil:Env)))
+    (pcase-exhaustive type
       ((and (Struct Emil:Type:Arrow returns)
             (let `(function ,lambda) form)
             (let `(lambda ,arguments . ,body)
               (Transformer:Form:unwrap-n 2 lambda)))
        (unless (Emil:Type:Arrow:arity-assignable-from? type (func-arity form))
-         (Emil:type-error "Function is not arity compatible: %s, %s" form type))
+         (Emil:type-error "Function is not arity compatible: %s, %s"
+                          form type))
        (-let* ((argument-count
                 (max (length (Emil:Type:Arrow:lambda-variables arguments))
                      (Emil:Type:Arrow:arguments type)))
@@ -95,117 +123,152 @@ Apart from that, this just expands to FORM.
                (Emil:TypedForm:new
                 (list (car form)
                       (cons (-take 2 lambda) body-forms))
-                returns environment))))
-      (_
-       (-let* (((form-context . typed-form)
-                (Emil:infer self form context environment))
-               (inferred-type
-                (Emil:Context:resolve form-context
-                                      (Struct:get typed-form :type)))
-               (result-type
-                (Emil:Context:resolve form-context type)))
-         (cons
-          (Emil:subtype self form-context inferred-type result-type)
-          (Emil:TypedForm* ,@typed-form :type result-type))))))
+                returns environment))))))
 
   (fn Emil:instantiate (self (context Emil:Context)
                              (variable Emil:Type:Existential)
                              (type (Trait Emil:Type))
-                             (relation (member :less-or-equal :greater-or-equal)))
-    (let ((inverse-relation
-           (if (eq relation :less-or-equal) :greater-or-equal :less-or-equal)))
-      ;; Figure 10. Instantiation
-      (pcase-exhaustive type
-        ;; InstLSolve / InstRSolve
-        ((and (pred Emil:Type:monomorph?)
-              (let `(,top . ,bottom)
-                (Emil:Context:hole context variable))
-              (guard (Emil:Context:well-formed? bottom type)))
-         (Emil:Context:concat
-          top (Emil:Context:Solution* variable type) bottom))
-        ;; InstLReach / InstRReach
-        ((and (Struct Emil:Type:Existential)
-              (let `(,top ,center ,bottom)
-                (Emil:Context:double-hole context type variable)))
-         (Emil:Context:concat top (Emil:Context:Solution
-                                   :variable type :type variable)
-                              center variable bottom))
-        ;; InstLArr / InstRArr
-        ((and (Struct Emil:Type:Arrow)
-              (let `(,top . ,bottom)
-                (Emil:Context:hole context variable)))
-         (let* ((instance (Emil:instantiate-arrow self type))
-                (solved-var-inst
-                 (Emil:Context:Solution* variable :type instance))
-                (initial-context
-                 (Emil:Context:concat
-                  top solved-var-inst
-                  (Emil:Type:Arrow:returns instance)
-                  (reverse (Emil:Type:Arrow:arguments instance))
-                  bottom))
-                (intermediate-context
-                 (--reduce-from
-                  (Emil:instantiate self acc (car it) (cdr it)
-                                    inverse-relation)
-                  initial-context
-                  (-zip-pair (Emil:Type:Arrow:arguments instance)
-                             (Emil:Type:Arrow:arguments type)))))
-           (Emil:instantiate
-            self
-            intermediate-context
-            (Struct:get instance :returns)
-            (Emil:Context:resolve intermediate-context
-                                  (Struct:get type :returns))
-            relation)))
-        ((and (Struct Emil:Type:Forall parameters type)
-              (guard (Emil:Context:member? context variable)))
-         (pcase-exhaustive relation
-           (:less-or-equal
-            ;; InstLAllR
-            (let* ((marker (Emil:Context:Marker))
-                   (initial-context (Emil:Context:concat
-                                     (Emil:Context :entries (reverse parameters))
-                                     marker context))
-                   (intermediate-context (Emil:instantiate
-                                          self initial-context
-                                          variable type relation)))
-              (Emil:Context:drop-until-after intermediate-context marker)))
-           (:greater-or-equal
-            ;; InstRAllL
-            (let* ((parameters (Emil:Type:Forall:parameters type))
-                   (instances (Emil:generate-existentials self (length parameters)))
-                   (marker (Emil:Context:Marker))
-                   (initial-context
-                    (Emil:Context:concat
-                     (Emil:Context :entries (reverse instances)) marker context))
-                   (intermediate-context
-                    (Emil:instantiate
-                     self
-                     initial-context
-                     variable
-                     (--reduce-from
-                      (Emil:Type:substitute acc (car it) (cdr it))
-                      (Emil:Type:Forall:type type)
-                      (-zip-pair parameters instances))
-                     relation)))
-              (Emil:Context:drop-until-after intermediate-context marker)))))
-        (_
-         (Emil:type-error "Unable to instantiate variable for type: %s, %s"
-                          variable type)))))
+                             (relation
+                              (member :less-or-equal :greater-or-equal)))
+    ;; Figure 10. Instantiation
+    (pcase-exhaustive type
+      ((and (pred Emil:Type:monomorph?)
+            (let `(,top . ,bottom)
+              (Emil:Context:hole context variable))
+            (guard (Emil:Context:well-formed? bottom type)))
+       (Emil:Context:concat top (Emil:Context:Solution* variable type) bottom))
+      ((and (Struct Emil:Type:Existential)
+            (let `(,top ,center ,bottom)
+              (Emil:Context:double-hole context type variable)))
+       (Emil:Context:concat top (Emil:Context:Solution
+                                 :variable type :type variable)
+                            center variable bottom))
+      ((Struct Emil:Type:Arrow)
+       (Emil:instantiate-arrow
+        self context variable type relation))
+      ((Struct Emil:Type:Forall)
+       (Emil:instantiate-forall
+        self context variable type relation))
+      (_
+       (Emil:type-error "Unable to instantiate variable for type: %s, %s"
+                        variable type))))
+
+  (fn Emil:instantiate-arrow (self (context Emil:Context)
+                                   (variable Emil:Type:Existential)
+                                   (type Emil:Type:Arrow)
+                                   relation)
+    (pcase-exhaustive type
+      ((and (Struct Emil:Type:Arrow)
+            (let `(,top . ,bottom)
+              (Emil:Context:hole context variable)))
+       (let* ((instance (Emil:arrow-instantiate self type))
+              (solved-var-inst
+               (Emil:Context:Solution* variable :type instance))
+              (initial-context
+               (Emil:Context:concat
+                top solved-var-inst
+                (Emil:Type:Arrow:returns instance)
+                (reverse (Emil:Type:Arrow:arguments instance))
+                bottom))
+              (inverse-relation
+               (if (eq relation :less-or-equal)
+                   :greater-or-equal :less-or-equal))
+              (intermediate-context
+               (--reduce-from
+                (Emil:instantiate self acc (car it) (cdr it)
+                                  inverse-relation)
+                initial-context
+                (-zip-pair (Emil:Type:Arrow:arguments instance)
+                           (Emil:Type:Arrow:arguments type)))))
+         (Emil:instantiate
+          self
+          intermediate-context
+          (Struct:get instance :returns)
+          (Emil:Context:resolve intermediate-context
+                                (Struct:get type :returns))
+          relation)))))
+
+  (fn Emil:instantiate-forall (self (context Emil:Context)
+                                    (variable Emil:Type:Existential)
+                                    (type Emil:Type:Forall)
+                                    relation)
+    (pcase-exhaustive type
+      ((and (Struct Emil:Type:Forall parameters type)
+            (guard (Emil:Context:member? context variable)))
+       (pcase-exhaustive relation
+         (:less-or-equal
+          (let* ((marker (Emil:Context:Marker))
+                 (initial-context
+                  (Emil:Context:concat
+                   (Emil:Context :entries (reverse parameters))
+                   marker context))
+                 (intermediate-context (Emil:instantiate
+                                        self initial-context
+                                        variable type relation)))
+            (Emil:Context:drop-until-after intermediate-context marker)))
+         (:greater-or-equal
+          (let* ((parameters (Emil:Type:Forall:parameters type))
+                 (instances
+                  (Emil:generate-existentials self (length parameters)))
+                 (marker (Emil:Context:Marker))
+                 (initial-context
+                  (Emil:Context:concat
+                   (Emil:Context :entries (reverse instances)) marker context))
+                 (intermediate-context
+                  (Emil:instantiate
+                   self initial-context variable
+                   (--reduce-from
+                    (Emil:Type:substitute acc (car it) (cdr it))
+                    (Emil:Type:Forall:type type)
+                    (-zip-pair parameters instances))
+                   relation)))
+            (Emil:Context:drop-until-after intermediate-context marker)))))))
 
   (fn Emil:subtype (self (context Emil:Context)
                          (left (Trait Emil:Type))
                          (right (Trait Emil:Type)))
     ;; Figure 9. Algorithmic subtyping
     (pcase-exhaustive (list left right)
-      ;; Var / Exvar
       ((and (or `(,(Struct Emil:Type:Variable)
                   ,(Struct Emil:Type:Variable))
                 `(,(Struct Emil:Type:Existential)
                   ,(Struct Emil:Type:Existential)))
             (guard (equal left right)))
        context)
-      ;; Arrow
+      (`(,(Struct Emil:Type:Arrow)
+         ,(Struct Emil:Type:Arrow))
+       (Emil:subtype-arrow self context left right))
+      (`(,(Struct Emil:Type:Forall parameters type) ,_)
+       (let* ((instances (Emil:generate-existentials
+                          self (length parameters)))
+              (marker (Emil:Context:Marker))
+              (initial-context
+               (Emil:Context:concat (reverse instances) marker context))
+              (intermediate-context
+               (Emil:subtype self initial-context
+                             (Emil:Type:substitute-all type parameters instances)
+                             right)))
+         (Emil:Context:drop-until-after intermediate-context marker)))
+      (`(,_ ,(Struct Emil:Type:Forall parameters type))
+       (let* ((marker (Emil:Context:Marker))
+              (initial-context
+               (Emil:Context:concat (reverse parameters) marker context))
+              (intermediate-context
+               (Emil:subtype self initial-context left type)))
+         (Emil:Context:drop-until-after intermediate-context marker)))
+      ((and `(,(Struct Emil:Type:Existential name) ,_)
+            (guard (not (member name (Emil:Type:free-variables right)))))
+       (Emil:instantiate self context left right :less-or-equal))
+      ((and `(,_ ,(Struct Emil:Type:Existential name))
+            (guard (not (member name (Emil:Type:free-variables left)))))
+       (Emil:instantiate self context right left :greater-or-equal))
+      (_
+       (Emil:subtype-default self context left right))))
+
+  (fn Emil:subtype-arrow (self (context Emil:Context)
+                               (left Emil:Type:Arrow)
+                               (right Emil:Type:Arrow))
+    (pcase-exhaustive (list left right)
       (`(,(Struct Emil:Type:Arrow
                   :arguments left-arguments :returns left-returns)
          ,(Struct Emil:Type:Arrow
@@ -233,62 +296,29 @@ Apart from that, this just expands to FORM.
          (Emil:subtype
           self intermediate-context
           (Emil:Context:resolve intermediate-context left-returns)
-          (Emil:Context:resolve intermediate-context right-returns))))
-      ;; Forall L
-      (`(,(Struct Emil:Type:Forall parameters type) ,_)
-       (let* ((instances (Emil:generate-existentials
-                          self (length parameters)))
-              (marker (Emil:Context:Marker))
-              (initial-context
-               (Emil:Context:concat
-                (reverse instances)
-                marker
-                context))
-              (intermediate-context
-               (Emil:subtype
-                self initial-context
-                (Emil:Type:substitute-all type parameters instances)
-                right)))
-         (Emil:Context:drop-until-after intermediate-context marker)))
-      ;; Forall R
-      (`(,_ ,(Struct Emil:Type:Forall parameters type))
-       (let* ((marker (Emil:Context:Marker))
-              (initial-context
-               (Emil:Context:concat
-                (reverse parameters)
-                marker
-                context))
-              (intermediate-context
-               (Emil:subtype self initial-context left type)))
-         (Emil:Context:drop-until-after intermediate-context marker)))
-      ;; Instantiate L
-      ((and `(,(Struct Emil:Type:Existential name) ,_)
-            (guard (not (member name (Emil:Type:free-variables right)))))
-       (Emil:instantiate self context left right :less-or-equal))
-      ;; Instantiate R
-      ((and `(,_ ,(Struct Emil:Type:Existential name))
-            (guard (not (member name (Emil:Type:free-variables left)))))
-       (Emil:instantiate self context right left :greater-or-equal))
-      ;; Unit
-      (_
-       (unless (or (Emil:Type:Never? left)
-                   (Emil:Type:Any? right)
-                   (and (or (Emil:Type:Null? left)
-                            (Emil:Type:Void? left))
-                        (not (Emil:Type:Never? right)))
-                   (and (Emil:Type:Basic? left)
-                        (Emil:Type:Basic? right)
-                        (pcase (list (Struct:get left :name)
-                                     (Struct:get right :name))
-                          (`(integer number) t)
-                          (`(float number) t)
-                          (`(,left-name ,right-name)
-                           (equal left-name right-name)))))
-         (Emil:type-error
-          "%s can not be assigned to %s"
-          (Emil:Type:print left)
-          (Emil:Type:print right)))
-       context)))
+          (Emil:Context:resolve intermediate-context right-returns))))))
+
+  (fn Emil:subtype-default (_self (context Emil:Context)
+                                  (left (Trait Emil:Type))
+                                  (right (Trait Emil:Type)))
+    (unless (or (Emil:Type:Never? left)
+                (Emil:Type:Any? right)
+                (and (or (Emil:Type:Null? left)
+                         (Emil:Type:Void? left))
+                     (not (Emil:Type:Never? right)))
+                (and (Emil:Type:Basic? left)
+                     (Emil:Type:Basic? right)
+                     (pcase (list (Struct:get left :name)
+                                  (Struct:get right :name))
+                       (`(integer number) t)
+                       (`(float number) t)
+                       (`(,left-name ,right-name)
+                        (equal left-name right-name)))))
+      (Emil:type-error
+       "%s is not assignable to %s"
+       (Emil:Type:print left)
+       (Emil:Type:print right)))
+    context)
 
   (fn Emil:infer-application (self (arrow-type (Trait Emil:Type))
                                    arguments context environment)
@@ -335,7 +365,7 @@ Apart from that, this just expands to FORM.
          (unless (Emil:Type:Arrow:arity-assignable-to?
                   arrow-type (cons argument-count argument-count))
            (Emil:type-error "Application is not arity compatible: %d, %s"
-                  argument-count arrow-type))
+                            argument-count arrow-type))
          (-let* ((adjusted-arguments
                   (append arguments (-repeat (- (length argument-types)
                                                 (length arguments))
@@ -370,7 +400,7 @@ Apart from that, this just expands to FORM.
     (or (Emil:Context:lookup-function context function)
         (Emil:Env:lookup-function environment function context)))
 
-  (fn Emil:instantiate-arrow (self (type Emil:Type:Arrow))
+  (fn Emil:arrow-instantiate (self (type Emil:Type:Arrow))
     "Instantiates the function-type with existentials.
 
 Returns a variant of this function in which all types are
