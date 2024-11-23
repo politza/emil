@@ -110,11 +110,12 @@ Returns DEFAULT if value is nil."
 (defun Struct:Type:get (name &optional no-error)
   "Returns the `Struct:Type' of NAME.
 
-Throws an error, if NAME is not a struct-type, unless NO-ERROR is
-non-nil, in which case `nil' is returned."
+Signals a `wrong-type-argument', if NAME is not a
+struct-type. Unless NO-ERROR is non-nil, in which case `nil' is
+returned."
   (or (get name Struct:Type:symbol)
       (and (not no-error)
-           (error "Not a struct: %s" name))))
+           (signal 'wrong-type-argument (list 'Struct:Type name)))))
 
 (defun Struct:Type? (name-or-type-struct)
   "Return `t', if NAME-OR-TYPE-STRUCT is a struct-type.
