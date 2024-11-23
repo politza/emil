@@ -46,15 +46,15 @@
     (load (format "%s" feature) nil :no-message)))
 
 (defun Commons:evaluation-context-filename ()
-  (or (and (boundp 'byte-compile-current-file)
+  (or load-file-name
+      (and (boundp 'byte-compile-current-file)
            byte-compile-current-file)
-      load-file-name
       buffer-file-name))
 
 (defun Commons:evaluation-context ()
   (cond
    ((and (boundp 'byte-compile-current-file)
-           byte-compile-current-file)
+         byte-compile-current-file)
     'compile)
    (load-file-name 'load)
    (t 'eval)))

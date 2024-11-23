@@ -36,8 +36,7 @@
          (Struct:unimplement-from name filename)))
       (compile
        (when (Struct:implemented-in? name filename)
-         (error "%s implemented mutliple times in file: %s"
-                name (abbreviate-file-name filename)))))))
+         (error "%s implemented multiple times in file: %s" name filename))))))
 
 (defun Struct:-read-body (struct-name body &optional namespace)
   (let ((functions (--map (Struct:Function:read it namespace) body)))
