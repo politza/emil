@@ -1,0 +1,26 @@
+#+TITLE: A type-system and data-structures for Emacs-Lisp
+
+#+begin_quote
+[!WARNING]
+The packages in this repository are experimental.
+#+end_quote
+
+This repository contains a type-system for Emacs-Lisp and two abstractions called =Struct= and
+=Trait= making use of it.
+
+Using these tools we are able to write Lisp code like the following.
+
+#+begin_src emacs-lisp
+  (Trait:implement Rs:Publisher Rs:Processor:EmitOnTimer
+    (fn subscribe (self (subscriber (Trait Rs:Subscriber)))
+      (when self.subscriber
+        (error "Multiple subscriber not supported"))
+      (setf self.subscriber subscriber)
+      (self.publisher.subscribe self)))
+#+end_src
+
+Pleas refer to the individual packages which each have their own README.
+
++ [[file:packages/Emil/README.org][Emil]] :: A type-system for Emacs-Lisp.
++ [[file:packages/Struct/README.org][Struct]] :: A struct-like data-type and a trait abstraction.
++ [[file:packages/Rs/README.org][Rs]] :: A simple [[https://github.com/reactive-streams/reactive-streams-jvm/blob/v1.0.4/README.md#specification][reactive streams]] implementation for demo purposes. 

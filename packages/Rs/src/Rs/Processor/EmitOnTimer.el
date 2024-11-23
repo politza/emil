@@ -14,7 +14,7 @@
   (subscriber :type (or null (Trait Rs:Subscriber)) :mutable t)
   (subscription :type (or null (Trait Rs:Subscription)) :mutable t)
   (timer :type nil :mutable t)
-  (items :type list :mutable t)
+  (values :type list :mutable t)
   (complete? :type boolean :mutable t))
 
 (Trait:implement Rs:Subscription Rs:Processor:EmitOnTimer
@@ -41,9 +41,9 @@
   (fn -on-timer (self)
     (condition-case nil
         (-let* (((rest batch)
-                 (-split-at (max 0 (- (length self.items) self.config.batch-size)) self.items)))
+                 (-split-at (max 0 (- (length self.values) self.config.batch-size)) self.values)))
           (when batch
-            (setf self.items rest)
+            (setf self.values rest)
             (--each (nreverse batch)
               (self.subscriber.on-next it)))
           (when (and self.complete? (null rest))
@@ -57,7 +57,7 @@
     (self.subscriber.on-subscribe subscription))
   
   (fn on-next (self value)
-    (setf self.items (cons value self.items))
+    (setf self.values (cons value self.values))
     (self.-ensure-timer))
 
   (fn on-error (self error)

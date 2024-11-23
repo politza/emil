@@ -30,6 +30,12 @@
       Emil:Type:normalize
       Emil:Type:print))
 
+(defun Emil:infer-type* (form &optional environment)
+  (-> (Emil:transform* form environment)
+      (Struct:get :type)
+      Emil:Type:normalize
+      Emil:Type:print))
+
 (defun Emil:transform (form &optional environment no-error)
   (let ((standard-env (Emil:Env:Hierarchy
                        :environments

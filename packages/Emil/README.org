@@ -1,0 +1,130 @@
+#+TITLE: A type-system for Emacs-Lisp
+
+Emil is a type-system based on "Complete and Easy Bidirectional Typechecking for Higher-Rank
+Polymorphism; Jana Dunfield, Neelakantan R. Krishnaswami.", which allows for a relatively simple
+implementation (for a type-system).
+
+It can basically do two things: Check and infer types. It is grounded in Emacs's own type-system,
+which it extends by adding more expressive types and the ability to check these types statically.
+
+The following sections attempt to describe the various parts of the system. See [[file:../Struct/README.org][the Struct library]]
+for an application of it, which you won't really find here.
+
+* Basic Types
+Any non-constant symbol can act as a type. That's also how Emacs represents types as by its
+=type-of= function and Emil is mostly compatible with it.
+
+#+begin_src emacs-lisp
+  (Emil:infer-type 0)                     ; integer
+  (Emil:infer-type 1.0)                   ; float
+  (Emil:infer-type "a string")            ; string
+  (Emil:infer-type [a vector])            ; vector
+  (Emil:infer-type ''a-symbol)            ; symbol
+  (Emil:infer-type (record 'a-record))    ; a-record
+  (Emil:infer-type ''(a . cons))          ; cons
+#+end_src
+
+It also defines a number of new types which have been found useful in other languages and have
+similar semantics found there. They are described informally below.
+
+| Type  | Description                                                |
+|-------+------------------------------------------------------------|
+| Void  | Signifies the absence of a value, e.g. as a return-value. |
+| Any   | The ultimate "I don't care about types" type.              |
+| Never | A type that should never have been.                        |
+| Null  | A type with a singular value: =nil=.                       |
+
+You may have noticed that these names start with an uppercase letters - they are types after all.
+Like some other mundane languages, every type implicitly includes the =Null= type. I.e. the value
+=nil= is compatible with every other type.
+
+Now let's look at compound types.
+
+* Compound Types
+A compound type has a non-zero argument constructor accepting other types. For example =(Map string
+number)= /could/ represent a map-type mapping strings to numbers. These types are currently always
+covariant regarding their arguments, which means that, for example, =(List integer)= is compatible
+with =(List number)=, since an integer is a kind of number.
+
+Emil has a number of builtin compound types which are =List=, =Array=, =Sequence=, =Vector= and
+=Cons=. They have one or two arguments representing their element types and appropriate typing rules
+which tie them together. To make this compatible with Emacs builtin types, some of the basic types
+are actually aliases for one of the compound variant. For example, =cons= is an alias for
+=(Cons Any Any)=.
+
+#+begin_src emacs-lisp 
+  (Emil:infer-type '(cons 0 []))            ; (Cons integer (Vector Any))
+  (Emil:infer-type '(mapcar #'1+ '(0 1 2))) ; (List number)
+  (Emil:infer-type '(append "foo" nil))     ; (List integer)
+#+end_src
+
+Additionally, there is also [[file:../Struct/README.org::*Traits][a =Trait= type]].
+
+* Arrow Types
+
+This type represents a function. It uses the arrow symbol =->= as its constructor and accepts two
+arguments. Namely the argument list and return type of the function. The argument list may contain
+=&optional= and =&rest= elements.
+
+This is the only type that can have type-parameters, which are represented as quoted symbols, i.e.
+ML style.
+
+#+begin_src emacs-lisp
+  (Emil:infer-type '(lambda (x) x))       ; (-> ('a) 'a)
+  (Emil:infer-type '(lambda (&rest x) x)) ; (-> (&rest 'a) (List 'a))
+  (Emil:infer-type '#'mapcar)             ; (-> ((-> ('a) 'b) (Sequence 'a)) (List 'b))
+#+end_src
+
+* Environments
+
+You may have noticed that certain functions in the previous examples seem to already have a type
+declared somehow. These types are part of the builtin environment, which contains an incomplete list
+of type-definitions for a number of builtin functions. Additionally, there is a fallback environment
+returning a fallback type, since we must generally assume that types are simply not available in
+many cases.
+
+#+begin_src emacs-lisp
+  (Emil:infer-type 'unknown-variable)     ; Any
+  (Emil:infer-type '#'unknown-function)   ; (-> (&rest Any) Any)
+#+end_src
+
+There is also a companion function =Emil:infer-type*=, which will exclusively use the environment
+given to it:
+
+#+begin_src emacs-lisp
+  (Emil:infer-type* 'unknown-variable)   ; Type error: "Can not find variable `unknown-variable'"
+  (Emil:infer-type* '#'unknown-function) ; Type error: "Can not find function `unknown-function'"
+  (Emil:infer-type* '(length list))      ; Type error: "Can not find function `length'"
+  (Emil:infer-type*                      ; integer 
+   '(length list)
+   (Emil:Env:Alist:read
+    '((list . (List integer)))
+    '((length . (-> ((Sequence 'a)) integer)))))
+#+end_src
+
+* Type Assertions and Coercions
+
+Assertions and Coercions can be used to convince the type-system that some value has a certain type.
+This can either be done in a "coersive" or "assertive" way, using one of the special-forms =Emil:as=
+and =Emil:is=. Both forms evaluate to their first argument.
+
+#+begin_src emacs-lisp
+  (Emil:infer-type '(Emil:as "string" number)) ; number
+  (Emil:infer-type '(Emil:is "string" number)) ; Type error: "Type `string' is not compatible with `number'"
+  (Emil:infer-type 1.0)                        ; float
+  (Emil:infer-type '(Emil:is 1.0 number))      ; number
+#+end_src
+
+* Declaring types
+
+Types can be declared via the =Emil:Env:declare-function= and =Emil:Env:declare-variable= functions
+and macros =Emil:Env:declare-functions= resp. =Emil:Env:declare-variables=. For example, this is how
+the beginning of the definition of builtin functions looks like:
+
+#+begin_src emacs-lisp
+  (Emil:Env:declare-functions
+    (% . (-> (number-or-marker number-or-marker) integer))
+    (* . (-> (&rest number-or-marker) number))
+    (+ . (-> (&rest number-or-marker) number))
+    (- . (-> (&optional number-or-marker &rest number-or-marker) number)))
+#+end_src

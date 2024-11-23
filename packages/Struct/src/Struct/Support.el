@@ -19,6 +19,7 @@
     ("\\(\\_<self\\)\\(?:\\.?\\|\\_>\\)"
      (1 font-lock-constant-face))))
 
+;;;###autoload
 (define-minor-mode Struct:Support:syntax-mode
   "Adds support for better syntaxing of structs."
   :global nil
@@ -50,7 +51,8 @@
                  (looking-at-p "(Struct:define\\_>")))))
       (funcall fn list-begin start-position)))
 
-(defun Struct:Support:completion-at-point-function ()
+;;;###autoload
+(defun Struct:Support:completion-at-point ()
   "Completes struct property-keywords and trait-names."
   (or (Struct:Support:complete-struct-keywords)
       (Struct:Support:-complete-trait-names)))

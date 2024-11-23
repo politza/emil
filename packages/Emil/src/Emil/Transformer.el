@@ -336,7 +336,7 @@
                                          &optional context _environment &rest _)
     (cons context (Emil:Form:Quote
                    :value argument
-                   :type (Emil:Type:Any))))
+                   :type (Emil:Type:Basic :name (type-of argument)))))
 
   (fn Transformer:transform-save-current-buffer (self form _body
                                                       &optional context environment

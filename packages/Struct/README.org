@@ -1,0 +1,204 @@
+#+TITLE: A data-structure and interface-type for Emacs-Lisp
+
+This package defines a new data-structure named =Struct= and an interface-like type called =Trait=.
+
+* Struct
+A struct is a simple data-structure containing a set of properties. As such it is much like c-struct
+or =cl-defstruct=.
+
+#+begin_src emacs-lisp
+  (Struct:define Rectangle width height)
+#+end_src
+
+This would define
+
+1. a constructor function =Rectangle= accepting the properties as keywords-value pairs.
+2. a predicate =Rectangle?= that checks if any object is a =Rectangle=,
+3. another type-constructor in form of a macro which supports a form of spread-syntax and
+4. a cl-type predicate which can be used with =cl-check-type=.
+
+A struct value is represented as a plain list where the car holds the name (symbol) and the cdr its
+properties. This makes a struct self-evaluating, except that properties are always printed in
+definition-order.
+
+#+begin_src emacs-lisp
+  (Rectangle :height 10 :width 20)     ; (Rectangle :width 20 :height 10)
+  (let ((other (Rectangle :height 10)) ; (Rectangle :width 20 :height 10)
+        (width 20))
+    (Rectangle* ,@other width))
+#+end_src
+
+** Struct Properties
+
+Instead of just using symbols, properties can be defined using the extended list-form. This allows
+for the definition of a number of meta-properties.
+
+#+begin_src emacs-lisp
+  (Struct:define RectangleWithDefaults
+    (width :default 0)
+    (height :default 0))
+#+end_src
+
+The following list describes the meta-properties that can be defined in this way.
+
++ default :: Provides a default value for this property. The form may access the values of
+  properties declared earlier in the definition.
++ documentation :: Defines a documentation string for this property.
++ mutable :: Determines whether this property can be changed after the struct value was created.
+  Properties are *immutable* by default.
++ type :: Provides a type for this property, see also [[file:../Emil/README.org][Emil]].
+
+Here is another definition of a rectangle using all of those properties.
+
+#+begin_src emacs-lisp
+  (Struct:define Rectangle
+    "Defines a rectangle."
+    (width 
+     :documentation "The width of the rectangle."
+     :default 0
+     :mutable t
+     :type number)
+    (height 
+     :documentation "The height of the rectangle."
+     :default width
+     :mutable t
+     :type number))
+#+end_src
+
+With this definition the following invocations of the constructor would lead to the mentioned
+results.
+
+#+begin_src emacs-lisp
+  (Rectangle)                       ; (Rectangle :width 0 :height 0)
+  (Rectangle :width 100)            ; (Rectangle :width 100 :height 100)
+  (Rectangle :width 10 :height 20)  ; (Rectangle :width 10 :height 20)
+  (Rectangle :width "10")           ; Wrong type argument: number, "10"
+#+end_src
+
+There are a number of related functions operating on struct-values and -definitions available.
+
+#+begin_src emacs-lisp
+  (Struct:get (Rectangle :width 20) :width)    ; 20
+  (Struct:set (Rectangle :width 20) :width 10) ; 10
+  (Struct:get '(Circle) :width) ; Wrong type argument: Struct:Name, Circle
+  (Struct:Type:get 'Rectangle)  ; (Struct:Type :name Rectangle ...)
+#+end_src
+
+** Struct implementation
+
+Having defined a struct, we can implement some methods for it via the =Struct:implement= macro.
+
+#+begin_src emacs-lisp
+  (Struct:implement Rectangle
+    (fn area (self -> number)
+      (* self.width self.height))
+
+    (fn <= (self (other Rectangle) -> boolean)
+      (<= (self.area) (other.area))))
+#+end_src
+
+There are a couple of things to note here.
+
+1. The =Rectangle= "namespace" is automatically added to the definition of the functions, i.e. we
+   can use =area= and the macro will define a function =Rectangle:area=.
+2. Both functions provide type-annotations in their arguments as well as return value. (The =self=
+   argument automatically has type =Rectangle=.)
+3. These type-annotations allow for the [[file:../Emil/README.org][type-system]] to verify that =self= and =other= both have
+   properties =width= and =height=, as well as a method =area=.
+4. This allows for an implementation of a kind of dot-operator when accessing properties and
+   methods, e.g. =self.width= and =(self.area)=. It is not really an operator, since it can only be
+   used as part of a symbol.
+
+The above snippet will roughly expand to the code below.
+
+#+begin_src emacs-lisp
+  (defun Rectangle:area (self)
+    (cl-check-type self Rectangle)
+    (*
+     (plist-get (cdr self) :width)
+     (plist-get (cdr self) :height)))
+
+  (defun Rectangle:<= (self other)
+    (cl-check-type self Rectangle)
+    (cl-check-type other Rectangle)
+    (<=
+     (Rectangle:area self)
+     (Rectangle:area other)))
+#+end_src
+
+The following implementation however would not compile, since it contains 2 type-errors. Note the
+typo in =heigth=.
+
+#+begin_src emacs-lisp
+  (Struct:implement Rectangle
+    (fn area (self -> number)
+      (* self.width self.heigth))     ;Type error: "Can not find property `heigth' in type `Rectangle'"
+
+    (fn <= (self (other Rectangle) -> boolean)
+      (<= (self.size) (other.size)))) ;Type error: "Can not find method `size' in type `Rectangle'"
+#+end_src
+
+* Traits
+
+A trait is very similar to what is called an interface in other languages. It defines a set of
+function signatures, each with a mandatory =self= argument and an optional default implementation.
+
+Invocations of these functions are dynamically dispatched on the first argument, which must be a
+type having implemented the corresponding trait. These implementations are independent of the
+definition of the type.  Thus a trait can be implemented for somebody elses type.
+
+Here is a definition of the ubiquitous =Shape= trait:
+
+#+begin_src emacs-lisp
+  (Trait:define Shape ()
+    (fn area (self -> number)))
+#+end_src
+
+This can then be implemented for the =Rectangle= type defined earlier.
+
+#+begin_src emacs-lisp
+  (Trait:implement Shape Rectangle
+    (fn area (self)
+      (* self.width self.height)))
+#+end_src
+
+Let's add a second shape-type and also implement the trait for it.
+
+#+begin_src emacs-lisp
+  (Struct:define Circle
+    (radius :type number))
+
+  (Trait:implement Shape Circle
+    (fn area (self)
+      (* self.radius self.radius)))
+#+end_src
+
+We can use these implementations as in the following example.
+
+#+begin_src emacs-lisp
+  (Shape:area (Circle :radius 4))             ; 16
+  (Shape:area (Rectangle :width 4 :height 5)) ; 20
+#+end_src
+
+Or use the trait in yet another type. This snippet also demonstrates the use of the =setf= macro on
+properties.
+
+#+begin_src emacs-lisp
+  (Struct:define ShapeCollection
+    (shapes :type (List (Trait Shape)) :mutable t))
+
+  (Struct:implement ShapeCollection
+    (fn area (self)
+      (let ((sum 0))
+        (dolist (shape self.shapes sum)
+          (cl-incf sum (shape.area)))))
+
+    (fn add (self (shape (Trait Shape)))
+      (setf self.shapes (cons shape self.shapes))))
+#+end_src
+
+#+begin_src emacs-lisp
+  (let ((collection (ShapeCollection :shapes (list (Circle :radius 4))))) 
+    (ShapeCollection:add collection (Rectangle :width 4 :height 5))
+    (ShapeCollection:area collection))    ; 36
+#+end_src

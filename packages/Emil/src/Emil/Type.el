@@ -271,9 +271,7 @@ Currently, only function types are supported."
 
   (fn Emil:Type:substitute (self (source Emil:Type:Variable)
                                  (target Emil:Type:Existential))
-    (if (equal self source)
-        target
-      self)))
+    (if (equal self source) target self)))
 
 (Struct:define Emil:Type:Existential
   "Represents an instance of a type-variable."
@@ -461,9 +459,7 @@ The result may contain type-variables."
 This renames all type-variables with standard ones."
   (let* ((generator (Emil:Util:NameGenerator))
          (replacements nil))
-    (cl-labels ((generate (name)
-                  (Emil:Util:NameGenerator:next generator))
-                (replace (type)
+    (cl-labels ((replace (type)
                   (unless (assoc type replacements)
                     (push (cons type (Emil:Util:NameGenerator:next generator))
                           replacements))
