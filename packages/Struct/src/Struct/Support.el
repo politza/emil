@@ -15,7 +15,9 @@
     ("(\\(Trait:implement\\)[ \t]+\\(\\(?:\\sw\\|\\s_\\)+\\)?[ \t]*\\(\\(?:\\sw\\|\\s_\\)+\\)?"
      (1 font-lock-keyword-face)
      (2 font-lock-type-face nil t)
-     (3 font-lock-type-face nil t))))
+     (3 font-lock-type-face nil t))
+    ("\\(\\_<self\\)\\(?:\\.?\\|\\_>\\)"
+     (1 font-lock-keyword-face))))
 
 (define-minor-mode Struct:Support:syntax-mode
   "Adds support for better syntaxing of structs."

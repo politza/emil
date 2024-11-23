@@ -110,8 +110,9 @@ This is the case, if METHOD does not define a default implementation."
     (--each methods
       (defalias (car it)
         (Struct:get (cdr it) :dispatch-function))
-      (put (car it) 'function-documentation
-           `(Trait:Method:documentation ',name ',(car it))))
+      ;; (put (car it) 'function-documentation
+      ;;      `(Trait:Method:documentation ',name ',(car it)))
+      )
     (put name Trait:definition-symbol trait)
     name))
 
