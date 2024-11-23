@@ -238,4 +238,14 @@ readable by `Emil:Type:read'."
                `(Emil:Env:declare-variable ',symbol ',type))
              declarations)))
 
+(Struct:define Emil:Env:Fallback)
+
+(Trait:implement Emil:Env Emil:Env:Fallback
+  :disable-syntax t
+  (fn Emil:Env:lookup-variable (_self _variable &optional _context)
+    (Emil:Type:Any))
+
+  (fn Emil:Env:lookup-function (_self _function &optional _context)
+    (Emil:Type:read-function '(-> (&rest Any) Any))))
+
 (provide 'Emil/Env)
