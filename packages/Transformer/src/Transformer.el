@@ -12,8 +12,7 @@
 (require 'dash)
 
 (Trait:define Form ()
-  (defmethod Form:value (self)
-    self))
+  (defmethod Form:value (self) self))
 
 (Trait:implement Form number)
 (Trait:implement Form string)
@@ -291,32 +290,6 @@
 
 (Struct:define Transformer:Identity)
 (Trait:implement Transformer Transformer:Identity)
-
-(Struct:define AugmentedForm
-  (form)
-  (data))
-
-(Trait:implement Form AugmentedForm
-  (defmethod Form:number? (self)
-    (numberp self))
-  
-  (defmethod Form:string? (self)
-    (stringp self))
-  
-  (defmethod Form:vector? (self)
-    (vectorp self))
-  
-  (defmethod Form:symbol? (self)
-    (symbolp self))
-  
-  (defmethod Form:cons? (self)
-    (consp self))
-  
-  (defmethod Form:elements(self)
-    self)
-  
-  (defmethod Form:value (self)
-    self))
 
 (defun Transformer:read (&optional point transformer)
   (Transformer:transform
