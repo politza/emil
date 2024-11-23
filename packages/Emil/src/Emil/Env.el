@@ -160,7 +160,11 @@ ones until some environment returns a non-`nil' value."
 
   (fn Emil:Env:lookup-function (self function &optional locals)
     (--some (Emil:Env:lookup-function it function locals)
-            (Struct:get self :environments))))
+            (Struct:get self :environments)))
+
+  (fn Emil:Env:macro-environment (self &optional locals)
+    (--mapcat (Emil:Env:macro-environment it locals)
+              (Struct:get self :environments))))
 
 (defun Emil:Env:empty ()
   "Returns an empty environment."

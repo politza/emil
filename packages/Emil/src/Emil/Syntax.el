@@ -184,6 +184,20 @@
                 (Emil:Type:read-function (Struct:Function:type fn)))))
     (-zip-pair names types)))
 
+(defun Emil:Syntax:expand-setf (self form &optional env)
+  (if (and (= 2 (length form))
+           (Emil:Syntax:resolve-variable self (car form) env))
+      (let* ((components
+              (-map #'intern (split-string (symbol-name (car form)) "[.]")))
+             (accesor (--reduce `(Struct:unsafe-get
+                                  ,acc ,(Commons:symbol-to-keyword it))
+                                (butlast components))))
+        `(Struct:set ,accesor ,(Commons:symbol-to-keyword
+                                (car (last components)))
+           ,(cadr form)))
+    (macroexpand (cons 'setf form))))
+
+
 (Trait:implement Emil:Env Emil:Syntax
   :disable-syntax t
   (fn Emil:Env:lookup-variable (self (name symbol)
@@ -199,8 +213,7 @@
       (when (Struct:Function:method? function)
         (Emil:Type:read-function (Struct:Function:type function :as-method)))))
 
-  (fn Emil:Env:macro-environment (self &optional _locals)
-    ;; FIXME: Implement property assignment.
-    nil))
+  (fn Emil:Env:macro-environment (self &optional locals)
+    `((setf . ,(lambda (&rest form) (Emil:Syntax:expand-setf self form locals))))))
 
 (provide 'Emil/Syntax)

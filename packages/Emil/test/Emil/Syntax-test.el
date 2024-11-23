@@ -44,13 +44,13 @@
               :to-equal
               '((funcall #'(lambda nil (TestStruct:method self))))))
 
-    (xit "property assignment"
+    (it "property assignment"
       (expect (Emil:Syntax:transform
                (Struct:Function*
                 ,@function
                 :body '((setf self.property 1))))
               :to-equal
-              nil))
+              '((Struct:set self :property 1))))
 
     (it "string"
       (expect (Emil:Syntax:transform
