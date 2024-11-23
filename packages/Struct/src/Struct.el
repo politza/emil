@@ -14,6 +14,7 @@
 (require 'Struct/Doc)
 (require 'Struct/Pcase)
 (require 'Struct/Syntax)
+(require 'Struct/Support/Edebug)
 
 (defconst Struct:syntax-highlight-symbol 'Struct:syntax-highlight-symbol
   "Symbol to attach font-lock information to other symbols.")

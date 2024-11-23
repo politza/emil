@@ -98,14 +98,15 @@
 (defun Emil:Syntax:transform-function (self function &optional type env)
   (cond
    ((Emil:Form:Lambda? function)
-    (unless (Emil:Type:Arrow? type)
-      (Emil:type-error "Failed to infer type of lambda: %s"
-                       (and type (Emil:Type:print type))))
-    (let ((local-env (-zip-pair (Emil:Util:lambda-variables
-                                 (Struct:get function :arguments))
-                                (Emil:Type:Arrow:arguments type))))
+    (let* ((arguments (Emil:Util:lambda-variables
+                       (Struct:get function :arguments)))
+           (types (if (Emil:Type:Arrow? type)
+                      (Emil:Type:Arrow:arguments type)
+                    (-repeat (length arguments) (Emil:Type:Any))))
+           (local-env (-zip-pair arguments types)))
       (list `(lambda ,(Struct:get function :arguments)
-               ,@(--map (Emil:Syntax:transform-form self it (Emil:Env:Alist :variables local-env :parent env))
+               ,@(--map (Emil:Syntax:transform-form
+                         self it (Emil:Env:Alist :variables local-env :parent env))
                         (Struct:get function :body))))))
    ((symbolp function)
     (or (when-let (function-struct (Emil:Syntax:resolve-function self function env))
@@ -202,11 +203,12 @@
     (-zip-pair names types)))
 
 (defun Emil:Syntax:expand-setf (self form &optional env)
-  (if-let (property
-           (and (= 2 (length form))
-                (Emil:Syntax:resolve-variable self (car form) env)))
+  (if-let* ((variable (and (= 2 (length form))
+                           (Emil:Syntax:expand-setf-variable (car form))))
+            (property
+             (Emil:Syntax:resolve-variable self variable env)))
       (let* ((components
-              (-map #'intern (split-string (symbol-name (car form)) "[.]")))
+              (-map #'intern (split-string (symbol-name variable) "[.]")))
              (accesor (--reduce `(Struct:unsafe-get
                                   ,acc ,(Commons:symbol-to-keyword it))
                                 (butlast components))))
@@ -217,6 +219,12 @@
                                        (car (last components)))
                             (Emil:is ,(cadr form) ,(Struct:get property :type 'Any))))
     (macroexpand (cons 'setf form))))
+
+(defun Emil:Syntax:expand-setf-variable (expression)
+  (pcase expression
+    (`(edebug-after ,_ ,_ ,variable)
+     (and (symbolp variable) variable))
+    ((pred symbolp) expression)))
 
 (Trait:implement Emil:Env Emil:Syntax
   :disable-syntax t
