@@ -74,7 +74,7 @@ the new type with the formatted string as error-data."
   (cl-check-type parent (or null symbol))
   `(progn
      (when (and ',parent (not (get ',parent 'error-conditions)))
-       (error "Parent is should be defined error: %s" ',parent))
+       (error "Parent should be a defined error: %s" ',parent))
      (define-error ',name ,message ',parent)
      (defun ,name (fmt &rest arguments)
        ,(format

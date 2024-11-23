@@ -11,7 +11,7 @@
 
     (it "empty"
       (expect (Emil:infer-type '(lambda ()))
-              :to-equal '(-> () 'a?)))
+              :to-equal '(-> () Null)))
 
     (it "fixed arguments"
       (expect (Emil:infer-type
@@ -542,8 +542,10 @@
       (it "three arguments with annotation"
         (expect (Emil:infer-type
                  '(f (Emil:is 0 Any) "1" [2])
-                 env)
-                :to-throw 'Emil:type-error)))
+                 (Emil:Env:Alist:read
+                  nil
+                  '((f . (-> (&rest 'a) 'a)))))
+                :to-equal 'Any)))
 
     (describe "optional and rest argument with"
       :var ((env (Emil:Env:Alist:read

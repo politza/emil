@@ -28,8 +28,9 @@
         (t value)))
       ((Struct Emil:Form:Application function arguments)
        (-let* ((function-value (Struct:get function :value))
+               (function-type (Struct:get function :type))
                ((transformed-function . self-form)
-                (Emil:Syntax:transform-function self function-value env))
+                (Emil:Syntax:transform-function self function-value function-type env))
                (transformed-arguments (-map #'recurse arguments)))
          (if self-form
              `(,transformed-function ,self-form ,@transformed-arguments)
@@ -57,9 +58,9 @@
        `(defconst ,symbol ,(recurse init-value) ,documentation))
       ((Struct Emil:Form:DefVar symbol init-value documentation)
        `(defvar ,symbol ,(recurse init-value) ,documentation))
-      ((Struct Emil:Form:Function value)
+      ((Struct Emil:Form:Function value type)
        (-let* (((transformed-function . self-form)
-                (Emil:Syntax:transform-function self value env)))
+                (Emil:Syntax:transform-function self value type env)))
          (if self-form
              `(function (lambda () (,transformed-function ,self-form)))
            `(function ,transformed-function))))
@@ -94,22 +95,27 @@
       ((Struct Emil:Form:While condition body)
        `(while ,(recurse condition) ,@(-map #'recurse body))))))
 
-(defun Emil:Syntax:transform-function (self function &optional env)
+(defun Emil:Syntax:transform-function (self function &optional type env)
   (cond
    ((Emil:Form:Lambda? function)
+    (unless (Emil:Type:Arrow? type)
+      (Emil:type-error "Unable to infer a type for lambda: %s"
+                       (and type (Emil:Type:print type))))
     (let ((local-env (-zip-pair (Emil:Util:lambda-variables
                                  (Struct:get function :arguments))
-                                (Emil:Type:Arrow:arguments
-                                 (Struct:get function :type)))))
+                                (Emil:Type:Arrow:arguments type))))
       (list `(lambda ,(Struct:get function :arguments)
-               ,@(--map (Emil:Syntax:transform-form self it local-env)
+               ,@(--map (Emil:Syntax:transform-form self it (Emil:Env:Alist :variables local-env :parent env))
                         (Struct:get function :body))))))
-   (t
+   ((symbolp function)
     (or (when-let (function-struct (Emil:Syntax:resolve-function self function env))
           (cons (Struct:get function-struct :qualified-name)
                 (--reduce `(Struct:unsafe-get ,acc ,(Commons:symbol-to-keyword it))
-                          (butlast (-map #'intern (split-string (symbol-name function) "[.]"))))))
-        (list function)))))
+                          (butlast (-map #'intern (split-string
+                                                   (symbol-name function)
+                                                   "[.]"))))))
+        (list function)))
+   (t (error "internal error: function is neither a symbol nor lambda"))))
 
 (defun Emil:Syntax:resolve-expression (self expression &optional env)
   (when-let* ((components
