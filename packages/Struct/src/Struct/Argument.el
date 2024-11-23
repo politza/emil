@@ -31,10 +31,29 @@ specifies the kind of the read argument."
                (<= (length form) 3)
                (symbolp (car form)))
     (error "Form is not a valid argument: %s" form))
+  (when (and (eq kind '&struct)
+             (not (nth 1 form)))
+    (error "Type annotation required for &struct argument: %s" form))
+  
   (Struct:Argument
    :name (pop form)
    :type (pop form)
    :default (pop form)
    :kind kind))
+
+(defun Struct:Argument:optional? (self)
+  (eq '&optional (Struct:get self :kind)))
+
+(defun Struct:Argument:rest? (self)
+  (eq '&rest (Struct:get self :kind)))
+
+(defun Struct:Argument:struct? (self)
+  (eq '&struct (Struct:get self :kind)))
+
+(defun Struct:Argument:regular? (self)
+  (null (Struct:get self :kind)))
+
+(defun Struct:Argument:default? (self)
+  (not (null (Struct:get self :default))))
 
 (provide 'Struct/Argument)
