@@ -17,27 +17,27 @@
       (expect (Emil:infer-type
                '(lambda (a b c) (result a b c))
                env)
-              :to-equal '(-> ('a? 'b? 'c?) (Result 'a? 'b? 'c?))))
+              :to-equal '(-> ('a 'b 'c) (Result 'a 'b 'c))))
 
     (it "optional arguments"
       (expect (Emil:infer-type
                '(lambda (a &optional b c) (result a b c))
                env)
-              :to-equal '(-> ('a? &optional 'b? 'c?)
-                             (Result 'a? 'b? 'c?))))
+              :to-equal '(-> ('a &optional 'b 'c)
+                             (Result 'a 'b 'c))))
 
     (it "rest argument"
       (expect (Emil:infer-type
                '(lambda (&rest a) a)
                env)
-              :to-equal '(-> (&rest 'a?) (List 'a?))))
+              :to-equal '(-> (&rest 'a) (List 'a))))
 
     (it "optional and rest argument"
       (expect (Emil:infer-type
                '(lambda (a &optional b &rest c) (result a b c))
                env)
-              :to-equal '(-> ('a? &optional 'b? &rest 'c?)
-                             (Result 'a? 'b? (List 'c?))))))
+              :to-equal '(-> ('a &optional 'b &rest 'c)
+                             (Result 'a 'b (List 'c))))))
 
   (describe "inferred assignment"
     (describe "empty with"
@@ -89,13 +89,13 @@
         (expect (Emil:infer-type
                  '(f (lambda (a b c) (result a b c)))
                  env)
-                :to-equal '(Result 'a? 'b? 'c?)))
+                :to-equal '(Result 'a 'b 'c)))
 
       (it "optional arguments"
         (expect (Emil:infer-type
                  '(f (lambda (a &optional b c) (result a b c)))
                  env)
-                :to-equal '(Result 'a? 'b? 'c?)))
+                :to-equal '(Result 'a 'b 'c)))
 
       (it "rest argument"
         (expect (Emil:infer-type
@@ -107,7 +107,7 @@
         (expect (Emil:infer-type
                  '(f (lambda (a &optional b &rest c) (result a b c)))
                  env)
-                :to-equal '(Result 'a? 'b? (List 'c?)))))
+                :to-equal '(Result 'a 'b (List 'c)))))
 
     (describe "optional arguments with"
       :var ((env (Emil:Env:Alist:read
@@ -129,7 +129,7 @@
         (expect (Emil:infer-type
                  '(f (lambda (a &optional b c) (result a b c)))
                  env)
-                :to-equal '(Result 'a? 'b? 'c?)))
+                :to-equal '(Result 'a 'b 'c)))
 
       (it "rest argument"
         (expect (Emil:infer-type
@@ -141,7 +141,7 @@
         (expect (Emil:infer-type
                  '(f (lambda (a &optional b &rest c) (result a b c)))
                  env)
-                :to-equal '(Result 'a? 'b? (List 'c?)))))
+                :to-equal '(Result 'a 'b (List 'c)))))
 
     (describe "rest argument with"
       :var ((env (Emil:Env:Alist:read
@@ -169,7 +169,7 @@
         (expect (Emil:infer-type
                  '(f (lambda (&rest a) a))
                  env)
-                :to-equal '(List 'a?)))
+                :to-equal '(List 'a)))
 
       (it "optional and rest argument"
         (expect (Emil:infer-type
@@ -209,7 +209,7 @@
         (expect (Emil:infer-type
                  '(f (lambda (a &optional b &rest c) (result a b c)))
                  env)
-                :to-equal '(Result 'a? 'b? (List 'c?))))))
+                :to-equal '(Result 'a 'b (List 'c))))))
 
   (describe "checking"
     (describe "empty with"
@@ -220,7 +220,7 @@
                   nil
                   '((f . (-> ((-> () 'a)) 'a))
                     (g . (-> () 'a)))))
-                :to-equal ''a?))
+                :to-equal ''a))
 
       (it "fixed arguments"
         (expect (Emil:infer-type
@@ -247,7 +247,7 @@
                   nil
                   '((f . (-> ((-> () 'a)) 'a))
                     (g . (-> (&rest 'a) 'a)))))
-                :to-equal ''a?))
+                :to-equal ''a))
 
       (it "optional and rest argument"
         (expect (Emil:infer-type
@@ -275,7 +275,7 @@
                   nil
                   '((f . (-> ((-> ('a 'b 'c) 'd)) 'd))
                     (g . (-> ('a 'b 'c) (Result 'a 'b 'c))))))
-                :to-equal '(Result 'a? 'b? 'c?)))
+                :to-equal '(Result 'a 'b 'c)))
 
       (it "optional arguments"
         (expect (Emil:infer-type
@@ -284,7 +284,7 @@
                   nil
                   '((f . (-> ((-> ('a 'b 'c) 'd)) 'd))
                     (g . (-> ('a &optional 'b 'c) (Result 'a 'b 'c))))))
-                :to-equal '(Result 'a? 'b? 'c?)))
+                :to-equal '(Result 'a 'b 'c)))
 
       (it "rest argument"
         (expect (Emil:infer-type
@@ -293,7 +293,7 @@
                   nil
                   '((f . (-> ((-> ('a 'b 'c) 'd)) 'd))
                     (g . (-> (&rest 'a) 'a)))))
-                :to-equal ''a?))
+                :to-equal ''a))
 
       (it "optional and rest argument"
         (expect (Emil:infer-type
@@ -303,7 +303,7 @@
                   '((f . (-> ((-> ('a 'b 'c) 'd)) 'd))
                     (g . (-> ('a &optional 'b &rest 'c)
                              (Result 'a 'b (List 'c)))))))
-                :to-equal '(Result 'a? 'b? (List 'c?)))))
+                :to-equal '(Result 'a 'b (List 'c)))))
 
     (describe "optional arguments with"
       (it "empty"
@@ -333,7 +333,7 @@
                   '((f . (-> ((-> ('a &optional 'b 'c) 'd)) 'd))
                     (g . (-> ('a &optional 'b 'c)
                              (Result 'a 'b 'c))))))
-                :to-equal '(Result 'a? 'b? 'c?)))
+                :to-equal '(Result 'a 'b 'c)))
 
       (it "rest argument"
         (expect (Emil:infer-type
@@ -342,7 +342,7 @@
                   nil
                   '((f . (-> ((-> ('a &optional 'b 'c) 'd)) 'd))
                     (g . (-> (&rest 'a) 'a)))))
-                :to-equal ''a?))
+                :to-equal ''a))
 
       (it "optional and rest argument"
         (expect (Emil:infer-type
@@ -352,7 +352,7 @@
                   '((f . (-> ((-> ('a &optional 'b 'c) 'd)) 'd))
                     (g . (-> ('a &optional 'b &rest 'c)
                              (Result 'a 'b 'c))))))
-                :to-equal '(Result 'a? 'b? 'c?))))
+                :to-equal '(Result 'a 'b 'c))))
 
     (describe "rest argument with"
       (it "empty"
@@ -391,7 +391,7 @@
                   nil
                   '((f . (-> ((-> (&rest 'a) 'b)) 'b))
                     (g . (-> (&rest 'a) 'a)))))
-                :to-equal ''a?))
+                :to-equal ''a))
 
       (it "optional and rest argument"
         (expect (Emil:infer-type
@@ -440,7 +440,7 @@
                   nil
                   '((f . (-> ((-> ('a &optional 'b &rest 'c) 'd)) 'd))
                     (g . (-> (&rest 'a) 'a)))))
-                :to-equal ''a?))
+                :to-equal ''a))
 
       (it "optional and rest argument"
         (expect (Emil:infer-type
@@ -450,7 +450,7 @@
                   '((f . (-> ((-> ('a &optional 'b &rest 'c) 'd)) 'd))
                     (g . (-> ('a &optional 'b &rest 'c)
                              (Result 'a 'b 'c))))))
-                :to-equal '(Result 'a? 'b? 'c?)))))
+                :to-equal '(Result 'a 'b 'c)))))
 
   (describe "application"
     :var ((env (Emil:Env:Alist:read
@@ -462,7 +462,7 @@
         (expect (Emil:infer-type
                  '(f)
                  env)
-                :to-equal ''a?))
+                :to-equal ''a))
 
       (it "one argument"
         (expect (Emil:infer-type
@@ -508,7 +508,7 @@
         (expect (Emil:infer-type
                  '(f 0)
                  env)
-                :to-equal '(Result integer 'a? 'b?)))
+                :to-equal '(Result integer 'a 'b)))
 
       (it "three arguments"
         (expect (Emil:infer-type
@@ -525,7 +525,7 @@
         (expect (Emil:infer-type
                  '(f)
                  env)
-                :to-equal ''a?))
+                :to-equal ''a))
 
       (it "one argument"
         (expect (Emil:infer-type
@@ -562,7 +562,7 @@
         (expect (Emil:infer-type
                  '(f 0)
                  env)
-                :to-equal '(Result integer 'a? 'b?)))
+                :to-equal '(Result integer 'a 'b)))
 
       (it "three arguments"
         (expect (Emil:infer-type

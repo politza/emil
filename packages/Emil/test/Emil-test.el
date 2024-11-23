@@ -44,19 +44,19 @@
 
     (it "identity"
       (expect (Emil:infer-type '(lambda (x) x))
-              :to-equal '(-> ('a?) 'a?)))
+              :to-equal '(-> ('a) 'a)))
 
     (it "two arguments"
       (expect (Emil:infer-type '(lambda (x y) y))
-              :to-equal '(-> ('a? 'b?) 'b?)))
+              :to-equal '(-> ('a 'b) 'b)))
 
     (it "convoluted identity"
       (expect (Emil:infer-type '(lambda (x) ((lambda (y) y) x)))
-              :to-equal '(-> ('a?) 'a?)))
+              :to-equal '(-> ('a) 'a)))
 
     (it "&rest arguments"
       (expect (Emil:infer-type '(lambda (&rest x) x))
-              :to-equal '(-> (&rest 'a?) (List 'a?)))))
+              :to-equal '(-> (&rest 'a) (List 'a)))))
 
   (describe "let"
     (it "empty"
@@ -81,7 +81,7 @@
     (it "lambda binding"
       (expect (Emil:infer-type '(let ((f (lambda (a) 0)))
                                   f))
-              :to-equal '(-> ('a?) integer))))
+              :to-equal '(-> ('a) integer))))
 
   (describe "let*"
     (it "empty"
@@ -112,7 +112,7 @@
     (it "lambda binding"
       (expect (Emil:infer-type '(let* ((f (lambda (a) 0)))
                                   f))
-              :to-equal '(-> ('a?) integer))))
+              :to-equal '(-> ('a) integer))))
 
   (describe "application"
     (it "identity"
@@ -122,7 +122,7 @@
     (it "convoluted identity"
       (expect (Emil:infer-type '((lambda (x) ((lambda (y) y) x))
                                  (lambda (z) z)))
-              :to-equal '(-> ('a?) 'a?)))
+              :to-equal '(-> ('a) 'a)))
 
     (it "two arguments"
       (expect (Emil:infer-type '((lambda (x y) y) [] 0))
@@ -276,7 +276,7 @@
         (Emil:Env:Alist:read
          nil
          '((f . (-> ((-> ('a) (List 'a))) (List 'a))))))
-       :to-equal '(List 'a?)))
+       :to-equal '(List 'a)))
 
     (it "check with &rest arg against existing type"
       (expect
@@ -285,7 +285,7 @@
         (Emil:Env:Alist:read
          '((g . (-> (&rest 'a) (List 'a))))
          '((f . (-> ((-> ('a) (List 'a))) (List 'a))))))
-       :to-equal '(List 'a?))))
+       :to-equal '(List 'a))))
 
   (describe "annotations"
     (it "basic type"
