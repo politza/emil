@@ -75,7 +75,6 @@ the new type with the formatted string as error-data."
        ,(format
          "Signals `%s' with ARGUMENTS applied to FMT as data."
          name)
-       (declare (indent 1))
        (signal ',name (apply fmt arguments)))))
 
 (defun Commons:constant-symbol? (symbol)

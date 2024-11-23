@@ -23,13 +23,17 @@ yet to be resolved type-variables."
   (variable :type symbol)
   (type :type (Trait Emil:Type)))
 
+(defvar Emil:Context:Marker:counter 0)
+
 (Struct:define Emil:Context:Marker
   "Defines a marker establishing a before and after context.
 
-The marker contains an arbitrary token value, in order to
-differentiate this marker from other markers. Though, in the current
-implementation it is always a value of type `Emil:Type:VarInst'."
-  (token))
+The marker contains an arbitrary token value. The actual value does
+not matter, just that it is different from the values of all other
+markers. By default it is initialized with the current value of a
+monotonically increasing counter stored in the variable
+`Emil:Context:Marker:counter'."
+  (token :default (cl-incf Emil:Context:Marker:counter)))
 
 (Struct:define Emil:Context:SolvedVarInst
   "Maps an instance of a variable-type to some type.
@@ -117,15 +121,13 @@ Returns an empty context, if ENTRY is not present in this one."
         ((Struct Emil:Type:VarInst)
          (not (null (or (member type entries)
                         (Emil:Context:lookup-solved self type)))))
-        ((Struct Emil:Type:Fn argument-types rest-type return-type)
+        ((Struct Emil:Type:Fn arguments returns)
          (and (--every? (Emil:Context:well-formed? self it)
-                        argument-types)
-              (Emil:Context:well-formed? self return-type)
-              (or (null rest-type)
-                  (Emil:Context:well-formed? self rest-type))))
-        ((Struct Emil:Type:Forall variables type)
+                        arguments)
+              (Emil:Context:well-formed? self returns)))
+        ((Struct Emil:Type:Forall parameters type)
          (Emil:Context:well-formed?
-          (Emil:Context :entries (append variables entries nil))
+          (Emil:Context :entries (append parameters entries nil))
           type)))))
 
   (fn Emil:Context:resolve (self (type (Trait Emil:Type)))
@@ -146,27 +148,29 @@ as with regards to its unresolved type-variables."
        (if-let (resolved (Emil:Context:lookup-solved self type))
            (Emil:Context:resolve self resolved)
          type))
-      ((Struct Emil:Type:Fn argument-types rest-type return-type)
-       (let ((argument-types
-              (--map (Emil:Context:resolve self it) argument-types))
-             (rest-type (if rest-type (Emil:Context:resolve self rest-type)))
-             (return-type (Emil:Context:resolve self return-type)))
-         (Emil:Type:Fn* ,@type argument-types rest-type return-type)))
-      ((Struct Emil:Type:Forall variables type)
+      ((Struct Emil:Type:Fn arguments returns)
+       (let ((arguments
+              (--map (Emil:Context:resolve self it) arguments))
+             (returns (Emil:Context:resolve self returns)))
+         (Emil:Type:Fn* ,@type arguments returns)))
+      ((Struct Emil:Type:Forall parameters type)
        (Emil:Type:Forall*
-        variables
+        parameters
         :type (Emil:Context:resolve self type)))))
 
-  (fn Emil:Context:concat (self &rest contexts-and-entries)
-    "Concat this context with the provided CONTEXTS-AND-ENTRIES.
+  (fn Emil:Context:concat (&rest contexts-and-entries)
+    "Concat all arguments CONTEXTS-AND-ENTRIES.
 
-Each argument may either be a context or a single entry."
+Each argument may either be a context an entry or `nil'. Return a
+context with all arguments concatenated, except for `nil' ones, which
+are discarded."
     (Emil:Context
      :entries (--mapcat (pcase it
                           ((Struct Emil:Context entries)
                            entries)
+                          ('nil nil)
                           (_ (list it)))
-                        (cons self contexts-and-entries))))
+                        contexts-and-entries)))
 
   (fn Emil:Context:member? (self entry)
     (member entry (Struct:get self :entries))))

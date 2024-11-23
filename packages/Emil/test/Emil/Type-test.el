@@ -30,42 +30,43 @@
         (expect (Emil:Type:read '(-> (string) number))
                 :to-equal
                 '(Emil:Type:Fn
-                  :argument-types ((Emil:Type:Basic :name string))
-                  :rest-type nil
-                  :return-type (Emil:Type:Basic :name number)
+                  :arguments ((Emil:Type:Basic :name string))
+                  :rest? nil
+                  :returns (Emil:Type:Basic :name number)
                   :min-arity 1)))
 
       (it "identity"
         (expect (Emil:Type:read '(-> ('a) 'a))
                 :to-equal
                 '(Emil:Type:Forall
-                  :variables ((Emil:Type:Var :name a))
+                  :parameters ((Emil:Type:Var :name a))
                   :type
                   (Emil:Type:Fn
-                   :argument-types ((Emil:Type:Var :name a))
-                   :rest-type nil
-                   :return-type (Emil:Type:Var :name a)
+                   :arguments ((Emil:Type:Var :name a))
+                   :rest? nil
+                   :returns (Emil:Type:Var :name a)
                    :min-arity 1))))
 
       (it "with &optional argument"
         (expect (Emil:Type:read '(-> (string Any &optional Never) Void))
                 :to-equal
                 '(Emil:Type:Fn
-                  :argument-types ((Emil:Type:Basic :name string)
+                  :arguments ((Emil:Type:Basic :name string)
                                    (Emil:Type:Any)
                                    (Emil:Type:Never))
-                  :rest-type nil
-                  :return-type (Emil:Type:Void)
+                  :rest? nil
+                  :returns (Emil:Type:Void)
                   :min-arity 2)))
 
       (it "with &rest argument"
         (expect (Emil:Type:read '(-> (string Any &rest Never) Void))
                 :to-equal
                 '(Emil:Type:Fn
-                  :argument-types ((Emil:Type:Basic :name string)
-                                   (Emil:Type:Any))
-                  :rest-type (Emil:Type:Never)
-                  :return-type (Emil:Type:Void)
+                  :arguments ((Emil:Type:Basic :name string)
+                              (Emil:Type:Any)
+                              (Emil:Type:Never))
+                  :rest? t 
+                  :returns (Emil:Type:Void)
                   :min-arity 2)))))
 
   (describe "Emil:Type:monomorph?"
@@ -96,7 +97,8 @@
     (it "monomorph function"
       (expect (Emil:Type:monomorph? (Emil:Type:read '(-> (string) Void)))
               :to-equal t)
-      (expect (Emil:Type:monomorph? (Emil:Type:read '(-> (&optional string &rest string) Void)))
+      (expect (Emil:Type:monomorph?
+               (Emil:Type:read '(-> (&optional string &rest string) Void)))
               :to-equal t)
       (expect (Emil:Type:monomorph? (Emil:Type:read '(-> () Void)))
               :to-equal t))
@@ -104,7 +106,8 @@
     (it "polymorph function"
       (expect (Emil:Type:monomorph? (Emil:Type:read '(-> ('a) Void)))
               :to-equal nil)
-      (expect (Emil:Type:monomorph? (Emil:Type:read '(-> (&optional string &rest 'a) Void)))
+      (expect (Emil:Type:monomorph?
+               (Emil:Type:read '(-> (&optional string &rest 'a) Void)))
               :to-equal nil)
       (expect (Emil:Type:monomorph? (Emil:Type:read '(-> () 'a)))
               :to-equal nil))
@@ -113,11 +116,11 @@
       ;; buttercup seems to (wrongly) interpret some keywords of the
       ;; Emil:Type:Forall constructor, thus they are all quoted.
       (expect (Emil:Type:monomorph? '(Emil:Type:Forall
-                                      :variables (list (Emil:Type:Var :name a))
+                                      :parameters (list (Emil:Type:Var :name a))
                                       :type (Emil:Type:Never)))
               :to-equal nil)
       (expect (Emil:Type:monomorph? '(Emil:Type:Forall
-                                      :variables nil
+                                      :parameters nil
                                       :type (Emil:Type:Never)))
               :to-equal t)))
 
@@ -151,31 +154,36 @@
               :to-equal nil))
 
     (it "function instantiated"
-      (expect (Emil:Type:free-variables (Emil:Type:Fn
-                                         :argument-types (list (Emil:Type:VarInst :name 'a))
-                                         :return-type (Emil:Type:VarInst :name 'c)
-                                         :rest-type (Emil:Type:VarInst :name 'b)
-                                         :min-arity 1))
+      (expect (Emil:Type:free-variables
+               (Emil:Type:Fn
+                :arguments (list (Emil:Type:VarInst :name 'a)
+                                 (Emil:Type:VarInst :name 'b))
+                :returns (Emil:Type:VarInst :name 'c)
+                :rest? t
+                :min-arity 1))
               :to-equal '((Emil:Type:VarInst :name a)
                           (Emil:Type:VarInst :name b)
                           (Emil:Type:VarInst :name c))))
 
     (it "function non-instantiated"
-      (expect (Emil:Type:free-variables (Emil:Type:Fn
-                                         :argument-types (list (Emil:Type:Var :name 'a))
-                                         :return-type (Emil:Type:Var :name 'c)
-                                         :rest-type (Emil:Type:Var :name 'b)
-                                         :min-arity 1))
+      (expect (Emil:Type:free-variables
+               (Emil:Type:Fn
+                :arguments (list (Emil:Type:Var :name 'a)
+                                 (Emil:Type:Var :name 'b))
+                :returns (Emil:Type:Var :name 'c)
+                :rest? t
+                :min-arity 1))
               :to-equal nil))
 
     (it "forAll"
       (expect (Emil:Type:free-variables
                '(Emil:Type:Forall
-                 :variables (Emil:Type:Var :name d)
+                 :parameters (Emil:Type:Var :name d)
                  :type (Emil:Type:Fn
-                        :argument-types (list (Emil:Type:VarInst :name a))
-                        :return-type (Emil:Type:VarInst :name c)
-                        :rest-type (Emil:Type:VarInst :name b)
+                        :arguments (list (Emil:Type:VarInst :name a)
+                                         (Emil:Type:VarInst :name b))
+                        :returns (Emil:Type:VarInst :name c)
+                        :rest? t
                         :min-arity 1)))
               :to-equal '((Emil:Type:VarInst :name a)
                           (Emil:Type:VarInst :name b)
@@ -219,15 +227,17 @@
               :to-equal '(-> ('a) 'b)))
 
     (it "polymorph function instantiated"
-      (expect (Emil:Type:print (Emil:Type:Fn
-                                :argument-types (list (Emil:Type:VarInst :name 'a))
-                                :return-type (Emil:Type:VarInst :name 'c)
-                                :rest-type (Emil:Type:VarInst :name 'b)
-                                :min-arity 1))
+      (expect (Emil:Type:print
+               (Emil:Type:Fn
+                :arguments (list (Emil:Type:VarInst :name 'a)
+                                 (Emil:Type:VarInst :name 'b))
+                :returns (Emil:Type:VarInst :name 'c)
+                :rest? t
+                :min-arity 1))
               :to-equal '(-> (''a &rest ''b) ''c)))
 
     (it "forAll"
       (expect (Emil:Type:print '(Emil:Type:Forall
-                                 :variables (Emil:Type:Var :name a)
+                                 :parameters (Emil:Type:Var :name a)
                                  :type (Emil:Type:Never)))
               :to-equal 'Never))))
