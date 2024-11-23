@@ -120,6 +120,21 @@ This association-list maps function-names to their declaration."
 (defun Struct:Name? (name)
   (not (null (Struct:Type:get name))))
 
+(defsubst Struct:name (value)
+  "Returns the name of a struct value.
+
+This just returns the `car' of value, checking that it is a symbol, but does not otherwise check that it actually refers to a defined struct type.
+
+Signals `wrong-type-argument', if VALUE is not a `cons' or its
+first element is not a symbol or a constant symbol (`t', `nil' or
+a keyword)."
+  (let ((name (car-safe value)))
+    (unless (and (symbolp name)
+                 (not (memq name '(nil t)))
+                 (not (keywordp name)))
+      (signal 'wrong-type-argument `(Struct:Name ,name)))
+    name))
+
 (cl-deftype Struct:Name ()
   `(satisfies Struct:Name?))
 
