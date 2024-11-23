@@ -266,18 +266,18 @@
       (expect (eval '(TestStruct:g (TestStruct)))
               :to-equal 0))
 
-    (xit "calling a super-trait method"
+    (it "calling a super-trait method"
       (expect (eval '(progn
                        (Trait:define TestTrait ()
                          (fn f (self) 0))
                        (Trait:define OtherTrait (TestTrait)
                          (fn g (self) (self.f)))
                        (Struct:define TestStruct)
+                       (Trait:implement TestTrait TestStruct)
+                       (Trait:implement OtherTrait TestStruct)
                        (Struct:implement TestStruct
                          (fn h (self) (self.g))
-                         (fn i (self) (self.f)))
-                       (Trait:implement TestTrait TestStruct)
-                       (Trait:implement OtherTrait TestStruct)))
+                         (fn i (self) (self.f)))))
               :to-equal 'TestStruct)
       (expect (eval '(TestStruct:h (TestStruct)))
               :to-equal 0)

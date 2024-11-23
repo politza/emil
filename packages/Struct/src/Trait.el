@@ -68,7 +68,7 @@ provided, this function is required for implementors to implement."
 This is the case, if FUNCTION does not define a default implementation."
   (null (Struct:get function :default-implementation)))
 
-(defvar Trait:declared-functions nil)
+(defvar Trait:declared-traits nil)
 
 (defmacro Trait:define (name supertraits &optional documentation &rest properties-and-body)
   "Defines a new trait named NAME.
@@ -93,9 +93,9 @@ This is the case, if FUNCTION does not define a default implementation."
           (transformer (unless (or disable-syntax
                                    (not (require 'Emil nil t)))
                          #'Emil:Syntax:transform))
-          (Trait:declared-functions
-           (cons (cons name functions)
-                 Trait:declared-functions)))
+          (Trait:declared-traits
+           (cons (list name supertraits functions)
+                 Trait:declared-traits)))
   `(eval-and-compile
      ,@(--map (Struct:Function:emit-declaration it) functions)
      (Trait:define*
@@ -346,8 +346,9 @@ If VALUE is a struct type, return it's name. Otherwise, calls
   "Returns a list of functions declared by TRAIT.
 
 TRAIT should be a symbol."
-  (if-let (declared (assq trait Trait:declared-functions))
-      (cdr declared)
+  (if-let (declared (assq trait Trait:declared-traits))
+      (-let (((_ supertraits functions) declared))
+        (append functions (-mapcat #'Trait:functions supertraits)))
     (when-let (type (Trait:get trait))
       (--map (Struct:get (cdr it) :function)
              (Struct:get type :functions)))))
