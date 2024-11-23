@@ -818,7 +818,7 @@
   (malloc-trim . (-> (&rest Any) Any))
   (mapatoms . (-> (&rest Any) Any))
   (mapbacktrace . (-> (&rest Any) Any))
-  (mapc . (-> (&rest Any) Any))
+  (mapc . (-> ((-> ('a) 'b) (Sequence 'a)) (Sequence 'a)))
   (mapcan . (-> (&rest Any) Any))
   (mapcar . (-> (&rest Any) Any))
   (map-charset-chars . (-> (&rest Any) Any))

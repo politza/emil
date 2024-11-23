@@ -3,7 +3,11 @@
 (eldev-use-package-archive 'gnu-elpa)
 
 (setf eldev-project-source-dirs "src")
+(setf eldev-files-to-package '("src/**/*.el"))
+(setf eldev-standard-excludes
+      `(:or ,eldev-standard-excludes "./doc"))
 
 (eldev-use-local-dependency "../Commons")
 (eldev-use-local-dependency "../Struct")
-
+(eldev-use-local-dependency "../Emil")
+(eldev-use-local-dependency "../Transformer")

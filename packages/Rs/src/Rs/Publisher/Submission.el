@@ -23,97 +23,92 @@
   (closed? :type boolean :mutable t))
 
 (Struct:implement Rs:Publisher:Submission:Subscription
-  (fn Rs:Publisher:Submission:Subscription:new ((publisher Rs:Publisher:Submission)
-                              (subscriber (Trait Rs:Subscriber))
-                              &optional
-                              (buffer-size (integer 0 *)))
+  (fn new ((publisher Rs:Publisher:Submission)
+           (subscriber (Trait Rs:Subscriber))
+           &optional
+           (buffer-size (integer 0 *)))
     (Rs:Publisher:Submission:Subscription* publisher subscriber buffer-size))
 
-  (fn Rs:Publisher:Submission:Subscription:emit-some ((self Rs:Publisher:Submission:Subscription))
+  (fn emit-some ((self Rs:Publisher:Submission:Subscription))
 
     (unless (Struct:get self :emitting?)
       (Struct:set self :emitting? t)
       (unwind-protect
-          (while (and (not (Struct:get self :closed?))
-                      (not (ring-empty-p (Struct:get self :buffer)))
-                      (> (Struct:get self :request-count) 0))
-            (let ((item (ring-remove (Struct:get self :buffer))))
+          (while (and (not self.closed?)
+                      (not (ring-empty-p self.buffer))
+                      (> self.request-count 0))
+            (let ((item (ring-remove self.buffer)))
               (Struct:update self :request-count #'1-)
-              (Rs:Subscriber:on-next (Struct:get self :subscriber) item)))
+              (self.subscriber.on-next item)))
         (Struct:set self :emitting? nil))))
 
-  (fn Rs:Publisher:Submission:Subscription:buffer-full? ((self Rs:Publisher:Submission:Subscription))
-    (= (ring-size (Struct:get self :buffer))
-       (ring-length (Struct:get self :buffer))))
+  (fn buffer-full? ((self Rs:Publisher:Submission:Subscription))
+    (= (ring-size self.buffer)
+       (ring-length self.buffer)))
 
-  (fn Rs:Publisher:Submission:Subscription:close ((self Rs:Publisher:Submission:Subscription))
-    (unless (Struct:get self :closed?)
+  (fn close ((self Rs:Publisher:Submission:Subscription))
+    (unless self.closed?
       (Struct:set self :closed? t)
-      (Rs:Publisher:Submission:remove
-       (Struct:get self :publisher) self)))
+      (Rs:Publisher:Submission:remove self.publisher self)))
 
-  (fn Rs:Publisher:Submission:Subscription:next ((self Rs:Publisher:Submission:Subscription) item)
-    (unless (Struct:get self :closed?)
-      (when (Rs:Publisher:Submission:Subscription:buffer-full? self)
-        (Rs:Publisher:Submission:Subscription:emit-some self))
+  (fn next ((self Rs:Publisher:Submission:Subscription) item)
+    (unless self.closed?
+      (when (self.buffer-full?)
+        (self.emit-some))
 
       (cond
-       ((Rs:Publisher:Submission:Subscription:buffer-full? self)
-        (Rs:Publisher:Submission:Subscription:close self)
-        (Rs:Subscriber:on-error
-         (Struct:get self :subscriber)
-         (cons 'error :buffer-overflow)))
+       ((self.buffer-full?)
+        (self.close)
+        (self.subscriber.on-error (cons 'error :buffer-overflow)))
        (t
-        (ring-insert (Struct:get self :buffer) item)
-        (Rs:Publisher:Submission:Subscription:emit-some self)))))
+        (ring-insert self.buffer item)
+        (self.emit-some)))))
 
-  (fn Rs:Publisher:Submission:Subscription:error ((self Rs:Publisher:Submission:Subscription) error)
-    (unless (Struct:get self :closed?)
-      (Rs:Publisher:Submission:Subscription:close self)
-      (Rs:Subscriber:on-error (Struct:get self :subscriber) error)))
+  (fn error ((self Rs:Publisher:Submission:Subscription) error)
+    (unless self.closed?
+      (self.close)
+      (self.subscriber.on-error error)))
 
-  (fn Rs:Publisher:Submission:Subscription:complete ((self Rs:Publisher:Submission:Subscription))
-    (unless (Struct:get self :closed?)
-      (Rs:Publisher:Submission:Subscription:close self)
-      (Rs:Subscriber:on-complete (Struct:get self :subscriber)))))
+  (fn complete ((self Rs:Publisher:Submission:Subscription))
+    (unless self.closed?
+      (self.close)
+      (self.subscriber.on-complete))))
 
 (Trait:implement Rs:Subscription Rs:Publisher:Submission:Subscription
-  (fn Rs:Subscription:request (self (count (integer 0 *)))
-    (unless (Struct:get self :closed?)
+  (fn request (self (count (integer 0 *)))
+    (unless self.closed?
       (Struct:update self :request-count (-partial #'+ count))
-      (Rs:Publisher:Submission:Subscription:emit-some self)))
+      (self.emit-some)))
 
-  (fn Rs:Subscription:cancel (self)
-    (Rs:Publisher:Submission:Subscription:close self)))
+  (fn cancel (self)
+    (self.close)))
 
 (Struct:implement Rs:Publisher:Submission
-  (fn Rs:Publisher:Submission:remove
-    ((self Rs:Publisher:Submission) (subscription Rs:Publisher:Submission:Subscription))
+  (fn remove ((self Rs:Publisher:Submission) (subscription Rs:Publisher:Submission:Subscription))
     (Struct:update self :subscriptions (-partial #'remq subscription)))
 
-  (fn Rs:Publisher:Submission:next ((self Rs:Publisher:Submission) item)
-    (--each (Struct:get self :subscriptions)
+  (fn next ((self Rs:Publisher:Submission) item)
+    (--each self.subscriptions
       (Rs:Publisher:Submission:Subscription:next it item)))
 
-  (fn Rs:Publisher:Submission:error ((self Rs:Publisher:Submission)
-                                    (error error))
-    (let ((subscriptions (Struct:get self :subscriptions)))
+  (fn error ((self Rs:Publisher:Submission) error)
+    (let ((subscriptions self.subscriptions))
       (Struct:set self :subscriptions nil)
       (Struct:set self :closed? t)
       (--each subscriptions
         (Rs:Publisher:Submission:Subscription:error it error))))
 
-  (fn Rs:Publisher:Submission:complete ((self Rs:Publisher:Submission))
-    (let ((subscriptions (Struct:get self :subscriptions)))
+  (fn complete ((self Rs:Publisher:Submission))
+    (let ((subscriptions self.subscriptions))
       (Struct:set self :subscriptions nil)
       (Struct:set self :closed? t)
       (--each subscriptions
         (Rs:Publisher:Submission:Subscription:complete it)))))
 
 (Trait:implement Rs:Publisher Rs:Publisher:Submission
-  (fn Rs:Publisher:subscribe (self (subscriber (Trait Rs:Subscriber)))
+  (fn subscribe (self (subscriber (Trait Rs:Subscriber)))
     (let ((subscription (Rs:Publisher:Submission:Subscription:new self subscriber)))
       (Struct:update self :subscriptions (-partial #'cons subscription))
-      (Rs:Subscriber:on-subscribe subscriber subscription))))
+      (subscriber.on-subscribe subscription))))
 
 (provide 'Rs/Publisher/Submission)
