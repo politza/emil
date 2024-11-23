@@ -245,7 +245,7 @@ Signals a `wrong-type-argument', if TRAIT is not a defined trait."
 TRAIT and OTHER should both be symbols.
 
 Signals a `wrong-type-argument', if OTHER is not a defined trait."
-  (not (null (memq type (Struct:get (Trait:get other :ensure)
+  (not (null (memq trait (Struct:get (Trait:get other :ensure)
                                     :supertraits)))))
 
 (cl-deftype Trait (&rest traits)

@@ -60,7 +60,7 @@
             (cons context
                   (Emil:TypedForm:new (nth 0 arguments) type environment))))))
 
-  (fn Emil:Analyzer:macroexpand-maybe (self form)
+  (fn Emil:Analyzer:macroexpand-maybe (_self form)
     (let ((unwrapped (Transformer:Form:unwrap form)))
       (if (and (macrop (car-safe unwrapped))
                (not (memq (car-safe unwrapped)
