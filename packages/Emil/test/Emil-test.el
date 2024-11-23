@@ -460,4 +460,15 @@
                  (Emil:Env:Alist:read
                   '((list . (List number string)))
                   '((sum . (-> ((List number)) number)))))
-                :to-throw 'Emil:type-error)))))
+                :to-throw 'Emil:type-error)))
+
+    (xdescribe "existing issues"
+      (xit "not all applied arguments are checked for &rest functions"
+        (expect (Emil:infer-type
+                 '((lambda (&rest x) 0) 0.0 0))
+                :to-throw 'Emil:type-error))
+
+      (it "&rest variable should have list type in function"
+        (expect (Emil:infer-type
+                 '((lambda (&rest x) x) 0 1 2))
+                :to-equal '(List integer))))))
