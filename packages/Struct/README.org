@@ -170,13 +170,13 @@ Let's add a second shape-type and also implement the trait for it.
 
   (Trait:implement Shape Circle
     (fn area (self)
-      (* self.radius self.radius)))
+      (* pi self.radius self.radius)))
 #+end_src
 
 We can use these implementations as in the following example.
 
 #+begin_src emacs-lisp
-  (Shape:area (Circle :radius 4))             ; 16
+  (Shape:area (Circle :radius 4))             ; 50.26548245743669
   (Shape:area (Rectangle :width 4 :height 5)) ; 20
 #+end_src
 
@@ -200,5 +200,5 @@ properties.
 #+begin_src emacs-lisp
   (let ((collection (ShapeCollection :shapes (list (Circle :radius 4))))) 
     (ShapeCollection:add collection (Rectangle :width 4 :height 5))
-    (ShapeCollection:area collection))    ; 36
+    (ShapeCollection:area collection))    ; 70.26548245743669
 #+end_src
