@@ -87,13 +87,15 @@
                 (Emil:Analyzer:check-do
                  self body returns
                  (Emil:Context:concat (reverse bindings) marker context)
-                 environment)))
+                 environment))
+               (resolved-type (Emil:Context:resolve body-context type)))
          (cons (Emil:Context:drop-until-after body-context marker)
                (Emil:Form:Function
                 :value (Emil:Form:Lambda
                         :arguments arguments
-                        :body body-forms)
-                :type (Emil:Context:resolve body-context type)))))))
+                        :body body-forms
+                        :type resolved-type)
+                :type resolved-type))))))
 
   (fn Emil:Analyzer:lambda-bindings ((type Emil:Type:Arrow) lambda)
     (let* ((lambda-arguments (nth 1 lambda))

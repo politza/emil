@@ -72,21 +72,41 @@
                         :arguments (x)
                         :body ((Emil:Form:Atom
                                 :value x
-                                :type (Emil:Type:Existential :name a))))
+                                :type (Emil:Type:Existential :name a)))
+                        :type (Emil:Type:Arrow :arguments
+                                       ((Emil:Type:Existential :name a))
+                                       :rest? nil :returns
+                                       (Emil:Type:Existential :name a)
+                                       :min-arity 1))
                 :type (Emil:Type:Arrow :arguments
                                        ((Emil:Type:Existential :name a))
                                        :rest? nil :returns
                                        (Emil:Type:Existential :name a)
                                        :min-arity 1))))
     (it "applied identity"
-      (expect (Emil:transform* '(f (lambda (x) x) 0)
-                               (Emil:Env:Alist:read nil '((f . (-> ((-> ('a) 'a) 'a) 'a)))))
+      (expect (Emil:transform*
+               '(f (lambda (x) x) 0)
+               (Emil:Env:Alist:read nil '((f . (-> ((-> ('a) 'a) 'a) 'a)))))
               
               :to-equal
               '(Emil:Form:Application
                 :function
-                (Emil:Form:ApplicationFn
-                 :value f
+                (Emil:Form:Function
+                 :value (Emil:Form:Atom
+                         :value f
+                         :type (Emil:Type:Forall
+                                :parameters ((Emil:Type:Variable :name a))
+                                :type (Emil:Type:Arrow
+                                       :arguments
+                                       ((Emil:Type:Arrow
+                                         :arguments ((Emil:Type:Variable :name a))
+                                         :rest? nil
+                                         :returns (Emil:Type:Variable :name a)
+                                         :min-arity 1)
+                                        (Emil:Type:Variable :name a))
+                                       :rest? nil
+                                       :returns (Emil:Type:Variable :name a)
+                                       :min-arity 2)))
                  :type
                  (Emil:Type:Forall
                   :parameters ((Emil:Type:Variable :name a))
@@ -106,7 +126,12 @@
                                      :arguments (x)
                                      :body ((Emil:Form:Atom
                                              :value x
-                                             :type (Emil:Type:Existential :name a))))
+                                             :type (Emil:Type:Existential :name a)))
+                                     :type (Emil:Type:Arrow
+                                            :arguments ((Emil:Type:Existential :name a))
+                                            :rest? nil
+                                            :returns (Emil:Type:Existential :name a)
+                                            :min-arity 1))
                              :type (Emil:Type:Arrow
                                     :arguments ((Emil:Type:Existential :name a))
                                     :rest? nil
@@ -169,12 +194,17 @@
       (expect (Emil:transform* '((lambda (x) x) 0))
               :to-equal
               '(Emil:Form:Application
-                :function (Emil:Form:ApplicationFn
+                :function (Emil:Form:Function
                            :value (Emil:Form:Lambda
                                    :arguments (x)
                                    :body ((Emil:Form:Atom
                                            :value x
-                                           :type (Emil:Type:Existential :name a))))
+                                           :type (Emil:Type:Existential :name a)))
+                                   :type (Emil:Type:Arrow
+                                          :arguments ((Emil:Type:Existential :name a))
+                                          :rest? nil
+                                          :returns (Emil:Type:Existential :name a)
+                                          :min-arity 1))
                            :type (Emil:Type:Arrow
                                   :arguments ((Emil:Type:Existential :name a))
                                   :rest? nil
@@ -213,13 +243,12 @@
       (expect (Emil:transform* '(cond (nil 0)))
               :to-equal
               '(Emil:Form:Cond
-                :clauses ((Emil:Form:Clause
-                           :condition (Emil:Form:Atom
-                                       :value nil
-                                       :type (Emil:Type:Null))
-                           :body ((Emil:Form:Atom
-                                   :value 0
-                                   :type (Emil:Type:Basic :name integer)))))
+                :clauses (((Emil:Form:Atom
+                            :value nil
+                            :type (Emil:Type:Null))
+                           (Emil:Form:Atom
+                            :value 0
+                            :type (Emil:Type:Basic :name integer))))
                 :type (Emil:Type:Any)))))
 
   (describe "condition-case"

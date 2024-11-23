@@ -130,17 +130,14 @@
 
   (fn Transformer:transform-cond (self _form clauses &optional context environment
                                        &rest _)
-    (-let (((context . forms)
+    (-let (((context . clauses)
             (Emil:Util:map-reduce
              (lambda (context clause)
                (Emil:Analyzer:infer-do self clause context environment))
              context
              clauses)))
       (cons context (Emil:Form:Cond
-                     :clauses (--map (Emil:Form:Clause
-                                      :condition (car it)
-                                      :body (cdr it))
-                                     forms)
+                     :clauses clauses
                      :type (Emil:Type:Any)))))
 
   (fn Transformer:transform-condition-case (self _form variable bodyform handler
@@ -224,20 +221,23 @@
                ((body-context . body-forms)
                 (Emil:Analyzer:check-do
                  self body returns initial-context environment))
-               (type (Emil:Type:Arrow* arguments returns min-arity rest?)))
+               (type (Emil:Type:Arrow* arguments returns min-arity rest?))
+               (resolved-type (Emil:Context:resolve body-context type)))
          (cons (Emil:Context:drop-until-after body-context marker)
                (Emil:Form:Function
                 :value (Emil:Form:Lambda
                         :arguments argument-list
-                        :body body-forms)
-                :type (Emil:Context:resolve body-context type)))))
+                        :body body-forms
+                        :type resolved-type)
+                :type resolved-type))))
       ((pred symbolp)
-       (let ((type (or (Emil:Analyzer:lookup-function argument context environment)
-                       (Emil:type-error "Can not find function `%s'" argument))))
+       (let* ((type (or (Emil:Analyzer:lookup-function argument context environment)
+                        (Emil:type-error "Can not find function `%s'" argument)))
+              (resolved-type (Emil:Context:resolve context type)))
          (cons context
                (Emil:Form:Function
-                :value argument
-                :type (Emil:Context:resolve context type)))))
+                :value (Emil:Form:Atom :value argument :type resolved-type)
+                :type resolved-type))))
       (value
        (Emil:type-error "Value is not a function: %s" value))))
 
@@ -401,7 +401,7 @@
               function-context environment)))
       (cons context
             (Emil:Form:Application
-             :function (Emil:Form:ApplicationFn
+             :function (Emil:Form:Function
                         :value (Struct:get function-form :value)
                         :type (Struct:get function-form :type))
              :arguments argument-forms

@@ -31,12 +31,8 @@
   :disable-syntax t)
 
 (Struct:define Emil:Form:Application
-  (function :type Emil:Form:ApplicationFn)
+  (function :type Emil:Form:Function)
   (arguments :type (List (Trait Emil:Form)))
-  (type :type (Trait Emil:Type)))
-
-(Struct:define Emil:Form:ApplicationFn
-  (value :type (or symbol Emil:Form:Lambda))
   (type :type (Trait Emil:Type)))
 
 (Trait:implement Emil:Form Emil:Form:Application
@@ -58,15 +54,11 @@
   :disable-syntax t)
 
 (Struct:define Emil:Form:Cond
-  (clauses :type (List Emil:Form:Clause))
+  (clauses :type (List (List (Trait Emil:Form))))
   (type :type (Trait Emil:Type)))
 
 (Trait:implement Emil:Form Emil:Form:Cond
   :disable-syntax t)
-
-(Struct:define Emil:Form:Clause
-  (condition :type (Trait Emil:Form))
-  (body :type (List (Trait Emil:Form))))
 
 (Struct:define Emil:Form:ConditionCase
   (variable :type symbol)
@@ -100,7 +92,7 @@
   :disable-syntax t)
 
 (Struct:define Emil:Form:Function
-  (value :type (or symbol Emil:Form:Lambda))
+  (value :type (or Emil:Form:Atom Emil:Form:Lambda))
   (type :type (Trait Emil:Type)))
 
 (Trait:implement Emil:Form Emil:Form:Function
@@ -108,7 +100,11 @@
 
 (Struct:define Emil:Form:Lambda
   (arguments :type list)
-  (body :type (List (Trait Emil:Form))))
+  (body :type (List (Trait Emil:Form)))
+  (type :type (Trait Emil:Type)))
+
+(Trait:implement Emil:Form Emil:Form:Lambda
+  :disable-syntax t)
 
 (Struct:define Emil:Form:If
   (condition :type (Trait Emil:Form))
