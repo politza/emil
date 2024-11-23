@@ -123,11 +123,13 @@ This association-list maps function-names to their declaration."
 (defsubst Struct:name (value)
   "Returns the name of a struct value.
 
-This just returns the `car' of value, checking that it is a symbol, but does not otherwise check that it actually refers to a defined struct type.
+This just returns the `car' of value, checking that it is a symbol,
+but does not otherwise check that it actually refers to a defined
+struct type.
 
-Signals `wrong-type-argument', if VALUE is not a `cons' or its
-first element is not a symbol or a constant symbol (`t', `nil' or
-a keyword)."
+Signals `wrong-type-argument', if VALUE is not a `cons' or its first
+element is not a symbol or a constant symbol (`t', `nil' or a
+keyword)."
   (let ((name (car-safe value)))
     (unless (and (symbolp name)
                  (not (memq name '(nil t)))
@@ -185,7 +187,8 @@ Returns nil, if PROPERTY does not name a property of struct."
             (value (pop provided-properties)))
         (setq initial-properties (plist-put initial-properties keyword value))))
     (unless (= property-count (/ (length initial-properties) 2))
-      (error "Undeclared properties set: %s"
+      (error "Undeclared properties set while constructing `%s': %s"
+             (Struct:unsafe-get type :name)
              (nthcdr (* 2 property-count) initial-properties)))
     initial-properties))
 
@@ -223,7 +226,9 @@ Returns DEFAULT, if value is `nil'."
   (unless (Struct:Type:get-property
            (Struct:Type:get (car struct) :ensure)
            property)
-    (error "Property is not a member of struct: %s" property))
+    (error "Property is not a member of struct `%s': %s"
+           (car-safe struct)
+           property))
   (or (Struct:unsafe-get struct property)
       default))
 

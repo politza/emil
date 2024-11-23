@@ -23,7 +23,6 @@ Binds named properties to their corresponding values."
 
 (defun Struct:Pcase:-normalize-properties (properties)
   (let ((normalized nil))
-    (message "%S" properties)
     (while properties
       (let ((property (pop properties)))
         (cond
