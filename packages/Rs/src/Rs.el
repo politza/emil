@@ -18,6 +18,8 @@
                      (and (symbolp (car value))
                           (get (car value) 'error-conditions))))))
 
+(defconst Rs:default-buffer-size 256)
+
 ;; See https://github.com/reactive-streams/reactive-streams-jvm/blob/v1.0.4/README.md#specification
 (Trait:define Rs:Subscriber ()
   (defmethod Rs:Subscriber:on-subscribe (self (subscription (Trait Rs:Subscription))))
@@ -72,7 +74,7 @@
     subscriber))
 
 (Trait:define Rs:Subscription ()
-  (defmethod Rs:Subscription:request (self (amount (integer 1 *))))
+  (defmethod Rs:Subscription:request (self (count (integer 0 *))))
   (defmethod Rs:Subscription:cancel (self)))
 
 (Trait:define Rs:Processor (Rs:Publisher Rs:Subscriber))
