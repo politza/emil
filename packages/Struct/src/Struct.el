@@ -20,8 +20,9 @@
   "Whether to highlight struct types with face `font-lock-type-face'.")
 
 ;;;###autoload
-(defsubst Struct:unsafe-get (struct property)
-  (plist-get (cdr struct) property))
+(defsubst Struct:unsafe-get (struct property &optional default)
+  (or (plist-get (cdr struct) property)
+      default))
 
 ;;;###autoload
 (defsubst Struct:unsafe-set (struct property value)
@@ -349,10 +350,11 @@ See also `%s*'.")
            :properties)))
 
 ;;;###autoload
-(defun Struct:get (struct property)
+(defun Struct:get (struct property &optional default)
   (unless (Struct:member? struct property)
     (error "Property is not a member of struct: %s" property))
-  (Struct:unsafe-get struct property))
+  (or (Struct:unsafe-get struct property)
+      default))
 
 ;;;###autoload
 (defun Struct:set (struct property value)
