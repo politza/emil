@@ -12,24 +12,6 @@
 (require 'dash)
 
 (Trait:define Form ()
-  (defmethod Form:number? (self)
-    (numberp self))
-  
-  (defmethod Form:string? (self)
-    (stringp self))
-  
-  (defmethod Form:vector? (self)
-    (vectorp self))
-  
-  (defmethod Form:symbol? (self)
-    (symbolp self))
-  
-  (defmethod Form:cons? (self)
-    (consp self))
-  
-  (defmethod Form:elements(self)
-    self)
-  
   (defmethod Form:value (self)
     self))
 
@@ -61,15 +43,15 @@
 (Trait:define Transformer ()
   (defmethod Transformer:transform-form (self form &optional data)
     (cond
-     ((Form:number? form)
+     ((numberp (Form:value form))
       (Transformer:transform-number self form data))
-     ((Form:string? form)
+     ((stringp (Form:value form))
       (Transformer:transform-string self form data))
-     ((Form:vector? form)
+     ((vectorp (Form:value form))
       (Transformer:transform-vector self form data))
-     ((Form:symbol? form)
+     ((symbolp (Form:value form))
       (Transformer:transform-symbol self form data))
-     ((Form:cons? form)
+     ((consp (Form:value form))
       (Transformer:transform-cons self form data))
      (t (error "Internal error: form is none of the above: %s" form))))
   
@@ -90,7 +72,7 @@
     (Form:value symbol))
   
   (defmethod Transformer:transform-cons (self cons &optional data)
-    (let* ((elements (Form:elements cons))
+    (let* ((elements (Form:value cons))
            (head (car elements))
            (rest (cdr elements)))
       (pcase (Form:value head)
