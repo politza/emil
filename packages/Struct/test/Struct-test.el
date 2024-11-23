@@ -136,6 +136,13 @@
         (expect (Struct:get struct :optional)
                 :to-equal 2)))
 
+    (it "can update a property"
+      (let ((struct (TestStruct :required 1)))
+        (expect (Struct:update struct :required #'1+)
+                :to-equal 2)
+        (expect (Struct:get struct :required)
+                :to-equal 2)))
+
     (it "can not set an unknown property"
       (expect (Struct:set (TestStruct :required 1)
                           :unknown 2)

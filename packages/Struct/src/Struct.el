@@ -470,7 +470,12 @@ Throws an error if
   (Struct:unsafe-set struct property value))
 
 ;;;###autoload
-(defsubst Struct:properties (struct)
+(defun Struct:update (struct property fn)
+  (Struct:set struct property
+              (funcall fn (Struct:get struct property))))
+
+;;;###autoload
+(defun Struct:properties (struct)
   "Returns STRUCT's properties and values as a property-list.
 
 This function returns a new property-list everytime its called."
