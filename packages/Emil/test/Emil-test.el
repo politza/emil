@@ -260,4 +260,14 @@
           (Emil:Env:Alist:read
            '((fill-column . integer))
            '((length . (-> (string) integer)))))
-         :to-equal 'integer)))))
+         :to-equal 'integer)))
+
+    (describe "Emil:is"
+      (it "basic type"
+        (expect (Emil:infer-form '(Emil:is integer 0))
+                :to-equal 'integer))
+
+      (it "lambda"
+        (expect (Emil:infer-form '(Emil:is (-> (string) string)
+                                           (lambda (x) x)))
+                :to-equal '(-> (string) string))))))
