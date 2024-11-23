@@ -5,7 +5,7 @@
 (require 'buttercup)
 
 (describe "Emil:Syntax"
-  (describe "Emil:Syntax:transform"
+  (describe "Emil:Syntax:transform-syntax"
     :var ((function (Struct:Function
                      :name 'method
                      :qualified-name 'TestStruct:method
@@ -21,7 +21,7 @@
       (Struct:undefine 'TestStruct))
 
     (it "property access"
-      (expect (Emil:Syntax:transform
+      (expect (Emil:Syntax:transform-syntax
                (Struct:Function*
                 ,@function
                 :body '(self.property)))
@@ -29,7 +29,7 @@
               '((Struct:unsafe-get self :property))))
 
     (it "method call"
-      (expect (Emil:Syntax:transform
+      (expect (Emil:Syntax:transform-syntax
                (Struct:Function*
                 ,@function
                 :body '((self.method))))
@@ -37,7 +37,7 @@
               '((TestStruct:method self))))
 
     (it "method reference"
-      (expect (Emil:Syntax:transform
+      (expect (Emil:Syntax:transform-syntax
                (Struct:Function*
                 ,@function
                 :body '((funcall #'self.method))))
@@ -45,7 +45,7 @@
               '((funcall #'(lambda nil (TestStruct:method self))))))
 
     (it "property assignment"
-      (expect (Emil:Syntax:transform
+      (expect (Emil:Syntax:transform-syntax
                (Struct:Function*
                 ,@function
                 :body '((setf self.property 1))))
@@ -53,7 +53,7 @@
               '((Struct:unsafe-set self :property 1))))
 
     (it "property assignment of wrong type"
-      (expect (Emil:Syntax:transform
+      (expect (Emil:Syntax:transform-syntax
                (Struct:Function*
                 ,@function
                 :body '((setf self.property "1"))))
@@ -61,7 +61,7 @@
               'Emil:type-error))
 
     (it "string"
-      (expect (Emil:Syntax:transform
+      (expect (Emil:Syntax:transform-syntax
                (Struct:Function*
                 ,@function
                 :body '("a string")))
@@ -69,7 +69,7 @@
               '("a string")))
 
     (it "number"
-      (expect (Emil:Syntax:transform
+      (expect (Emil:Syntax:transform-syntax
                (Struct:Function*
                 ,@function
                 :body '(1)))
@@ -77,7 +77,7 @@
               '(1)))
 
     (it "vector"
-      (expect (Emil:Syntax:transform
+      (expect (Emil:Syntax:transform-syntax
                (Struct:Function*
                 ,@function
                 :body '([a vector])))
@@ -85,7 +85,7 @@
               '([a vector])))
 
     (it "symbol"
-      (expect (Emil:Syntax:transform
+      (expect (Emil:Syntax:transform-syntax
                (Struct:Function*
                 ,@function
                 :body '(self)))
@@ -93,7 +93,7 @@
               '(self)))
 
     (it "application"
-      (expect (Emil:Syntax:transform
+      (expect (Emil:Syntax:transform-syntax
                (Struct:Function*
                 ,@function
                 :body '((+ 1 self.property))))
@@ -101,7 +101,7 @@
               '((+ 1 (Struct:unsafe-get self :property)))))
 
     (it "and"
-      (expect (Emil:Syntax:transform
+      (expect (Emil:Syntax:transform-syntax
                (Struct:Function*
                 ,@function
                 :body '((and t self.property))))
@@ -109,7 +109,7 @@
               '((and t (Struct:unsafe-get self :property)))))
 
     (it "catch"
-      (expect (Emil:Syntax:transform
+      (expect (Emil:Syntax:transform-syntax
                (Struct:Function*
                 ,@function
                 :body '((catch 'tag (throw 'tag self.property)))))
@@ -117,7 +117,7 @@
               '((catch 'tag (throw 'tag (Struct:unsafe-get self :property))))))
 
     (it "cond"
-      (expect (Emil:Syntax:transform
+      (expect (Emil:Syntax:transform-syntax
                (Struct:Function*
                 ,@function
                 :body '((cond (self.property self.property)))))
@@ -126,7 +126,7 @@
                        (Struct:unsafe-get self :property))))))
 
     (it "condition-case"
-      (expect (Emil:Syntax:transform
+      (expect (Emil:Syntax:transform-syntax
                (Struct:Function*
                 ,@function
                 :body '((condition-case variable
@@ -141,7 +141,7 @@
                          variable)))))
 
     (it "defconst"
-      (expect (Emil:Syntax:transform
+      (expect (Emil:Syntax:transform-syntax
                (Struct:Function*
                 ,@function
                 :body '((defconst symbol self.property "documentation"))))
@@ -149,7 +149,7 @@
               '((defconst symbol (Struct:unsafe-get self :property) "documentation"))))
 
     (it "defvar"
-      (expect (Emil:Syntax:transform
+      (expect (Emil:Syntax:transform-syntax
                (Struct:Function*
                 ,@function
                 :body '((defvar symbol self.property "documentation"))))
@@ -157,7 +157,7 @@
               '((defvar symbol (Struct:unsafe-get self :property) "documentation"))))
 
     (it "function"
-      (expect (Emil:Syntax:transform
+      (expect (Emil:Syntax:transform-syntax
                (Struct:Function*
                 ,@function
                 :body '((function self.method))))
@@ -165,7 +165,7 @@
               '((function (lambda nil (TestStruct:method self))))))
 
     (it "if"
-      (expect (Emil:Syntax:transform
+      (expect (Emil:Syntax:transform-syntax
                (Struct:Function*
                 ,@function
                 :body '((if self.property self.property self.property))))
@@ -176,7 +176,7 @@
 
     (xit "interactive"
       ;; FIXME: interactive not properly implemented.
-      (expect (Emil:Syntax:transform
+      (expect (Emil:Syntax:transform-syntax
                (Struct:Function*
                 ,@function
                 :body '((interactive self.property))))
@@ -184,7 +184,7 @@
               '((interactive (Struct:unsafe-get self :property)))))
 
     (it "let"
-      (expect (Emil:Syntax:transform
+      (expect (Emil:Syntax:transform-syntax
                (Struct:Function*
                 ,@function
                 :body '((let ((variable self.property))))))
@@ -192,7 +192,7 @@
               '((let ((variable (Struct:unsafe-get self :property)))))))
 
     (it "or"
-      (expect (Emil:Syntax:transform
+      (expect (Emil:Syntax:transform-syntax
                (Struct:Function*
                 ,@function
                 :body '((or t self.property))))
@@ -200,7 +200,7 @@
               '((or t (Struct:unsafe-get self :property)))))
 
     (it "prog1"
-      (expect (Emil:Syntax:transform
+      (expect (Emil:Syntax:transform-syntax
                (Struct:Function*
                 ,@function
                 :body '((prog1 self.property self.property))))
@@ -209,7 +209,7 @@
                   (Struct:unsafe-get self :property)))))
 
     (it "progn like"
-      (expect (Emil:Syntax:transform
+      (expect (Emil:Syntax:transform-syntax
                (Struct:Function*
                 ,@function
                 :body '((progn self.property self.property))))
@@ -218,7 +218,7 @@
                        (Struct:unsafe-get self :property)))))
 
     (it "quote"
-      (expect (Emil:Syntax:transform
+      (expect (Emil:Syntax:transform-syntax
                (Struct:Function*
                 ,@function
                 :body '((quote self.property))))
@@ -226,7 +226,7 @@
               '((quote self.property))))
 
     (it "setq"
-      (expect (Emil:Syntax:transform
+      (expect (Emil:Syntax:transform-syntax
                (Struct:Function*
                 ,@function
                 :body '((setq variable self.property))))
@@ -234,7 +234,7 @@
               '((setq variable (Struct:unsafe-get self :property)))))
 
     (it "unwind-protect"
-      (expect (Emil:Syntax:transform
+      (expect (Emil:Syntax:transform-syntax
                (Struct:Function*
                 ,@function
                 :body '((unwind-protect self.property self.property))))
@@ -243,7 +243,7 @@
                   (Struct:unsafe-get self :property)))))
 
     (it "while"
-      (expect (Emil:Syntax:transform
+      (expect (Emil:Syntax:transform-syntax
                (Struct:Function*
                 ,@function
                 :body '((while self.property self.property))))

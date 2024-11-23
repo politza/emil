@@ -6,7 +6,7 @@
 (require 'dash)
 (require 'cl-macs)
 
-(declare-function Emil:Syntax:transform "Emil/Syntax" (function))
+(declare-function Emil:Syntax:transform-syntax "Emil/Syntax" (function))
 
 (defconst Trait:definition-symbol 'Trait:definition-symbol
   "Ths symbol by which to associate traits with their name.
@@ -97,7 +97,7 @@ This is the case, if FUNCTION does not define a default implementation."
                             body))
           (transformer (unless (or disable-syntax
                                    (not (require 'Emil nil t)))
-                         #'Emil:Syntax:transform))
+                         #'Emil:Syntax:transform-syntax))
           (Trait:declared-traits
            (cons (cons name (Trait:Declaration* name supertraits functions))
                  Trait:declared-traits)))
@@ -203,7 +203,7 @@ idempotent."
                                         body)))
           (transformer (unless (or disable-syntax
                                    (not (require 'Emil nil t)))
-                         #'Emil:Syntax:transform)))
+                         #'Emil:Syntax:transform-syntax)))
     (Trait:unimplement trait type)
     (Trait:-declare-implementation trait type)
     ;; FIXME: Trait should be unimplemented, if defining them throws an error.

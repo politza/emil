@@ -74,6 +74,6 @@
       (error "Multiple subscriber not supported"))
     (setf self.subscriber subscriber)
     (setf self.subscription
-      (self.publisher.subscribe self))))
+          (self.publisher.subscribe self))))
 
 (provide 'Rs/Processor/EmitOnTimer)

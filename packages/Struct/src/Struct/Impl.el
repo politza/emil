@@ -4,7 +4,7 @@
 (require 'Commons)
 (eval-when-compile (require 'cl-macs))
 
-(declare-function Emil:Syntax:transform "Emil/Syntax" (function))
+(declare-function Emil:Syntax:transform-syntax "Emil/Syntax" (function))
 
 (defvar Struct:declared-functions nil)
 
@@ -20,7 +20,7 @@
            (--map (Struct:read-function name it disable-syntax) body))
           (transformer (unless (or disable-syntax
                                    (not (require 'Emil nil t)))
-                         #'Emil:Syntax:transform))
+                         #'Emil:Syntax:transform-syntax))
           (Struct:declared-functions
            (cons (cons name functions)
                  Struct:declared-functions)))

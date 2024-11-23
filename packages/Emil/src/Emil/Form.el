@@ -11,8 +11,7 @@
   (fn Emil:Form:position (self -> integer)
     nil)
 
-  (fn Emil:Form:each-child (self fn &optional env)
-    ))
+  (fn Emil:Form:each-child (self fn &optional env)))
 
 (defun Emil:Form:with-type (form type)
   (cl-check-type form (Trait Emil:Form))
@@ -27,6 +26,11 @@
 
 (Trait:implement Emil:Form Emil:Form:Invalid
   :disable-syntax t
+  (fn Emil:Form:position (self)
+    (let ((form (Struct:get self :form)))
+      (when (symbol-with-pos-p form)
+        (symbol-with-pos-pos form))))
+
   (fn Emil:Form:each-child (self _fn &optional _env) nil))
 
 (Struct:define Emil:Form:Atom
@@ -35,7 +39,7 @@
 
 (Trait:implement Emil:Form Emil:Form:Atom
   :disable-syntax t
-  (fn Emil:Form:position (self -> integer)
+  (fn Emil:Form:position (self)
     (let ((value (Struct:get self :value)))
       (when (symbol-with-pos-p value)
         (symbol-with-pos-pos value))))

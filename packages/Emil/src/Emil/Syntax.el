@@ -150,7 +150,7 @@
 (defun Emil:Syntax:dot-expression? (expression)
   (with-syntax-table emacs-lisp-mode-syntax-table
     (string-match-p
-     "\\`\\(?:\\w\\|\\s_\\)+\\(?:[.]\\(?:\\w\\|\\s_\\)+\\)+\\'"
+     "\\`\\(?:\\w\\|\\s_\\)+\\(?:[.]\\(?:\\w\\|\\s_\\)*\\)+\\'"
      (symbol-name expression))))
 
 (defun Emil:Syntax:resolve-variable (self expression &optional env)
@@ -185,7 +185,7 @@
      (Trait:functions
       (Struct:get (car (Struct:get type :arguments)) :name)))))
 
-(defun Emil:Syntax:transform (function)
+(defun Emil:Syntax:transform-syntax (function)
   (let* ((env (Emil:Syntax
                :env
                (Emil:Env:Alist :variables (Emil:Syntax:Function:bindings function))))
