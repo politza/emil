@@ -16,7 +16,11 @@
 
 (Trait:implement Transformer:Form Emil:TypedForm
   (fn Transformer:Form:value (self)
-    (Struct:get self :form)))
+    (Struct:get self :form))
+
+  (fn Transformer:Form:position (self)
+    (Transformer:Form:position
+     (Transformer:Form:value self))))
 
 (Trait:implement Emil:Env Emil:TypedForm
   (fn Emil:Env:lookup-variable (self variable &optional context)
