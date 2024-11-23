@@ -85,7 +85,22 @@
                 :body ((Emil:Form:Atom
                         :value a
                         :type (Emil:Type:Basic :name integer)))
-                :type (Emil:Type:Basic :name integer)))))
+                :type (Emil:Type:Basic :name integer))))
+
+    (it "default initializer"
+      (expect (Emil:transform* '(let (a) a))
+              :to-equal
+              '(Emil:Form:Let
+                :kind let
+                :bindings ((Emil:Form:Binding
+                            :name a
+                            :value (Emil:Form:Atom
+                                    :value nil
+                                    :type (Emil:Type:Null))))
+                :body ((Emil:Form:Atom
+                        :value a
+                        :type (Emil:Type:Null)))
+                :type (Emil:Type:Null)))))
 
   (describe "let*"
     (it "basic"
