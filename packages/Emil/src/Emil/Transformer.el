@@ -28,20 +28,17 @@
                      :type (Emil:Analyzer:type-of-body body-forms)))))
 
   (fn Emil:Analyzer:thread-let*-bindings (self bindings context environment)
-    "Thread CONTEXT and ENVIRONMENT through let* BINDINGS."
+    "Thread CONTEXT through let* BINDINGS."
     (Emil:Util:map-reduce
-     (-lambda ((variable-context . variable-environment) (variable binding))
+     (-lambda (context (variable binding))
        (-let* (((binding-context . binding-form)
                 (Emil:Analyzer:infer
-                 self binding variable-context variable-environment))
+                 self binding context environment))
                (type (Struct:get binding-form :type)))
-         (cons (cons (Emil:Context:concat (Emil:Context:Binding* variable type)
-                                          binding-context)
-                     (Emil:Env:Alist :variables (list (cons variable type))
-                                     :parent variable-environment))
+         (cons (Emil:Context:concat (Emil:Context:Binding* variable type)
+                                    binding-context)
                binding-form)))
-     (cons context
-           (Emil:Env:Alist :parent environment))
+     context
      bindings))
 
   (fn Emil:Analyzer:type-of-body (body-forms)
@@ -210,17 +207,14 @@
                                  :variable (car it) :type (cdr it))
                                 (-zip-pair variables variable-types)))
                (marker (Emil:Context:Marker))
-               (body-environment (Emil:Env:Alist :parent environment))
                (initial-context
                 (Emil:Context:concat
                  (reverse bindings) marker returns
                  (reverse arguments) context))
                ((body-context . body-forms)
                 (Emil:Analyzer:check-do
-                 self body returns initial-context body-environment))
+                 self body returns initial-context environment))
                (type (Emil:Type:Arrow* arguments returns min-arity rest?)))
-         (Emil:Env:Alist:update-from body-environment body-context
-                                     variables nil)
          (cons (Emil:Context:drop-until-after body-context marker)
                (Emil:Form:Function
                 :value (Emil:Form:Lambda
@@ -271,17 +265,13 @@
                      :variable (car it) :type (Struct:get (cdr it) :type))
                     (-zip-pair variables binding-forms)))
             (marker (Emil:Context:Marker))
-            (body-environment (Emil:Env:Alist :parent environment))
             ((body-context . body-forms)
              (Emil:Analyzer:infer-do
               self body (Emil:Context:concat
                          (reverse context-bindings)
                          marker bindings-context)
-              body-environment))
+              environment))
             (body-type (Emil:Analyzer:type-of-body body-forms)))
-      ;; FIXME: Do we need the environment updating anymore ?
-      (Emil:Env:Alist:update-from body-environment body-context
-                                  variables nil)
       (cons (Emil:Context:drop-until-after body-context marker)
             (Emil:Form:Let
              :kind 'let
@@ -295,17 +285,12 @@
     (setq bindings (--map (if (consp it) it (list it nil)) bindings))
     (-let* ((marker (Emil:Context:Marker))
             (variables (--map (car it) bindings))
-            (((bindings-context . body-environment) . binding-forms)
+            ((bindings-context . binding-forms)
              (Emil:Analyzer:thread-let*-bindings
               self bindings (Emil:Context:concat marker context) environment))
             ((body-context . body-forms)
-             (Emil:Analyzer:infer-do self body bindings-context body-environment))
+             (Emil:Analyzer:infer-do self body bindings-context environment))
             (body-type (Emil:Analyzer:type-of-body body-forms)))
-      (--each (nreverse (--iterate (Struct:get it :parent)
-                                   body-environment
-                                   (length variables)))
-        (Emil:Env:Alist:update-from
-         it body-context (list (nth it-index variables)) nil t))
       (cons (Emil:Context:drop-until-after body-context marker)
             (Emil:Form:Let
              :kind 'let*
