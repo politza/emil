@@ -137,9 +137,9 @@ Returns an empty context, if ENTRY is not present in this one."
          (Emil:Context:well-formed?
           (Emil:Context :entries (append parameters entries nil))
           type))
-        ((Struct Emil:Type:Compound parameters)
+        ((Struct Emil:Type:Compound arguments)
          (--every? (Emil:Context:well-formed? self it)
-                   parameters)))))
+                   arguments)))))
 
   (fn Emil:Context:resolve (self (type (Trait Emil:Type)))
     "Resolves the given TYPE against this context.
@@ -168,10 +168,10 @@ as with regards to its unresolved type-variables."
        (Emil:Type:Forall*
         parameters
         :type (Emil:Context:resolve self type)))
-      ((Struct Emil:Type:Compound parameters)
-       (let ((parameters
-              (--map (Emil:Context:resolve self it) parameters)))
-         (Emil:Type:Compound* ,@type parameters)))))
+      ((Struct Emil:Type:Compound arguments)
+       (let ((arguments
+              (--map (Emil:Context:resolve self it) arguments)))
+         (Emil:Type:Compound* ,@type arguments)))))
 
   (fn Emil:Context:valid-entry? (object)
     (or (Trait:implements? (Trait:type-of object) 'Emil:Type)

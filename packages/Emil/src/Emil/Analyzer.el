@@ -203,7 +203,7 @@
                                                (type Emil:Type:Compound)
                                                relation)
     (pcase-exhaustive type
-      ((and (Struct Emil:Type:Compound parameters)
+      ((and (Struct Emil:Type:Compound arguments)
             (let `(,top . ,bottom)
               (Emil:Context:hole context variable)))
        (let* ((instance (Emil:Analyzer:compound-instantiate self type))
@@ -218,16 +218,22 @@
           (Emil:Analyzer:instantiate self acc (car it) (cdr it) relation)
           initial-context
           (-zip-pair (Struct:get instance :parameters)
-                     parameters))))))
+                     arguments))))))
 
   (fn Emil:Analyzer:subtype (self (context Emil:Context)
                                   (left (Trait Emil:Type))
                                   (right (Trait Emil:Type)))
+    (setq left (Emil:Type:resolve-alias left))
+    (setq right (Emil:Type:resolve-alias right))
     ;; Figure 9. Algorithmic subtyping
     (pcase-exhaustive (list left right)
       ((or `(,(Struct Emil:Type:Any) ,_)
-           `(,_ ,(Struct Emil:Type:Any)))
+           `(,_ ,(Struct Emil:Type:Any))
+           `(,(Struct Emil:Type:Null) ,_))
        context)
+      ((or `(,(Struct Emil:Type:Never) ,_)
+           `(,_ ,(Struct Emil:Type:Never)))
+       (Emil:Analyzer:subtype-error left right))
       ((and (or `(,(Struct Emil:Type:Variable)
                   ,(Struct Emil:Type:Variable))
                 `(,(Struct Emil:Type:Existential)
@@ -302,28 +308,38 @@
                                            (left (Trait Emil:Type))
                                            (right (Trait Emil:Type)))
     (pcase-exhaustive (list left right)
+      (`(,(or (Struct Emil:Type:Basic name)
+              (Struct Emil:Type:Compound name))
+         ,(and (Struct Emil:Type:Compound :name constructor arguments)
+               (guard (eq constructor 'Trait))))
+       (unless (Trait:name? (car arguments))
+         (Emil:type-error "%s is not a defined trait" (car arguments)))
+       (unless (Trait:implements? name (car arguments))
+         (Emil:Analyzer:subtype-error left right))
+       context)
       (`(,(Struct Emil:Type:Compound
-                  :name left-name :parameters left-parameters)
+                  :name left-name :arguments left-arguments)
          ,(Struct Emil:Type:Compound
-                  :name right-name :parameters right-parameters))
+                  :name right-name :arguments right-arguments))
        (cond
-        ((and (eq left-name 'Cons) (eq right-name 'List))
+        ((and (eq left-name 'Cons) (or (eq right-name 'List)
+                                       (eq right-name 'Sequence)))
          (Emil:Analyzer:subtype-pairwise
           self context
-          left-parameters
-          (list (car right-parameters) right)))
+          left-arguments
+          (list (car right-arguments) right)))
         ((and (eq left-name 'List) (eq right-name 'Cons))
          (Emil:Analyzer:subtype-pairwise
           self context
-          (list (car left-parameters) left)
-          right-parameters))
-        ((and (eq left-name right-name)
-              (= (length left-parameters)
-                 (length right-parameters)))
+          (list (car left-arguments) left)
+          right-arguments))
+        ((and (Emil:Type:symbol-subtype? left-name right-name)
+              (= (length left-arguments)
+                 (length right-arguments)))
          (Emil:Analyzer:subtype-pairwise
-          self context left-parameters right-parameters))
-        (t (Emil:Analyzer:subtype-default self context left right))))
-      (_ (Emil:Analyzer:subtype-default self context left right))))
+          self context left-arguments right-arguments))
+        (t (Emil:Analyzer:subtype-error left right))))
+      (_ (Emil:Analyzer:subtype-error left right))))
 
   (fn Emil:Analyzer:subtype-default (_self (context Emil:Context)
                                            (left (Trait Emil:Type))
@@ -341,11 +357,14 @@
                        (`(float number) t)
                        (`(,left-name ,right-name)
                         (equal left-name right-name)))))
-      (Emil:type-error
-       "%s is not assignable to %s"
-       (Emil:Type:print left)
-       (Emil:Type:print right)))
+      (Emil:Analyzer:subtype-error left right))
     context)
+
+  (fn Emil:Analyzer:subtype-error (left right)
+    (Emil:type-error
+     "%s is not assignable to %s"
+     (Emil:Type:print left)
+     (Emil:Type:print right)))
 
   (fn Emil:Analyzer:infer-application (self (arrow-type (Trait Emil:Type))
                                             arguments context environment)
@@ -442,8 +461,8 @@ replaced with instances of `Emil:Type:Existential'."
     "Instantiates the compound-type with existentials."
     (Emil:Type:Compound*
      ,@type
-     :parameters (Emil:Analyzer:generate-existentials
-                  self (length (Struct:get type :parameters)))))
+     :arguments (Emil:Analyzer:generate-existentials
+                  self (length (Struct:get type :arguments)))))
 
   (fn Emil:Analyzer:subtype-pairwise (self context left-types right-types)
     (unless (= (length left-types) (length right-types))

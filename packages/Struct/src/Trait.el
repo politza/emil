@@ -35,6 +35,10 @@ which case a `wrong-type-argument' is signaled."
       (and ensure
            (signal 'wrong-type-argument (list 'Trait name)))))
 
+(defun Trait:name? (name)
+  "Returns `t', if NAME is the name of a trait."
+  (not (null (get name Trait:definition-symbol))))
+
 (Struct:define Trait:Method
   "Represents a trait-method."
   (function
@@ -227,12 +231,22 @@ idempotent."
     (apply impl arguments)))
 
 (defun Trait:implements? (type trait)
-  "Return non-nil, if type TYPE implements trait TRAIT.
+  "Return `t', if type TYPE implements trait TRAIT.
 
 TYPE and TRAIT should both be symbols.
 
 Signals a `wrong-type-argument', if TRAIT is not a defined trait."
-  (memq type (Struct:get (Trait:get trait :ensure) :implementing-types)))
+  (not (null (memq type (Struct:get (Trait:get trait :ensure)
+                                    :implementing-types)))))
+
+(defun Trait:extends? (trait other)
+  "Return `t', if trait TRAIT extends trait OTHER.
+
+TRAIT and OTHER should both be symbols.
+
+Signals a `wrong-type-argument', if OTHER is not a defined trait."
+  (not (null (memq type (Struct:get (Trait:get other :ensure)
+                                    :supertraits)))))
 
 (cl-deftype Trait (&rest traits)
   `(satisfies ,(lambda (value)

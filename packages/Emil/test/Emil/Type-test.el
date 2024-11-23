@@ -116,14 +116,14 @@
                 :to-equal
                 '(Emil:Type:Compound
                   :name Nothing
-                  :parameters nil)))
+                  :arguments nil)))
 
-      (it "multiple parameters"
+      (it "multiple arguments"
         (expect (Emil:Type:read '(Map string integer))
                 :to-equal
                 '(Emil:Type:Compound
                   :name Map
-                  :parameters ((Emil:Type:Basic :name string)
+                  :arguments ((Emil:Type:Basic :name string)
                                (Emil:Type:Basic :name integer)))))
 
       (it "monomorph"
@@ -131,7 +131,7 @@
                 :to-equal
                 '(Emil:Type:Compound
                   :name List
-                  :parameters ((Emil:Type:Basic :name integer)))))
+                  :arguments ((Emil:Type:Basic :name integer)))))
 
       (it "polymorph"
         (expect (Emil:Type:read '(List 'a))
@@ -140,7 +140,7 @@
                   :parameters ((Emil:Type:Variable :name a))
                   :type (Emil:Type:Compound
                          :name List
-                         :parameters ((Emil:Type:Variable :name a))))))
+                         :arguments ((Emil:Type:Variable :name a))))))
 
       (it "constructor name may not end with a ?"
         (expect (Emil:Type:read '(list? 'a))
@@ -279,14 +279,14 @@
     (it "compound"
       (expect (Emil:Type:free-variables
                (Emil:Type:Compound
-                :name 'List :parameters
+                :name 'List :arguments
                 (list (Emil:Type:Variable :name 'a))))
               :to-equal nil))
 
     (it "compound instantiated"
       (expect (Emil:Type:free-variables
                (Emil:Type:Compound
-                :name 'List :parameters
+                :name 'List :arguments
                 (list (Emil:Type:Existential :name 'a))))
               :to-equal '(a))))
 
@@ -345,7 +345,7 @@
 
     (it "compound"
       (expect (Emil:Type:print '(Emil:Type:Compound
-                                 :name List :parameters
+                                 :name List :arguments
                                  ((Emil:Type:Variable :name a))))
               :to-equal '(List 'a))))
 
@@ -574,4 +574,31 @@
         (expect (Emil:Type:Arrow:lambda-adjusted-arguments
                  '(a b &rest c)
                  1)
-                :to-throw)))))
+                :to-throw))))
+
+  (describe "Emil:Type:resolve-alias"
+    (it "aliased type"
+      (expect (Emil:Type:resolve-alias
+               (Emil:Type:Basic :name 'string))
+              :to-equal '(Emil:Type:Compound
+                          :name Array
+                          :arguments
+                          ((Emil:Type:Basic :name integer)))))
+
+    (it "non aliased type"
+      (expect (Emil:Type:resolve-alias
+               (Emil:Type:Basic :name 'integer))
+              :to-equal '(Emil:Type:Basic :name integer))))
+
+  (describe "Emil:Type:symbol-subtype?"
+    (it "builtin basic type"
+      (expect (Emil:Type:symbol-subtype? 'integer 'number)
+              :to-be-truthy)
+      (expect (Emil:Type:symbol-subtype? 'number 'integer)
+              :to-be nil))
+
+    (it "builtin compound type"
+      (expect (Emil:Type:symbol-subtype? 'Vector 'Sequence)
+              :to-be-truthy)
+      (expect (Emil:Type:symbol-subtype? 'Sequence 'Vector)
+              :to-equal nil))))

@@ -319,41 +319,32 @@ Compound types are currently always covariant."
   (name
    "The name of this type's constructor."
     :type symbol)
-  (parameters
-   "The parameters of this type."
+  (arguments
+   "The arguments of this type."
    :type (List (Trait Emil:Type))))
 
 (Trait:implement Emil:Type Emil:Type:Compound
   (fn Emil:Type:print (self)
     (cons (Struct:get self :name)
           (-map #'Emil:Type:print
-                (Struct:get self :parameters))))
+                (Struct:get self :arguments))))
 
   (fn Emil:Type:free-variables (self)
     (-mapcat #'Emil:Type:free-variables
-             (Struct:get self :parameters)))
+             (Struct:get self :arguments)))
 
   (fn Emil:Type:monomorph? (self)
     (--every? (Emil:Type:monomorph? it)
-              (Struct:get self :parameters)))
+              (Struct:get self :arguments)))
 
   (fn Emil:Type:substitute (self (source Emil:Type:Variable)
                                  (target Emil:Type:Existential))
     (Emil:Type:Compound
      :name (Struct:get self :name)
-     :parameters (--map (Emil:Type:substitute it source target)
-                        (Struct:get self :parameters)))))
+     :arguments (--map (Emil:Type:substitute it source target)
+                        (Struct:get self :arguments)))))
 
-(defun Emil:Type:check-builtin-compound-type (type)
-  (pcase type
-    ((Struct Emil:Type:Compound name parameters)
-     (when (and (eq 'List name)
-                (/= (length parameters) 1))
-       (Emil:invalid-type-form "List constructor has one parameter: %s" type))
-     (when (and (eq 'Cons name)
-                (/= (length parameters) 2))
-       (Emil:invalid-type-form "Cons constructor has two parameters: %s" type))))
-  type)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defun Emil:Type:read (form)
   "Reads a type from form FORM and returns it.
@@ -382,8 +373,8 @@ type will be polymorphic."
                   ((Struct Emil:Type:Arrow arguments returns)
                    (append (variables returns)
                            (-mapcat #'variables arguments)))
-                  ((Struct Emil:Type:Compound parameters)
-                   (-mapcat #'variables parameters))
+                  ((Struct Emil:Type:Compound arguments)
+                   (-mapcat #'variables arguments))
                   ((Struct Emil:Type:Variable name)
                    (list name))
                   (_ nil))))
@@ -426,14 +417,14 @@ The result may contain type-variables."
     ((and `(-> ,arguments ,returns)
           (guard (listp arguments)))
      (Emil:Type:-read-fn arguments returns))
-    ((and `(,name . ,parameters)
+    ((and `(,name . ,arguments)
           (guard (and (symbolp name)
-                      (listp parameters))))
+                      (listp arguments))))
      (Emil:Type:-assert-valid-name name)
      (Emil:Type:check-builtin-compound-type
       (Emil:Type:Compound
        :name name
-       :parameters (-map #'Emil:Type:-read parameters))))
+       :arguments (-map #'Emil:Type:-read arguments))))
     (_ (Emil:invalid-type-form "Failed to read form as a type: %s" form))))
 
 (defun Emil:Type:-assert-valid-name (name)
@@ -504,15 +495,68 @@ This renames all type-variables with standard ones."
                       ,@type
                       :arguments (-map #'normalize arguments)
                       :returns (normalize returns)))
-                    ((Struct Emil:Type:Compound parameters)
+                    ((Struct Emil:Type:Compound arguments)
                      (Emil:Type:Compound*
                       ,@type
-                      :parameters(-map #'normalize parameters)))
+                      :arguments(-map #'normalize arguments)))
                     ((Struct Emil:Type:Variable)
                      (Emil:Type:Variable :name (replace type)))
                     ((Struct Emil:Type:Existential)
                      (Emil:Type:Existential :name (replace type)))
                     (_ type))))
       (normalize type))))
+
+(defconst Emil:Type:builtin-compound-types
+  '((Cons . 2)
+    (List . 1)
+    (Vector . 1)
+    (Array . 1)
+    (Sequence . 1)
+    (Trait . 1))
+  "An alist mapping builtin compound types to their arity.")
+
+(defun Emil:Type:check-builtin-compound-type (type)
+  (pcase type
+    ((Struct Emil:Type:Compound name arguments)
+     (when-let (arity (cdr (assq name Emil:Type:builtin-compound-types)))
+       (unless (= arity (length arguments))
+         (Emil:invalid-type-form
+          "Builtin constructor %s requires %d arguments: %s"
+          name arity (Emil:Type:print type))))))
+  type)
+
+(defconst Emil:Type:builtin-type-aliases
+  (--map (cons (car it)
+               (Emil:Type:read (cdr it)))
+         '((string . (Array integer))
+           (vector . (Vector Any))
+           (char-table . (Array Any))
+           (bool-vector . (Array symbol))
+           (cons . (Cons Any Any))))
+  "An alist mapping builtin types to their compound variant.")
+
+(defconst Emil:Type:builtin-type-hierarchy
+  '((List Sequence)
+    (Vector Array Sequence)
+    (Array Sequence)))
+
+(defun Emil:Type:resolve-alias (type)
+  "Returns the definition of type-alias TYPE.
+
+Returns TYPE, if TYPE is not an alias."
+  (pcase type
+    ((Struct Emil:Type:Basic name)
+     (or (cdr (assq name Emil:Type:builtin-type-aliases))
+         type))
+    (_ type)))
+
+(defun Emil:Type:symbol-subtype? (type other)
+  "Returns non-nil, if symbol TYPE is a subtype of symbol OTHER."
+  (or (eq type other)
+      (memq other (cdr (assq type cl--typeof-types)))
+      (memq other (cdr (assq type Emil:Type:builtin-type-hierarchy)))
+      (and (Trait:name? type)
+           (Trait:name? other)
+           (Trait:extends? type other))))
 
 (provide 'Emil/Type)

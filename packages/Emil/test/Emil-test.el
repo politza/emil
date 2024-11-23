@@ -462,7 +462,7 @@
                   '((sum . (-> ((List2 number)) number)))))
                 :to-throw 'Emil:type-error))
 
-      (describe "Cons and List"
+      (describe "Sequences"
         (it "cons into list"
           (expect (Emil:infer-type
                    '(let ((pair (cons 0 1)))
@@ -474,6 +474,17 @@
                       (cdr . (-> ((Cons 'a 'b)) 'b))
                       (list . (-> ('a 'a) (List 'a))))))
                   :to-equal '(List integer)))
+
+        (it "cons into sequence"
+          (expect (Emil:infer-type
+                   '(let ((sequence (cons 0 (list 1 2))))
+                      (elt sequence 0))
+                   (Emil:Env:Alist:read
+                    nil
+                    '((cons . (-> ('a 'b) (Cons 'a 'b)))
+                      (elt . (-> ((Sequence 'a) integer) 'a))
+                      (list . (-> ('a 'a) (List 'a))))))
+                  :to-equal 'integer))
 
         (it "cons as list"
           (expect (Emil:infer-type
@@ -498,7 +509,18 @@
                       (car . (-> ((Cons 'a 'b)) 'a))
                       (cdr . (-> ((Cons 'a 'b)) 'b))
                       (list . (-> ('a 'a) (List 'a))))))
-                  :to-equal '(Cons integer (List integer))))))
+                  :to-equal '(Cons integer (List integer))))
+
+        (it "strings as sequences"
+          (expect (Emil:infer-type
+                   '(string-prefix-p "foo" (concat "foo" "bar"))
+                   (Emil:Env:Alist:read
+                    nil
+                    '((concat . (-> ((Sequence integer)
+                                     (Sequence integer))
+                                    string))
+                      (string-prefix-p . (-> (string string) boolean)))))
+                  :to-equal 'boolean))))
 
     (xdescribe "existing issues"
       (xit "not all applied arguments are checked for &rest functions"
