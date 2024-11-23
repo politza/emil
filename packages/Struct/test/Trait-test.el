@@ -8,7 +8,7 @@
 
 (describe "Trait"
   (before-each
-    (Struct:define TestStruct property))
+    (Struct:define TestStruct (property)))
 
   (after-each
     (Trait:undefine 'TestTrait)

@@ -110,25 +110,20 @@ as splice-syntax.
        ',name)))
 
 (defun Struct:-construct-property-entry (declaration)
-  (cond
-   ((symbolp declaration)
-    (cons (Commons:symbol-to-keyword declaration)
-          (Struct:Property :name declaration)))
-   ((consp declaration)
-    (-let* ((((positional &as name documentation)
-              properties)
-             (Commons:split-property-list-end declaration))
-            (positional-properties
-             (cl-case (length positional)
-               (0 nil)
-               (1 (list :name name))
-               (2 (list :name name :documentation documentation))
-               (t (error "Invalid property declaration: %s" declaration)))))
-      (cons (Commons:symbol-to-keyword name)
-            (apply #'Struct:Property (append positional-properties
-                                             properties)))))
-   (t
-    (error "Invalid property declaration: %s" declaration))))
+  (unless (consp declaration)
+    (error "Property declaration should be a non-empty list: %s" declaration))
+  (-let* ((((positional &as name documentation)
+            properties)
+           (Commons:split-property-list-end declaration))
+          (positional-properties
+           (cl-case (length positional)
+             (0 nil)
+             (1 (list :name name))
+             (2 (list :name name :documentation documentation))
+             (t (error "Invalid property declaration: %s" declaration)))))
+    (cons (Commons:symbol-to-keyword name)
+          (apply #'Struct:Property (append positional-properties
+                                           properties)))))
 
 (defun Struct:-add-syntax-highlighting (name)
   (let ((keywords `((,(format "\\_<%s\\*?\\_>"
