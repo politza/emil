@@ -53,21 +53,20 @@ Returns the substituted type."
     "Returns a readable representation of this type."))
 
 (Struct:define Emil:Type:Any
-  "Represents the union of all types.
+  "Represents a wildcard type.
 
-Every type is a subtype of this type, including itself.
-
-This type is no subtype of any other type, excluding itself.")
+Every type can be assigned to this type, including itself. This type
+can be assinged to any other type, including itself. ")
 
 (Trait:implement Emil:Type Emil:Type:Any
   (fn Emil:Type:print (_) 'Any))
 
 (Struct:define Emil:Type:Never
-  "Represents the bottom type.
+  "Represents the \"nothing to see here\" type.
 
-This type has no values. It is a subtype of any other type,
-including itself. No other type is a subtype of this type,
-excluding itself.")
+This type has no values. This type can't be assigned to any other
+type, including itself. No other type can be assigned to this type,
+including itself.")
 
 (Trait:implement Emil:Type Emil:Type:Never
   (fn Emil:Type:print (_) 'Never))
@@ -75,9 +74,8 @@ excluding itself.")
 (Struct:define Emil:Type:Null
   "Represents the null type.
 
-This type has a single value, which is `nil'. Currently, this
-type is a subtype of any other type, excluding `Never' and
-`Void'.")
+This type has a single value, which is `nil'. This type can be
+assigned to any other type, excluding `Never'.")
 
 (Trait:implement Emil:Type Emil:Type:Null
   (fn Emil:Type:print (_) 'Null))
@@ -85,15 +83,15 @@ type is a subtype of any other type, excluding `Never' and
 (Struct:define Emil:Type:Void
   "Represents the void type.
 
-This type has no values. This type is a subtype of no other type,
-excluding `Any' and itself. No other type is a subtype of this
-type, excluding `Never' and itself.")
+This type has no values. Thie type can not be assigned to any other
+type, excluding itself. Any type can be assigned to this type,
+including itself.")
 
 (Trait:implement Emil:Type Emil:Type:Void
   (fn Emil:Type:print (_) 'Void))
 
 (Struct:define Emil:Type:Basic
-  "Represents a basic custom or builtin type."
+  "Represents a basic custom or builtin type or alias."
   (name
    "The name of the type."
    :type symbol))
@@ -525,38 +523,39 @@ This renames all type-variables with standard ones."
           name arity (Emil:Type:print type))))))
   type)
 
-(defconst Emil:Type:builtin-type-aliases
+(defconst Emil:Type:type-aliases
   (--map (cons (car it)
                (Emil:Type:read (cdr it)))
-         '((string . (Array integer))
-           (vector . (Vector Any))
-           (char-table . (Array Any))
-           (bool-vector . (Array symbol))
+         '((vector . (Vector Any))
            (cons . (Cons Any Any))))
-  "An alist mapping builtin types to their compound variant.")
+  "An alist mapping aliases to their type.")
 
-(defconst Emil:Type:builtin-type-hierarchy
+(defconst Emil:Type:compound-type-hierarchy
   '((List Sequence)
     (Vector Array Sequence)
     (Array Sequence)))
 
+(defun Emil:Type:basic-subtype? (type other)
+  "Returns non-nil, if builtin TYPE is a subtype of OTHER.
+
+TYPE and OTHER should both be basic type-constructors, i.e. symbols."
+  (or (eq type other)
+      (memq other (cdr (assq type cl--typeof-types)))))
+
+(defun Emil:Type:compound-subtype? (type other)
+  "Returns non-nil, if compound TYPE is a subtype of OTHER.
+
+TYPE and OTHER should both be compound type-constructors, i.e.
+symbols."
+  (or (eq type other)
+      (memq other (cdr (assq type Emil:Type:compound-type-hierarchy)))))
+
 (defun Emil:Type:resolve-alias (type)
   "Returns the definition of type-alias TYPE.
 
-Returns TYPE, if TYPE is not an alias."
-  (pcase type
-    ((Struct Emil:Type:Basic name)
-     (or (cdr (assq name Emil:Type:builtin-type-aliases))
-         type))
-    (_ type)))
-
-(defun Emil:Type:symbol-subtype? (type other)
-  "Returns non-nil, if symbol TYPE is a subtype of symbol OTHER."
-  (or (eq type other)
-      (memq other (cdr (assq type cl--typeof-types)))
-      (memq other (cdr (assq type Emil:Type:builtin-type-hierarchy)))
-      (and (Trait:name? type)
-           (Trait:name? other)
-           (Trait:extends? type other))))
+Returns nil, if TYPE is not an alias."
+  (when-let (name (and (Emil:Type:Basic? type)
+                       (Struct:get type :name)))
+    (cdr (assq name Emil:Type:type-aliases))))
 
 (provide 'Emil/Type)

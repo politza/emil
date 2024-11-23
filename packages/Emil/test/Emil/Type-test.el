@@ -579,26 +579,39 @@
   (describe "Emil:Type:resolve-alias"
     (it "aliased type"
       (expect (Emil:Type:resolve-alias
-               (Emil:Type:Basic :name 'string))
+               (Emil:Type:Basic :name 'vector))
               :to-equal '(Emil:Type:Compound
-                          :name Array
+                          :name Vector
                           :arguments
-                          ((Emil:Type:Basic :name integer)))))
+                          ((Emil:Type:Any)))))
 
     (it "non aliased type"
       (expect (Emil:Type:resolve-alias
                (Emil:Type:Basic :name 'integer))
-              :to-equal '(Emil:Type:Basic :name integer))))
+              :to-equal nil)))
 
-  (describe "Emil:Type:symbol-subtype?"
-    (it "builtin basic type"
-      (expect (Emil:Type:symbol-subtype? 'integer 'number)
-              :to-be-truthy)
-      (expect (Emil:Type:symbol-subtype? 'number 'integer)
-              :to-be nil))
+  (describe "Emil:Type:basic-subtype?"
+    (it "reflexivity"
+      (expect (Emil:Type:basic-subtype? 'integer 'integer)
+              :to-be-truthy))
+    
+    (it "success"
+      (expect (Emil:Type:basic-subtype? 'integer 'number)
+              :to-be-truthy))
 
-    (it "builtin compound type"
-      (expect (Emil:Type:symbol-subtype? 'Vector 'Sequence)
-              :to-be-truthy)
-      (expect (Emil:Type:symbol-subtype? 'Sequence 'Vector)
+    (it "failure"
+      (expect (Emil:Type:basic-subtype? 'number 'integer)
+              :to-be nil)))
+
+  (describe "Emil:Type:compound-subtype?"
+    (it "reflexivity"
+      (expect (Emil:Type:compound-subtype? 'Vector 'Vector)
+              :to-be-truthy))
+
+    (it "success"
+      (expect (Emil:Type:compound-subtype? 'Vector 'Sequence)
+              :to-be-truthy))
+
+    (it "failure"
+      (expect (Emil:Type:compound-subtype? 'Sequence 'Vector)
               :to-equal nil))))
