@@ -419,18 +419,18 @@
                         :parameters (list (Emil:Type:Variable :name 'a))
                         :type (Emil:Type:Never)))))))
 
-  (describe "Emil:Environment:lookup"
+  (describe "Emil:Env:lookup-variable"
     (it "looks up a bound variable"
-      (expect (eval '(Emil:Environment:lookup
+      (expect (eval '(Emil:Env:lookup-variable
                         (Emil:Context
                          :entries (list (Emil:Context:Binding
                                          :variable 'a
                                          :type (Emil:Type:Any))))
-                        'a))
+                        'a nil))
                 :to-equal (Emil:Type:Any)))
 
     (it "resolves a bound variable"
-      (expect (eval '(Emil:Environment:lookup
+      (expect (eval '(Emil:Env:lookup-variable
                         (Emil:Context
                          :entries (list (Emil:Context:Solution
                                          :variable (Emil:Type:Existential :name 'b)
@@ -438,14 +438,14 @@
                                         (Emil:Context:Binding
                                          :variable 'a
                                          :type (Emil:Type:Existential :name 'b))))
-                        'a))
+                        'a nil))
                 :to-equal (Emil:Type:Any)))
 
     (it "returns nil, if a variable is not bound"
-      (expect (eval '(Emil:Environment:lookup
+      (expect (eval '(Emil:Env:lookup-variable
                         (Emil:Context
                          :entries (list (Emil:Context:Binding
                                          :variable 'a
                                          :type (Emil:Type:Any))))
-                        'b))
+                        'b nil))
                 :to-equal nil))))

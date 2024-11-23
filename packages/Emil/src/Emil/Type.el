@@ -269,6 +269,15 @@ ARGUMENTS or RETURN contains resp. is a type-variable, the resulting
 type will be polymorphic."
   (Emil:Type:-read form))
 
+(defun Emil:Type:read-function (form)
+  "Like `Emil:Type:read', but reject non-function types with an error."
+  (let ((type (Emil:Type:read form)))
+    (unless (or (Emil:Type:Arrow? type)
+                (and (Emil:Type:Forall? type)
+                     (Emil:Type:Arrow? (Struct:get type :type))))
+      (error "Expected to read an arrow-type: %s" form))
+    type))
+
 (Commons:define-error Emil:invalid-type-form
   "Invalid type form")
 
@@ -332,6 +341,7 @@ type will be polymorphic."
     (setq arguments (nreverse arguments))
     (when (Emil:Type:Variable? returns)
       (cl-pushnew returns parameters :test #'equal))
+    (setq parameters (nreverse parameters))
     (let ((type (Emil:Type:Arrow* arguments rest? returns min-arity)))
       (if parameters
           (Emil:Type:Forall* parameters type)
