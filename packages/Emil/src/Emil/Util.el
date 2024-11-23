@@ -20,4 +20,16 @@ bbb ...\)."
      (t (Struct:update self :character #'1+)))
     name))
 
+(defun Emil:Util:map-accum (fn init list)
+  "Maps FN across list, while accumulating INIT."
+  (-let (((acc . results)
+          (-reduce-from
+           (-lambda ((acc . results) item)
+             (-let (((acc . result)
+                     (funcall fn acc item)))
+               (cons acc (cons result results))))
+           (list init)
+           list)))
+    (cons acc (nreverse results))))
+
 (provide 'Emil/Util)

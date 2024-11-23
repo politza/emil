@@ -98,3 +98,5 @@ Prefix each line of the result with PREFIX."
             function
             value
             (Emil:Trace:pretty-print-context context prefix))))
+
+(provide 'Emil/Trace)

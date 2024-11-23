@@ -3,16 +3,18 @@
 (require 'Commons)
 
 (Trait:define Emil:Env ()
-  (fn Emil:Env:lookup-variable (self (variable symbol) (context Emil:Context))
+  (fn Emil:Env:lookup-variable (self (variable symbol)
+                                     &optional (context (Trait Emil:Context)))
     "Looks up VARIABLE in this environment and returns its type.
 
-CONTEXT contains information pertaining to the current
-type-inference state. Since it also implements `Emil:Env', it can
-also be used to lookup local variables and functions.
+Optional CONTEXT contains information pertaining to the current
+type-inference state. Since it also implements `Emil:Env', it can also
+be used to lookup local variables and functions.
 
 Returns `nil', if VARIABLE is not bound in this environment.")
 
-  (fn Emil:Env:lookup-function (self (function symbol) (context Emil:Context))
+  (fn Emil:Env:lookup-function (self (function symbol)
+                                     &optional (context (Trait Emil:Context)))
     "Looks up FUNCTION in this environment and returns its type.
 
 See `Emil:Env:lookup-variable' for the CONTEXT argument.
@@ -29,10 +31,10 @@ Returns `nil', if FUNCTION is not bound in this environment."))
    :type list))
 
 (Trait:implement Emil:Env Emil:Env:Alist
-  (fn Emil:Env:lookup-variable (self variable _context)
+  (fn Emil:Env:lookup-variable (self variable &optional _context)
     (cdr (assq variable (Struct:get self :variables))))
 
-  (fn Emil:Env:lookup-function (self function _context)
+  (fn Emil:Env:lookup-function (self function &optional _context)
     (cdr (assq function (Struct:get self :functions)))))
 
 (defun Emil:Env:Alist:read (variables functions)
@@ -72,11 +74,11 @@ ones until some environment returns a non-`nil' value."
    :type list))
 
 (Trait:implement Emil:Env Emil:Env:Hierarchy
-  (fn Emil:Env:lookup-variable (self variable context)
+  (fn Emil:Env:lookup-variable (self variable &optional context)
     (--some (Emil:Env:lookup-variable it variable context)
             (Struct:get self :environments)))
 
-  (fn Emil:Env:lookup-function (self function context)
+  (fn Emil:Env:lookup-function (self function &optional context)
     (--some (Emil:Env:lookup-function it function context)
             (Struct:get self :environments))))
 

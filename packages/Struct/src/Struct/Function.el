@@ -83,7 +83,7 @@ namespace."
                                (Struct:get other-argument :type))))
                   (-zip-pair (Struct:get self :arguments)
                              (Struct:get other :arguments)))
-         (or (null (Struct:get other :return-type))
+         (or (null (Struct:get self :return-type))
              (equal (Struct:get self :return-type)
                     (Struct:get other :return-type))))))
 
