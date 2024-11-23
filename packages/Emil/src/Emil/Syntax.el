@@ -174,11 +174,6 @@
      (Trait:functions
       (Struct:get (car (Struct:get type :arguments)) :name)))))
 
-(defun Emil:Syntax:defined-functions (self type)
-  (when (and (Struct:get self :defined-type)
-             (equal type (Struct:get self :defined-type)))
-    (Struct:get self :defined-functions)))
-
 (defun Emil:Syntax:transform (function)
   (let ((env (Emil:Syntax
               :env
