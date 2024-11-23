@@ -41,11 +41,11 @@ monotonically increasing counter stored in the variable
 During type-inference, instances of type-variables of polymorphic
 types are resolved to other types. This struct keeps track of these
 assignments."
-  (variable :type Emil:Type:VarInst)
+  (variable :type Emil:Type:Existential)
   (type :type (Trait Emil:Type)))
 
 (Struct:implement Emil:Context
-  (fn Emil:Context:hole (self (variable Emil:Type:VarInst))
+  (fn Emil:Context:hole (self (variable Emil:Type:Existential))
     "Splits this context at VARIABLE.
 
 Returns a list of 2 new contexts \(TOP BOTTOM\) representing the
@@ -59,8 +59,8 @@ Returns `nil', if VARIABLE is not a member of this context."
                                         (Struct:get self :entries)))
             (Emil:Context :entries (cdr tail)))))
 
-  (fn Emil:Context:double-hole (self (variable Emil:Type:VarInst)
-                                     (other Emil:Type:VarInst))
+  (fn Emil:Context:double-hole (self (variable Emil:Type:Existential)
+                                     (other Emil:Type:Existential))
     "Splits this context at VARIABLE and OTHER.
 
 This works similar to `Emil:Context:hole', except that the entries are
@@ -85,7 +85,7 @@ context."
                      (Struct:get self :entries))
       (Struct:get :type)))
 
-  (fn Emil:Context:lookup-solved (self (variable Emil:Type:VarInst)
+  (fn Emil:Context:lookup-solved (self (variable Emil:Type:Existential)
                                        -> (Trait Emil:Type))
     "Lookup the instantiated type VARIABLE in this context.
 
@@ -116,12 +116,12 @@ Returns an empty context, if ENTRY is not present in this one."
              (Struct Emil:Type:Void)
              (Struct Emil:Type:Basic))
          t)
-        ((Struct Emil:Type:Var)
+        ((Struct Emil:Type:Variable)
          (not (null (member type entries))))
-        ((Struct Emil:Type:VarInst)
+        ((Struct Emil:Type:Existential)
          (not (null (or (member type entries)
                         (Emil:Context:lookup-solved self type)))))
-        ((Struct Emil:Type:Fn arguments returns)
+        ((Struct Emil:Type:Arrow arguments returns)
          (and (--every? (Emil:Context:well-formed? self it)
                         arguments)
               (Emil:Context:well-formed? self returns)))
@@ -142,17 +142,17 @@ as with regards to its unresolved type-variables."
            (Struct Emil:Type:Null)
            (Struct Emil:Type:Void)
            (Struct Emil:Type:Basic)
-           (Struct Emil:Type:Var))
+           (Struct Emil:Type:Variable))
        type)
-      ((Struct Emil:Type:VarInst)
+      ((Struct Emil:Type:Existential)
        (if-let (resolved (Emil:Context:lookup-solved self type))
            (Emil:Context:resolve self resolved)
          type))
-      ((Struct Emil:Type:Fn arguments returns)
+      ((Struct Emil:Type:Arrow arguments returns)
        (let ((arguments
               (--map (Emil:Context:resolve self it) arguments))
              (returns (Emil:Context:resolve self returns)))
-         (Emil:Type:Fn* ,@type arguments returns)))
+         (Emil:Type:Arrow* ,@type arguments returns)))
       ((Struct Emil:Type:Forall parameters type)
        (Emil:Type:Forall*
         parameters
