@@ -259,10 +259,10 @@
       (expect (Struct:get property :read-only)
               :to-be nil)))
 
-  (describe "Struct:defmethod"
+  (describe "Struct:defun"
     (before-each
       (Struct:define TestStruct property))
 
     (it "can be used"
-      (Struct:defmethod TestStruct:method ((self TestStruct) argument)
+      (Struct:defun TestStruct:method ((self TestStruct) argument)
         (+ (Struct:get self :property))))))

@@ -39,7 +39,13 @@ Returns DEFAULT if value is nil."
   "Returns STRUCT's properties."
   (cdr struct))
 
-(defun Struct:Type (&rest property-list)
+(defmacro Struct:Type (&rest property-list)
+  (declare (no-font-lock-keyword t)
+           (debug t))
+  (list 'Struct:-construct
+        'Struct:Type (Struct:-expand-syntax property-list)))
+
+(defun Struct:Type* (&rest property-list)
   "Constructs a new struct-type."
   (Struct:-construct 'Struct:Type property-list))
 
@@ -99,7 +105,13 @@ the type itself."
                        name-or-type-struct)))
     (eq 'Struct:Type (car-safe type-struct))))
 
-(defun Struct:Property (&rest property-list)
+(defmacro Struct:Property (&rest property-list)
+  (declare (no-font-lock-keyword t)
+           (debug t))
+  (list 'Struct:-construct
+        'Struct:Property (Struct:-expand-syntax property-list)))
+
+(defun Struct:Property* (&rest property-list)
   (Struct:-construct 'Struct:Property property-list))
 
 (define-symbol-prop 'Struct:Property Struct:Type:definition-symbol
@@ -271,7 +283,7 @@ therefore able to support shorthand- as well as splice-syntax.
                          :properties
                          (-map #'Struct:-construct-property
                                property-declarations))))
-          (type (apply #'Struct:Type struct-property-list))
+          (type (apply #'Struct:Type* struct-property-list))
           (starred-name (intern (concat (symbol-name name) "*")))
           (predicate-name (intern (concat (symbol-name name) "?"))))
     `(progn
@@ -301,7 +313,7 @@ therefore able to support shorthand- as well as splice-syntax.
 (defun Struct:-construct-property (declaration)
   (cond
    ((symbolp declaration)
-    (Struct:Property :name declaration))
+    (Struct:Property* :name declaration))
    ((consp declaration)
     (-let* ((((positional &as name documentation)
               property-list)
@@ -312,7 +324,7 @@ therefore able to support shorthand- as well as splice-syntax.
                (1 (list :name name))
                (2 (list :name name :documentation documentation))
                (t (error "Invalid property declaration: %s" declaration)))))
-      (apply #'Struct:Property (append positional-property-list
+      (apply #'Struct:Property* (append positional-property-list
                                        property-list))))
    (t
     (error "Invalid property declaration: %s" declaration))))
@@ -330,8 +342,8 @@ Otherwise returns nil, unless ENSURE is non-nil, in which a
   "Struct `%s' has the following properties:")
 
 (defconst Struct:-doc-constructor-syntax-info
-  "This macro supports shorthand-syntax, i.e. keyword arguments may be 
-omitted, when using an identifier eponymous with the property's 
+  "This macro supports shorthand-syntax, i.e. keyword arguments may be
+omitted, when using an identifier eponymous with the property's
 name. And also spread-syntax via the `,@' operator, with other struct
 values as arguments.
 
@@ -372,10 +384,8 @@ See also `%s*'.")
           (princ (string-trim documentation))
           (terpri nil t))
         (terpri)))
-    (unless (or (memq (Struct:unsafe-get type :name)
-                  '(Struct:Type Struct:Property))
-                (not (string-suffix-p
-                      "*" (symbol-name (Struct:unsafe-get type :name)))))
+    (unless (string-suffix-p
+             "*" (symbol-name (Struct:unsafe-get type :name)))
       (terpri)
       (princ (format Struct:-doc-constructor-syntax-info
                      (Struct:unsafe-get type :name))))
@@ -517,38 +527,109 @@ Throws an error if
 This function returns a new property-list everytime its called."
   (copy-sequence (Struct:unsafe-properties struct)))
 
-(defmacro Struct:defmethod (name arguments &rest body)
-  "Defines a method NAME for a struct-type.
+(defun Struct:ensure-struct (type struct)
+  "Return a struct of type TYPE.
 
-A method always accepts at least one argument, which must be
-non-nil and of type STRUCT-NAME.  This condition is asserted by
-adding a corresponding test to the beginning of BODY.
+TYPE should be a symbol naming the type.
 
-This adds NAME to the method property of the type-definition of
-the struct and updates the documentation of its type-constructor,
-such that it will contain a reference to this method.
+If STRUCT is already of type TYPE, return it.
 
-Otherwise this behaves like `defun', which see."
+If STRUCT is a list with one element of type TYPE, return that
+element.
+
+Otherwise call TYPE's constructor with properties as arguments and
+return its result. Unless the constructor does not exist, in which
+case a `wrong-type-argument' is signaled."
+  (cl-check-type type symbol)
+  (let ((constructor nil))
+    (cond
+     ((eq type (car-safe struct))
+      struct)
+     ((and (consp struct)
+           (= 1 (length struct))
+           (eq type (car-safe (car struct))))
+      (car struct))
+     ((fboundp (setq constructor
+                     (intern-soft (concat (symbol-name type) "*"))))
+      (apply constructor struct))
+     (t (signal 'wrong-type-argument (list 'Struct:Type type))))))
+
+(defmacro Struct:defun (name arguments
+                             &optional documentation declare
+                             &rest body)
+  "Defines a function NAME with some struct related features."
   (declare (indent defun) (doc-string 3))
-  (let* ((documentation (if (stringp (car-safe body)) (pop body)))
-         (declare (if (eq 'declare (car-safe (car-safe body))) (pop body)))
-         (self-form (car-safe arguments))
-         (self-argument (car-safe self-form))
-         (struct-name (car-safe (cdr-safe self-form)))
-         (type-predicate (intern (format "%s?" struct-name)))
-         (type-predicate-form
-          `(or (,type-predicate ,self-argument)
-               (signal 'wrong-type-argument (list ',struct-name ,self-argument))))
-         (body (cons type-predicate-form body)))
-    (unless (and self-argument
-                 (symbolp self-argument)
-                 (not (memq self-argument '(&optional &rest))))
-      (error "A method must have at least one non-optional self-argument"))
-    (unless (and struct-name
-                 (symbolp struct-name))
-      (error "First argument must have the form (self Type)"))
-    (setq arguments (cons self-argument (cdr arguments)))
-    `(defun ,name ,arguments ,documentation ,declare ,@body)))
+  (unless (or (stringp documentation)
+              (null documentation))
+    (push documentation body)
+    (setq documentation nil))
+  (unless (or (eq (car-safe declare) 'declare)
+              (null declare))
+    (push declare body)
+    (setq declare nil))
+  (Struct:-defun-check-arguments arguments)
+
+  `(defun ,name ,(Struct:-defun-normalize-arguments arguments)
+     ,(format "%s\n\n%s" (or documentation "") (cons 'fn arguments))
+     ,declare
+     ,@(Struct:-defun-emit-type-checks arguments)
+     ,(Struct:-defun-emit-ensure-struct-form arguments)
+     ,@body))
+
+(defun Struct:-defun-check-arguments (arguments)
+  (when (and (memq '&rest arguments)
+             (memq '&struct arguments))
+    (error "&rest and &struct are mutually exclusive: %s" arguments))
+  (when-let (struct-rest (memq '&struct arguments))
+    (pcase (length struct-rest)
+      (1 (error "&struct is missing an argument: %s" arguments))
+      (2 nil)
+      (_ (error "&struct argument must be last %s" arguments)))
+    (let ((argument (cadr struct-rest)))
+      (unless (and (consp argument)
+                   (= (length argument))
+                   (-every? #'symbolp argument))
+        (error "&struct argument should have a form of (argument struct-type): %s"
+               arguments))))
+  (when-let (rest-rest (memq '&rest arguments))
+    (pcase (length rest-rest)
+      (1 (error "&rest is missing an argument: %s" arguments))
+      (2 nil)
+      (_ (error "&rest argument must be last %s" arguments)))
+    (let ((argument (cadr rest-rest)))
+      (unless (symbolp argument)
+        (error "Providing a type for &rest argument not supported: %s"
+               arguments))))
+  (--each arguments
+    (unless (or (symbolp it)
+                (and (consp it)
+                     (= (length it) 2)))
+      (error "Argument should be a symbol or have the form (argument type): %s"
+             arguments))))
+
+(defun Struct:-defun-normalize-arguments (arguments)
+  (--map (cond
+          ((eq it '&struct) '&rest)
+          ((symbolp it) it)
+          (t (car it)))
+         arguments))
+
+(defun Struct:-defun-emit-type-checks (arguments)
+  (when (or (memq '&struct arguments)
+            (memq '&rest arguments))
+    (setq arguments (butlast arguments 2)))
+  (-let (((non-optional (_ . optional))
+          (--split-with (not (eq '&optional it)) arguments)))
+    (append
+     (--map `(cl-check-type ,(car it) ,(cadr it))
+            (-filter #'consp non-optional))
+     (--map `(cl-check-type ,(car it) (or null ,(cadr it)))
+            (-filter #'consp optional)))))
+
+(defun Struct:-defun-emit-ensure-struct-form (arguments)
+  (-when-let ((name type)
+              (cadr (memq '&struct arguments)))
+    `(setq ,name (Struct:ensure-struct ',type ,name))))
 
 (define-symbol-prop 'Struct:Type 'function-documentation
      (Struct:-doc-constructor (Struct:Type:get 'Struct:Type :ensure)))
