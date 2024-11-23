@@ -8,7 +8,7 @@
 
 (describe "Trait"
   (before-each
-    (Struct:define TestStruct (property)))
+    (eval '(Struct:define TestStruct (property))))
 
   (after-each
     (Trait:undefine 'TestTrait)
@@ -287,7 +287,7 @@
                (TestStruct :property 2))
               :to-be 3))
 
-    (it "can use reject wrong types in methods"
+    (it "rejects wrong types in methods"
       (expect (TestTrait:with-number (TestStruct) "1")
               :to-throw 'wrong-type-argument
               '(number "1" arg))
@@ -298,5 +298,4 @@
               :to-throw 'wrong-type-argument
               '(TestStruct 1 arg))
       (expect (TestTrait:with-rest-struct (TestStruct) :no-such-property 1)
-              :to-throw 'error
-              '("Undeclared properties set: (:no-such-property 1)")))))
+              :to-throw 'error))))

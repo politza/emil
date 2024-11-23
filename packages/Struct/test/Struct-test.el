@@ -13,17 +13,17 @@
 
   (describe "with a basic struct"
     (before-each
-      (Struct:define TestStruct
-        "A test struct."
-        (optional
-         "An optional property."
-         :default 0 :mutable t)
-        (required
-         "A required property."
-         :type (not null) :mutable t)
-        (read-only
-         "A read-only property."
-         :default 0)))
+      (eval '(Struct:define TestStruct
+               "A test struct."
+               (optional
+                "An optional property."
+                :default 0 :mutable t)
+               (required
+                "A required property."
+                :type (not null) :mutable t)
+               (read-only
+                "A read-only property."
+                :default 0))))
 
     (it "defines a type"
       (let ((type (Struct:Type:get 'TestStruct :ensure)))
@@ -192,7 +192,7 @@
               :to-be nil))
 
     (it "accepts nil for non-required typed properties"
-      (Struct:define TestStruct (property :type (or null number)))
+      (eval '(Struct:define TestStruct (property :type (or null number))))
 
       (expect (TestStruct) :to-equal (TestStruct :property nil))
       (expect (TestStruct :property 0) :to-equal (TestStruct :property 0))
@@ -201,13 +201,13 @@
 
   (describe "with an integer typed property"
     (before-each
-      (Struct:define TestStruct
-        "A test struct."
-        (property
-         "An integer property."
-         :default 0
-         :mutable t
-         :type integer)))
+      (eval '(Struct:define TestStruct
+               "A test struct."
+               (property
+                "An integer property."
+                :default 0
+                :mutable t
+                :type integer))))
 
     (after-each
       (Struct:undefine 'TestStruct))
@@ -228,14 +228,14 @@
       (expect (Struct:set (TestStruct) :property "one") :to-throw)))
 
   (it "can define empty structs"
-    (expect (Struct:define TestStruct)
+    (expect (eval '(Struct:define TestStruct))
             :to-be 'TestStruct)
-    (expect (Struct:define TestStruct "Documentation.")
+    (expect (eval '(Struct:define TestStruct "Documentation."))
             :to-be 'TestStruct))
 
   (it "can define properties with keywords alone"
-    (expect (Struct:define TestStruct
-              (:name property :documentation "Property documentation."))
+    (expect (eval '(Struct:define TestStruct
+                     (:name property :documentation "Property documentation.")))
             :to-be 'TestStruct)
     (let ((property (cdr (nth 0 (Struct:get (Struct:Type:get 'TestStruct :ensure)
                                             :properties)))))
