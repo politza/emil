@@ -176,6 +176,24 @@
                                    :type (Emil:Type:Basic :name integer)))))
                 :type (Emil:Type:Any)))))
 
+  (describe "condition-case"
+    (it "basic"
+      (expect (Emil:transform* '(condition-case variable
+                                    0
+                                  (error variable)))
+              :to-equal
+              '(Emil:Form:ConditionCase
+                :variable variable
+                :body-form (Emil:Form:Atom
+                            :value 0
+                            :type (Emil:Type:Basic :name integer))
+                :handlers ((Emil:Form:ConditionCaseHandler
+                            :condition error
+                            :body ((Emil:Form:Atom
+                                    :value variable
+                                    :type (Emil:Type:Any)))))
+                :type (Emil:Type:Basic :name integer)))))
+
   (describe "defconst"
     (it "basic"
       (expect (Emil:transform* '(defconst a 0 "0"))

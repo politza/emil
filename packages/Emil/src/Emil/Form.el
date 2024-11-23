@@ -68,6 +68,19 @@
   (condition :type (Trait Emil:Form))
   (body :type (List (Trait Emil:Form))))
 
+(Struct:define Emil:Form:ConditionCase
+  (variable :type symbol)
+  (body-form :type (Trait Emil:Form))
+  (handlers :type (List Emil:Form:ConditionCaseHandler))
+  (type :type (Trait Emil:Type)))
+
+(Trait:implement Emil:Form Emil:Form:ConditionCase
+  :disable-syntax t)
+
+(Struct:define Emil:Form:ConditionCaseHandler
+  (condition :type (or symbol (List symbol)))
+  (body :type (List (Trait Emil:Form))))
+
 (Struct:define Emil:Form:DefConst
   (symbol :type symbol)
   (init-value :type (Trait Emil:Form))

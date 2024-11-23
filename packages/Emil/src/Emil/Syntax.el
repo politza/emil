@@ -44,6 +44,15 @@
                    (cons (recurse (Struct:get clause :condition))
                          (-map #'recurse (Struct:get clause :body))))
                  clauses)))
+      ((Struct Emil:Form:ConditionCase variable body-form handlers)
+       (let ((env (list (cons variable (Emil:Type:Any)))))
+         `(condition-case ,variable
+              ,(recurse body-form)
+            ,@(-map
+               (-lambda (handler)
+                 (cons (Struct:get handler :condition)
+                       (--map (recurse it env) (Struct:get handler :body))))
+               handlers))))
       ((Struct Emil:Form:DefConst symbol init-value documentation)
        `(defconst ,symbol ,(recurse init-value) ,documentation))
       ((Struct Emil:Form:DefVar symbol init-value documentation)

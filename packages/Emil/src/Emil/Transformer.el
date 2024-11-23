@@ -136,6 +136,35 @@
                                      forms)
                      :type (Emil:Type:Any)))))
 
+  (fn Transformer:transform-condition-case (self _form variable bodyform handler
+                                                 &optional context environment
+                                                 &rest _)
+    (-let* (((body-context . body-form)
+             (Emil:Analyzer:infer
+              self bodyform context environment))
+            (body-type (Struct:get body-form :type))
+            (handler-binding
+             (Emil:Context:Binding
+              :variable variable :type (Emil:Type:Any)))
+            (marker (Emil:Context:Marker))
+            (handler-conditions (-map #'car handler))
+            (handler-bodies (-map #'cdr handler))
+            ((handler-context . handler-forms)
+             (Emil:Util:map-reduce
+              (lambda (context handler-body)
+                (Emil:Analyzer:infer-do self handler-body context environment))
+              (Emil:Context:concat handler-binding marker body-context)
+              handler-bodies)))
+      (cons (Emil:Context:drop-until-after handler-context marker)
+            (Emil:Form:ConditionCase
+             :variable variable
+             :body-form body-form
+             :handlers (--map (Emil:Form:ConditionCaseHandler
+                               :condition (car it)
+                               :body (cdr it))
+                              (-zip-pair handler-conditions handler-forms))
+             :type (Emil:Context:resolve handler-context body-type)))))
+
   (fn Transformer:transform-defconst (self _form symbol init-value &optional
                                            documentation context environment
                                            &rest _)
@@ -250,6 +279,7 @@
                          marker bindings-context)
               body-environment))
             (body-type (Emil:Analyzer:type-of-body body-forms)))
+      ;; FIXME: Do we need the environment updating anymore ?
       (Emil:Env:Alist:update-from body-environment body-context
                                   variables nil)
       (cons (Emil:Context:drop-until-after body-context marker)

@@ -114,7 +114,23 @@
                 ,@function
                 :body '((cond (self.property self.property)))))
               :to-equal
-              '((cond ((Struct:unsafe-get self :property) (Struct:unsafe-get self :property))))) )
+              '((cond ((Struct:unsafe-get self :property)
+                       (Struct:unsafe-get self :property))))))
+
+    (it "condition-case"
+      (expect (Emil:Syntax:transform
+               (Struct:Function*
+                ,@function
+                :body '((condition-case variable
+                            self.property
+                          (error
+                           self.property
+                           variable)))))
+              :to-equal
+              '((condition-case variable
+                    (Struct:unsafe-get self :property)
+                  (error (Struct:unsafe-get self :property)
+                         variable)))))
 
     (it "defconst"
       (expect (Emil:Syntax:transform

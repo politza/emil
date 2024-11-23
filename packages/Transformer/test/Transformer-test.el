@@ -36,6 +36,20 @@
                   :to-equal '(cond (cond-0 body-0)
                                    (cond-1 body-1))))
 
+        (it "condition-case"
+          (expect (Transformer:transform '(condition-case variable
+                                              body-form
+                                            (error form-0 form-1)
+                                            ((error-0 error-1)
+                                             form-2 form-3)
+                                            (:sucess form-4 form-5)))
+                  :to-equal '(condition-case variable
+                                 body-form
+                               (error form-0 form-1)
+                               ((error-0 error-1)
+                                form-2 form-3)
+                               (:sucess form-4 form-5))))
+
         (it "defconst"
           (expect (Transformer:transform
                    '(defconst symbol init-value "doc-string"))

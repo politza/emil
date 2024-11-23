@@ -53,6 +53,21 @@
                    self form (car rest) (cdr rest) data))
         (`cond
          (apply #'Transformer:transform-cond self form rest data))
+        (`condition-case
+            (unless (symbolp (car rest))
+              (Transformer:syntax-error "condition-case var should be a symbol: %s"
+                                        (car rest) (cons 'condition-case rest)))
+            (unless (>= (length rest) 2)
+              (Transformer:syntax-error "condition-case body-form not provided: %s"
+                                        (car rest) (cons 'condition-case rest)))
+          (unless (--every (and (consp it)
+                                (or (symbolp (car it))
+                                    (-every #'symbolp (car it))))
+                           (cddr rest))
+            (Transformer:syntax-error "condition-case handlers malformed: %s"
+                                        (cddr rest) (cons 'condition-case rest)))
+          (apply #'Transformer:transform-condition-case
+                 self form (car rest) (cadr rest) (cddr rest) data))
         (`defconst
           (unless (symbolp (car rest))
             (Transformer:syntax-error "defconst name should be a symbol: %s"
@@ -166,6 +181,17 @@
 
   (fn Transformer:transform-cond (self form clauses &rest data)
     `(,(car form) ,@(apply #'Transformer:map-transform self clauses data)))
+
+  (fn Transformer:transform-condition-case (self form var bodyform handlers &rest data)
+    `(,(car form)
+      ,(apply #'Transformer:transform-form self var data)
+      ,(apply #'Transformer:transform-form self bodyform data)
+      ,@(-map (-lambda ((condition . body))
+                `(,(if (consp condition)
+                       (apply #'Transformer:map-transform self condition data)
+                     (apply #'Transformer:transform-form self condition data))
+                  ,@(apply #'Transformer:map-transform self body data)))
+              handlers)))
 
   (fn Transformer:transform-defconst (self form symbol init-value &optional
                                            doc-string &rest data)
