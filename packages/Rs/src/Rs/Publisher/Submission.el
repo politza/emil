@@ -29,33 +29,31 @@
            (buffer-size (integer 0 *)))
     (Rs:Publisher:Submission:Subscription* publisher subscriber buffer-size))
 
-  (fn emit-some ((self Rs:Publisher:Submission:Subscription))
-
-    (unless (Struct:get self :emitting?)
-      (Struct:set self :emitting? t)
+  (fn emit-some (self)
+    (unless self.emitting?
+      (setf self.emitting? t)
       (unwind-protect
           (while (and (not self.closed?)
                       (not (ring-empty-p self.buffer))
                       (> self.request-count 0))
             (let ((item (ring-remove self.buffer)))
-              (Struct:update self :request-count #'1-)
+              (setf self.request-count (1- self.request-count))
               (self.subscriber.on-next item)))
-        (Struct:set self :emitting? nil))))
+        (setf self.emitting? nil))))
 
-  (fn buffer-full? ((self Rs:Publisher:Submission:Subscription))
+  (fn buffer-full? (self)
     (= (ring-size self.buffer)
        (ring-length self.buffer)))
 
-  (fn close ((self Rs:Publisher:Submission:Subscription))
+  (fn close (self)
     (unless self.closed?
-      (Struct:set self :closed? t)
+      (setf self.closed? t)
       (Rs:Publisher:Submission:remove self.publisher self)))
 
-  (fn next ((self Rs:Publisher:Submission:Subscription) item)
+  (fn next (self item)
     (unless self.closed?
       (when (self.buffer-full?)
         (self.emit-some))
-
       (cond
        ((self.buffer-full?)
         (self.close)
@@ -64,12 +62,12 @@
         (ring-insert self.buffer item)
         (self.emit-some)))))
 
-  (fn error ((self Rs:Publisher:Submission:Subscription) error)
+  (fn error (self error)
     (unless self.closed?
       (self.close)
       (self.subscriber.on-error error)))
 
-  (fn complete ((self Rs:Publisher:Submission:Subscription))
+  (fn complete (self)
     (unless self.closed?
       (self.close)
       (self.subscriber.on-complete))))
@@ -77,15 +75,16 @@
 (Trait:implement Rs:Subscription Rs:Publisher:Submission:Subscription
   (fn request (self (count (integer 0 *)))
     (unless self.closed?
-      (Struct:update self :request-count (-partial #'+ count))
+      (setf self.request-count (+ self.request-count count))
       (self.emit-some)))
 
   (fn cancel (self)
     (self.close)))
 
 (Struct:implement Rs:Publisher:Submission
-  (fn remove ((self Rs:Publisher:Submission) (subscription Rs:Publisher:Submission:Subscription))
-    (Struct:update self :subscriptions (-partial #'remq subscription)))
+  (fn remove ((self Rs:Publisher:Submission)
+              (subscription Rs:Publisher:Submission:Subscription))
+    (setf self.subscriptions (remq subscription self.subscriptions)))
 
   (fn next ((self Rs:Publisher:Submission) item)
     (--each self.subscriptions
@@ -93,22 +92,22 @@
 
   (fn error ((self Rs:Publisher:Submission) error)
     (let ((subscriptions self.subscriptions))
-      (Struct:set self :subscriptions nil)
-      (Struct:set self :closed? t)
+      (setf self.subscriptions nil)
+      (setf self.closed? t)
       (--each subscriptions
         (Rs:Publisher:Submission:Subscription:error it error))))
 
   (fn complete ((self Rs:Publisher:Submission))
     (let ((subscriptions self.subscriptions))
-      (Struct:set self :subscriptions nil)
-      (Struct:set self :closed? t)
+      (setf self.subscriptions nil)
+      (setf self.closed? t)
       (--each subscriptions
         (Rs:Publisher:Submission:Subscription:complete it)))))
 
 (Trait:implement Rs:Publisher Rs:Publisher:Submission
   (fn subscribe (self (subscriber (Trait Rs:Subscriber)))
     (let ((subscription (Rs:Publisher:Submission:Subscription:new self subscriber)))
-      (Struct:update self :subscriptions (-partial #'cons subscription))
+      (setf self.subscriptions (cons subscription self.subscriptions))
       (subscriber.on-subscribe subscription))))
 
 (provide 'Rs/Publisher/Submission)

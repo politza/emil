@@ -36,7 +36,7 @@
 
 (Struct:implement Rs:PartialSubscriber
   (fn cancel (self)
-    (Struct:set self :cancelled t)
+    (setf self.cancelled t)
     (when self.subscription
       (self.subscription.cancel))))
 
@@ -44,7 +44,7 @@
   (fn on-subscribe (self (subscription (Trait Rs:Subscription)))
     (if self.cancelled
         (subscription.cancel)
-      (Struct:set self :subscription subscription)
+      (setf self.subscription subscription)
       (if self.on-subscribe
           (funcall self.on-subscribe subscription)
         (subscription.request most-positive-fixnum))))

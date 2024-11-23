@@ -28,22 +28,22 @@
   (fn -cancel-timer (self)
     (when self.timer
       (cancel-timer self.timer)
-      (Struct:set self :timer nil)))
+      (setf self.timer nil)))
 
   (fn -ensure-timer (self)
     (unless (timerp self.timer)
-      (Struct:set self :timer
-        (run-with-timer
-         self.config.delay
-         self.config.delay
-         #'self.-on-timer))))
+      (setf self.timer
+            (run-with-timer
+             self.config.delay
+             self.config.delay
+             #'self.-on-timer))))
 
   (fn -on-timer (self)
     ;; (condition-case error
     (-let* (((rest batch)
              (-split-at (max 0 (- (length self.items) self.config.batch-size)) self.items)))
       (when batch
-        (Struct:set self :items rest)
+        (setf self.items rest)
         (--each (nreverse batch)
           (self.subscriber.on-next it)))
       (when (and self.complete? (null rest))
@@ -58,7 +58,7 @@
     (self.subscriber.on-subscribe subscription))
   
   (fn on-next (self value)
-    (Struct:update self :items (-partial #'cons value))
+    (setf self.items (cons value self.items))
     (self.-ensure-timer))
 
   (fn on-error (self error)
@@ -66,15 +66,15 @@
     (self.subscriber.on-error error))
 
   (fn on-complete (self)
-    (Struct:set self :complete? t)
+    (setf self.complete? t)
     (self.-ensure-timer)))
 
 (Trait:implement Rs:Publisher Rs:Processor:EmitOnTimer
   (fn subscribe (self (subscriber (Trait Rs:Subscriber)))
     (when self.subscriber
       (error "Multiple subscriber not supported"))
-    (Struct:set self :subscriber subscriber)
-    (Struct:set self :subscription
+    (setf self.subscriber subscriber)
+    (setf self.subscription
       (self.publisher.subscribe self))))
 
 (provide 'Rs/Processor/EmitOnTimer)
