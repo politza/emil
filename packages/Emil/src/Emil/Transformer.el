@@ -145,8 +145,6 @@
                                            &rest _)
     (-let (((context . init-form)
             (Emil:Analyzer:infer self init-value context environment)))
-      (Emil:Env:add-variable
-       environment symbol (Struct:get init-form :type) context)
       (cons context (Emil:TypedForm:DefConst
                      :symbol symbol
                      :init-value init-form
@@ -159,8 +157,6 @@
                                          &rest _)
     (-let (((context . init-form)
             (Emil:Analyzer:infer self init-value context environment)))
-      (Emil:Env:add-variable
-       environment symbol (Struct:get init-form :type) context)
       (cons context (Emil:TypedForm:DefVar
                      :symbol symbol
                      :init-value init-form
@@ -394,16 +390,6 @@
               (--map (Emil:Analyzer:macroexpand-maybe it environment)
                      arguments)
               function-context environment)))
-      (when (eq function 'defalias)
-        (pcase arguments
-          (`(,name ,definition . ,_)
-           (pcase definition
-             ((or `(cons 'macro ,lambda)
-                  `'(macro . ,lambda))
-              (Emil:Env:add-macro environment name lambda context))
-             (_
-              (Emil:Env:add-function
-               environment name (Struct:get function-form :type) context))))))
       (cons context
             (Emil:TypedForm:Application
              :function function-form

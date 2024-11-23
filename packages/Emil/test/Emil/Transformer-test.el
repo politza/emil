@@ -231,11 +231,11 @@
                              :value 0
                              :type (Emil:Type:Basic :name integer)
                              :environment
-                             (Emil:Env:Alist :variables ((a . (Emil:Type:Basic :name integer)))
+                             (Emil:Env:Alist :variables nil
                                              :functions nil :macros nil :parent nil))
                 :documentation "0"
                 :type (Emil:Type:Basic :name symbol)
-                :environment (Emil:Env:Alist :variables ((a . (Emil:Type:Basic :name integer)))
+                :environment (Emil:Env:Alist :variables nil
                                              :functions nil :macros nil :parent nil)))))
 
   (describe "defvar"
@@ -248,11 +248,11 @@
                              :value 0
                              :type (Emil:Type:Basic :name integer)
                              :environment
-                             (Emil:Env:Alist :variables ((a . (Emil:Type:Basic :name integer)))
+                             (Emil:Env:Alist :variables nil
                                              :functions nil :macros nil :parent nil))
                 :documentation "0"
                 :type (Emil:Type:Basic :name symbol)
-                :environment (Emil:Env:Alist :variables ((a . (Emil:Type:Basic :name integer)))
+                :environment (Emil:Env:Alist :variables nil
                                              :functions nil :macros nil :parent nil)))))
 
   (describe "if"

@@ -32,33 +32,6 @@ Returns `nil', if FUNCTION is not bound in this environment.")
 Returns an association-list of macro-names and their implementing
 functions."
     (ignore self context)
-    nil)
-
-  (fn Emil:Env:add-function (self (function symbol)
-                                  (type (Trait Emil:Type))
-                                  &optional (context Emil:Context))
-    "Adds FUNCTION with given TYPE to this environment.
-
-See `Emil:Env:lookup-variable' for the CONTEXT argument."
-    (ignore self context)
-    nil)
-
-  (fn Emil:Env:add-variable (self (variable symbol)
-                                  (type (Trait Emil:Type))
-                                  &optional (context Emil:Context))
-    "Adds VARIABLE with given TYPE to this environment.
-
-See `Emil:Env:lookup-variable' for the CONTEXT argument."
-    (ignore self context)
-    nil)
-
-  (fn Emil:Env:add-macro (self (macro symbol)
-                               (definition function)
-                               &optional (context Emil:Context))
-    "Adds MACRO with given DEFINITION to this environment.
-
-See `Emil:Env:lookup-variable' for the CONTEXT argument."
-    (ignore self context)
     nil))
 
 (Struct:define Emil:Env:Alist
@@ -71,7 +44,7 @@ See `Emil:Env:lookup-variable' for the CONTEXT argument."
    :type list :mutable t)
   (macros
    "An association list mapping macro names to their definitions."
-   :type list :mutable t :default nil)
+   :type list :default nil)
   (parent
    "An optional parent environment.
 
@@ -85,24 +58,17 @@ environment."
         (and (Struct:get self :parent)
              (Emil:Env:lookup-variable (Struct:get self :parent)
                                        variable context))))
-
-  (fn Emil:Env:add-variable (self variable type &optional _context)
-    (Struct:update self :variables (-partial #'cons (cons variable type))))
-
+  
   (fn Emil:Env:lookup-function (self function &optional context)
     (or (cdr (assq function (Struct:get self :functions)))
         (and (Struct:get self :parent)
              (Emil:Env:lookup-function (Struct:get self :parent)
                                        function context))))
 
-  (fn Emil:Env:add-function (self function type &optional _context)
-    (Struct:update self :functions (-partial #'cons (cons function type))))
-
-  (fn Emil:Env:macro-environment (self &optional _context)
-    (Struct:get self :macros))
-
-  (fn Emil:Env:add-macro (self macro definition &optional _context)
-    (Struct:update self :macros (-partial #'cons (cons macro definition)))))
+  (fn Emil:Env:macro-environment (self &optional context)
+    (append (Struct:get self :macros)
+            (when-let (parent (Struct:get self :parent))
+              (Emil:Env:macro-environment parent context)))))
 
 (Struct:implement Emil:Env:Alist
   (fn Emil:Env:Alist:update-variable (self variable (type (Trait Emil:Type))
