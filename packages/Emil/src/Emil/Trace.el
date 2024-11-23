@@ -8,15 +8,15 @@
 (require 'Emil/Context)
 
 (defvar Emil:Trace:included-functions
-  '(Emil:infer
-    Emil:check
-    Emil:lookup-variable
-    Emil:lookup-function
-    Emil:instantiate-arrow
-    Emil:instantiate
-    Emil:subtype
-    Emil:infer-do
-    Emil:infer-application
+  '(Emil:Analyzer:infer
+    Emil:Analyzer:check
+    Emil:Analyzer:lookup-variable
+    Emil:Analyzer:lookup-function
+    Emil:Analyzer:instantiate-arrow
+    Emil:Analyzer:instantiate
+    Emil:Analyzer:subtype
+    Emil:Analyzer:infer-do
+    Emil:Analyzer:infer-application
     Emil:Type:Arrow:arity-assignable-from?
     Emil:Type:Arrow:arity-assignable-to?
     Emil:Type:Arrow:adjusted-arguments

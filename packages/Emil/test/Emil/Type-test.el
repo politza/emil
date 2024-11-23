@@ -144,6 +144,12 @@
 
       (it "constructor name may not end with a ?"
         (expect (Emil:Type:read '(list? 'a))
+                :to-throw 'Emil:invalid-type-form))
+
+      (it "validation of builtins"
+        (expect (Emil:Type:read '(List a b))
+                :to-throw 'Emil:invalid-type-form)
+        (expect (Emil:Type:read '(Cons a))
                 :to-throw 'Emil:invalid-type-form))))
 
   (describe "Emil:Type:monomorph?"

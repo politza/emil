@@ -219,15 +219,15 @@
                                   (right (Trait Emil:Type)))
     ;; Figure 9. Algorithmic subtyping
     (pcase-exhaustive (list left right)
+      ((or `(,(Struct Emil:Type:Any) ,_)
+           `(,_ ,(Struct Emil:Type:Any)))
+       context)
       ((and (or `(,(Struct Emil:Type:Variable)
                   ,(Struct Emil:Type:Variable))
                 `(,(Struct Emil:Type:Existential)
                   ,(Struct Emil:Type:Existential)))
             (guard (equal left right)))
        context)
-      (`(,(Struct Emil:Type:Compound)
-         ,(Struct Emil:Type:Compound))
-       (Emil:Analyzer:subtype-compound self context left right))
       (`(,(Struct Emil:Type:Arrow)
          ,(Struct Emil:Type:Arrow))
        (Emil:Analyzer:subtype-arrow self context left right))
@@ -256,6 +256,9 @@
       ((and `(,_ ,(Struct Emil:Type:Existential name))
             (guard (not (member name (Emil:Type:free-variables left)))))
        (Emil:Analyzer:instantiate self context right left :greater-or-equal))
+      ((or `(,(Struct Emil:Type:Compound) ,_)
+           `(,_ ,(Struct Emil:Type:Compound)))
+       (Emil:Analyzer:subtype-compound self context left right))
       (_
        (Emil:Analyzer:subtype-default self context left right))))
 
@@ -280,41 +283,41 @@
               (right-arguments-adjusted (Emil:Type:Arrow:adjusted-arguments
                                          right argument-count))
               (intermediate-context
-               (--reduce-from
-                (Emil:Analyzer:subtype self acc
-                                       (Emil:Context:resolve acc (car it))
-                                       (Emil:Context:resolve acc (cdr it)))
-                context
-                (-zip-pair right-arguments-adjusted
-                           left-arguments-adjusted))))
+               (Emil:Analyzer:subtype-pairwise
+                self context
+                right-arguments-adjusted
+                left-arguments-adjusted)))
          (Emil:Analyzer:subtype
           self intermediate-context
           (Emil:Context:resolve intermediate-context left-returns)
           (Emil:Context:resolve intermediate-context right-returns))))))
 
   (fn Emil:Analyzer:subtype-compound (self (context Emil:Context)
-                                           (left Emil:Type:Compound)
-                                           (right Emil:Type:Compound))
+                                           (left (Trait Emil:Type))
+                                           (right (Trait Emil:Type)))
     (pcase-exhaustive (list left right)
       (`(,(Struct Emil:Type:Compound
                   :name left-name :parameters left-parameters)
          ,(Struct Emil:Type:Compound
                   :name right-name :parameters right-parameters))
-       (unless (eq left-name right-name)
-         (Emil:type-error "%s is not assignable to %s"
-                          (Emil:Type:print left)
-                          (Emil:Type:print right)))
-       (unless (= (length left-parameters)
-                  (length right-parameters))
-         (Emil:type-error "Types have different parameter counts: %s, %s"
-                          (Emil:Type:print left)
-                          (Emil:Type:print right)))
-       (--reduce-from
-        (Emil:Analyzer:subtype self acc
-                               (Emil:Context:resolve acc (car it))
-                               (Emil:Context:resolve acc (cdr it)))
-        context
-        (-zip-pair left-parameters right-parameters)))))
+       (cond
+        ((and (eq left-name 'Cons) (eq right-name 'List))
+         (Emil:Analyzer:subtype-pairwise
+          self context
+          left-parameters
+          (list (car right-parameters) right)))
+        ((and (eq left-name 'List) (eq right-name 'Cons))
+         (Emil:Analyzer:subtype-pairwise
+          self context
+          (list (car left-parameters) left)
+          right-parameters))
+        ((and (eq left-name right-name)
+              (= (length left-parameters)
+                 (length right-parameters)))
+         (Emil:Analyzer:subtype-pairwise
+          self context left-parameters right-parameters))
+        (t (Emil:Analyzer:subtype-default self context left right))))
+      (_ (Emil:Analyzer:subtype-default self context left right))))
 
   (fn Emil:Analyzer:subtype-default (_self (context Emil:Context)
                                            (left (Trait Emil:Type))
@@ -449,6 +452,17 @@ replaced with instances of `Emil:Type:Existential'."
     (-let (((context . form)
             (Emil:Analyzer:check self (cons 'progn forms) type context environment)))
       (cons context (cdr (Transformer:Form:value form)))))
+
+  (fn Emil:Analyzer:subtype-pairwise (self context left-types right-types)
+    (unless (= (length left-types) (length right-types))
+      (Emil:error "Left and right types of different lengths passed: %s, %s"
+                  left-types right-types))
+    (--reduce-from
+     (Emil:Analyzer:subtype self acc
+                            (Emil:Context:resolve acc (car it))
+                            (Emil:Context:resolve acc (cdr it)))
+     context
+     (-zip-pair left-types right-types)))
 
   (fn Emil:Analyzer:infer-progn-like (self form (context Emil:Context)
                                            (environment (Trait Emil:Env)))

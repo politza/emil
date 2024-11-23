@@ -344,6 +344,17 @@ Compound types are currently always covariant."
      :parameters (--map (Emil:Type:substitute it source target)
                         (Struct:get self :parameters)))))
 
+(defun Emil:Type:check-builtin-compound-type (type)
+  (pcase type
+    ((Struct Emil:Type:Compound name parameters)
+     (when (and (eq 'List name)
+                (/= (length parameters) 1))
+       (Emil:invalid-type-form "List constructor has one parameter: %s" type))
+     (when (and (eq 'Cons name)
+                (/= (length parameters) 2))
+       (Emil:invalid-type-form "Cons constructor has two parameters: %s" type))))
+  type)
+
 (defun Emil:Type:read (form)
   "Reads a type from form FORM and returns it.
 
@@ -419,7 +430,10 @@ The result may contain type-variables."
           (guard (and (symbolp name)
                       (listp parameters))))
      (Emil:Type:-assert-valid-name name)
-     (Emil:Type:Compound* name :parameters (-map #'Emil:Type:-read parameters)))
+     (Emil:Type:check-builtin-compound-type
+      (Emil:Type:Compound
+       :name name
+       :parameters (-map #'Emil:Type:-read parameters))))
     (_ (Emil:invalid-type-form "Failed to read form as a type: %s" form))))
 
 (defun Emil:Type:-assert-valid-name (name)

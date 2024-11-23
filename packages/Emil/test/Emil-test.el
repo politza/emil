@@ -451,16 +451,54 @@
                  '(sum list)
                  (Emil:Env:Alist:read
                   '((list . (Sequence number)))
-                  '((sum . (-> ((List number)) number)))))
+                  '((sum . (-> ((List2 number)) number)))))
                 :to-throw 'Emil:type-error))
 
       (it "are rejected if different parameter count"
         (expect (Emil:infer-type
                  '(sum list)
                  (Emil:Env:Alist:read
-                  '((list . (List number string)))
-                  '((sum . (-> ((List number)) number)))))
-                :to-throw 'Emil:type-error)))
+                  '((list . (List2 number string)))
+                  '((sum . (-> ((List2 number)) number)))))
+                :to-throw 'Emil:type-error))
+
+      (describe "Cons and List"
+        (it "cons into list"
+          (expect (Emil:infer-type
+                   '(let ((pair (cons 0 1)))
+                      (list (car pair) (cdr pair)))
+                   (Emil:Env:Alist:read
+                    nil
+                    '((cons . (-> ('a 'b) (Cons 'a 'b)))
+                      (car . (-> ((Cons 'a 'b)) 'a))
+                      (cdr . (-> ((Cons 'a 'b)) 'b))
+                      (list . (-> ('a 'a) (List 'a))))))
+                  :to-equal '(List integer)))
+
+        (it "cons as list"
+          (expect (Emil:infer-type
+                   '(let ((list (cons 0 (list 1 2))))
+                      (length list))
+                   (Emil:Env:Alist:read
+                    nil
+                    '((cons . (-> ('a 'b) (Cons 'a 'b)))
+                      (car . (-> ((Cons 'a 'b)) 'a))
+                      (cdr . (-> ((Cons 'a 'b)) 'b))
+                      (list . (-> ('a 'a) (List 'a)))
+                      (length . (-> ((List 'a)) integer)))))
+                  :to-equal 'integer))
+
+        (it "list as and into cons"
+          (expect (Emil:infer-type
+                   '(let ((list (list 1 2)))
+                      (cons (car list) (cdr list)))
+                   (Emil:Env:Alist:read
+                    nil
+                    '((cons . (-> ('a 'b) (Cons 'a 'b)))
+                      (car . (-> ((Cons 'a 'b)) 'a))
+                      (cdr . (-> ((Cons 'a 'b)) 'b))
+                      (list . (-> ('a 'a) (List 'a))))))
+                  :to-equal '(Cons integer (List integer))))))
 
     (xdescribe "existing issues"
       (xit "not all applied arguments are checked for &rest functions"
