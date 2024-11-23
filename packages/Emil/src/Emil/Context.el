@@ -14,8 +14,7 @@
 The entries of the context are organized as a stack, i.e. entries are
 added and removed at/from the left and it should be read bottom to
 top."
-  (entries :type list)
-  (parent :type (or null Emil:Context)))
+  (entries :type list))
 
 (Struct:define Emil:Context:Binding
   "Maps a variable to some type.
