@@ -496,8 +496,6 @@
          (cons result-context
                (cons instantiated-returns argument-forms))))
       ((Struct Emil:Type:Arrow  returns)
-       ;; Infer arguments in reverse here to better support `lambda'-arguments of
-       ;; functions like `mapcar'.
        (-let* ((argument-pairs
                 (Emil:infer-application-arrrow-pairs arrow-type arguments))
                ((result-context . argument-forms)
@@ -506,8 +504,8 @@
                    (Emil:Analyzer:check
                     self argument type context environment))
                  context
-                 (reverse argument-pairs))))
-         (cons result-context (cons returns (reverse argument-forms)))))
+                 argument-pairs)))
+         (cons result-context (cons returns argument-forms))))
       (_
        (Emil:type-error "Function can not be applied to arguments: %s, %s"
                         (Emil:Type:print arrow-type)
