@@ -2,7 +2,6 @@
 
 (require 'Struct)
 (require 'Struct/Argument)
-(require 'eieio-core)
 
 (defconst Struct:Function:arrow-symbol '->)
 
@@ -12,6 +11,16 @@
 
 (defmacro fn (&rest args)
   (declare (indent defun) (doc-string 3)))
+
+(cl-deftype List (type)
+  `(and list
+        (satisfies ,(lambda (list)
+                      (and (or (null list)
+                               (cl-typep (car list) type))
+                           (or (null (cdr list))
+                               (cl-typep (cadr list) type))
+                           (or (null (cddr list))
+                               (cl-typep (caddr list) type)))))))
 
 (Struct:define Struct:Function
   "Defines a declared function."
@@ -145,7 +154,7 @@ Returns a cons of (ARGUMENTS . RETURN_TYPE)."
                                    (or null ,(Struct:get it :type)))
                    (-filter #'Struct:Argument:optional? annotated))
             (--map `(cl-check-type ,(Struct:get it :name)
-                                   (list-of ,(Struct:get it :type)))
+                                   (List ,(Struct:get it :type)))
                    (-filter #'Struct:Argument:rest? annotated))
             (--map `(or ,(Struct:get it :name)
                         (setq ,(Struct:get it :name)
