@@ -53,7 +53,15 @@
               '(Emil:Form:Atom
                 :value []
                 :type
-                (Emil:Type:Basic :name vector)))))
+                (Emil:Type:Basic :name vector))))
+
+    (it "record"
+      (expect (Emil:transform* (record 'test 0 1 2))
+              :to-equal
+              `(Emil:Form:Atom
+                :value ,(record 'test 0 1 2)
+                :type
+                (Emil:Type:Basic :name test)))))
 
   (describe "lambda"
     (it "identity"

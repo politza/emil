@@ -31,7 +31,11 @@
 
     (it "vector"
       (expect (Emil:infer-type [])
-              :to-equal 'vector)))
+              :to-equal 'vector))
+
+    (it "record"
+      (expect (Emil:infer-type (record 'test-record 0 1 2))
+              :to-equal 'test-record)))
 
   (describe "lambda"
     (it "constant"

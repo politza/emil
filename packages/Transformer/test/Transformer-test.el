@@ -16,6 +16,10 @@
       (expect (Transformer:transform [((vector))])
               :to-equal [((vector))]))
 
+    (it "records"
+      (expect (Transformer:transform (record 'test))
+              :to-equal (record 'test)))
+
     (it "symbols"
       (expect (Transformer:transform 'symbol) :to-equal 'symbol)
       (expect (Transformer:transform nil) :to-equal nil))

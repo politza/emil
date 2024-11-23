@@ -35,6 +35,8 @@
       (apply #'Transformer:transform-string self form data))
      ((vectorp form)
       (apply #'Transformer:transform-vector self form data))
+     ((recordp form)
+      (apply #'Transformer:transform-record self form data))
      ((symbolp form)
       (apply #'Transformer:transform-symbol self form data))
      ((consp form)
@@ -164,6 +166,10 @@
     form)
 
   (fn Transformer:transform-vector (self form &rest data)
+    (ignore self data)
+    form)
+
+  (fn Transformer:transform-record (self form &rest data)
     (ignore self data)
     form)
 

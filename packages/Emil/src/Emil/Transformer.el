@@ -91,6 +91,12 @@
                    :value form
                    :type (Emil:Type:Basic :name (type-of form)))))
 
+  (fn Transformer:transform-record (_self form &optional context _environment
+                                          &rest _)
+    (cons context (Emil:Form:Atom
+                   :value form
+                   :type (Emil:Type:Basic :name (type-of form)))))
+
   (fn Transformer:transform-symbol (_self form &optional context environment
                                           &rest _)
     (let ((type (cond
