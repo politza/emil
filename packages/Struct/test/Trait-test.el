@@ -73,7 +73,7 @@
                                       :default nil :kind nil))
                     :return-type nil
                     :documentation "TestTrait:optional documentation."
-                    :body ((1+ argument))
+                    :body nil
                     :filename nil))
           (expect (functionp
                    (Struct:get optional :default-implementation))
