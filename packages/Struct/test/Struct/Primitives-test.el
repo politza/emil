@@ -18,13 +18,13 @@
       (expect (Struct:name (TestStruct))
               :to-equal 'TestStruct))
 
-    (it "does not check if value is really a defined struct"
+    (it "does check if value is not a defined struct"
       (expect (Struct:name (list 'FakeTestStruct :property 0))
-              :to-equal 'FakeTestStruct))
+              :to-equal nil))
 
-    (it "throws an error if value is not a struct"
+    (it "returns nil if value is not a struct"
       (expect (Struct:name 42)
-              :to-throw 'wrong-type-argument)
+              :to-equal nil)
       (expect (Struct:name (list :FakeTestStruct :property 0))
-              :to-throw 'wrong-type-argument))))
+              :to-equal nil))))
 

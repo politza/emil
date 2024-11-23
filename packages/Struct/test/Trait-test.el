@@ -125,7 +125,15 @@
                 :to-be nil)
         (expect (cl-typep "TestStruct" '(Trait TestTrait))
                 :to-be nil))
-      ))
+
+      (it "rejects non-implementing types at runtime"
+        (assume nil "Reevaluate the universality property of complete Traits.")
+        (expect (TestTrait:optional (record 'TestRecord) 0)
+                :to-throw
+                'error '("Type does not implement trait: TestRecord, TestTrait"))
+        (expect (TestTrait:required (record 'TestRecord) 0)
+                :to-throw
+                'error '("Type does not implement trait: TestRecord, TestTrait")))))
 
   (describe "Trait:define"
     (describe "recognizes syntax-errors"

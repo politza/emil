@@ -11,14 +11,8 @@
 (require 'Trait)
 (require 'dash)
 
-(Trait:define Form ()
+(Trait:define Transformer:Form ()
   (fn Form:value (self) self))
-
-(Trait:implement Form number)
-(Trait:implement Form string)
-(Trait:implement Form vector)
-(Trait:implement Form symbol)
-(Trait:implement Form cons)
 
 (define-error 'Transformer:syntax-error "Syntax Error")
 

@@ -217,6 +217,10 @@ idempotent."
                                             method-struct :implementations)))
                            (Struct:unsafe-get
                             method-struct :default-implementation)))
+      ;; FIXME: If type does not implement Trait, but Trait has no
+      ;; required methods, its default implementation is invoked
+      ;; anyway. But this unintended universality property is actually
+      ;; required by the Transformer package (see Transformer:Form).
       (unless (memq type (Struct:unsafe-get trait-struct :implementing-types))
         (error "Type does not implement trait: %s, %s" type trait))
       (error "Required method not implemented by type: %s, %s" method type))
@@ -240,13 +244,9 @@ Signals a `wrong-type-argument', if TRAIT is not a defined trait."
 (defun Trait:type-of (value)
   "Returns the type of VALUE.
 
-If VALUE is a non-empty list with a symbol as first element,
-returns that symbol as the type of VALUE.
-
-Otherwise, calls `type-of' on VALUE and return its result."
-  (or (and (consp value)
-           (symbolp (car value))
-           (car value))
+If VALUE is a struct type, return it's name. Otherwise, calls
+`type-of' on VALUE and return its result."
+  (or (Struct:name value)
       (type-of value)))
 
 (provide 'Trait)
