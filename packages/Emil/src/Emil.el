@@ -191,7 +191,7 @@ replaced with instances of `Emil:Type:Existential'."
                 `(,(Struct Emil:Type:Existential)
                   ,(Struct Emil:Type:Existential)))
             (guard (equal left right)))
-       nil)
+       context)
       ;; Arrow
       (`(,(Struct Emil:Type:Arrow
                   :arguments left-arguments :returns left-returns)
@@ -256,7 +256,7 @@ replaced with instances of `Emil:Type:Existential'."
                          (`(integer number) t)
                          (`(float number) t)
                          ((guard (equal left-name right-name)) t)))))
-       nil)))
+       context)))
 
   (fn Emil:infer-do (self (context Emil:Context) forms)
     (--reduce-from (Transformer:transform-form self it (cdr acc))
@@ -408,7 +408,8 @@ replaced with instances of `Emil:Type:Existential'."
               marker binding-context))
             ((body-type . result-context)
              (Emil:infer-do self body-context body)))
-      (cons body-type (Emil:Context:drop-until-after result-context marker))))
+      (cons (Emil:Context:resolve result-context body-type)
+            (Emil:Context:drop-until-after result-context marker))))
 
   (fn Transformer:transform-let* (self _form bindings body &optional context &rest _)
     (-let* ((marker (Emil:Context:Marker))

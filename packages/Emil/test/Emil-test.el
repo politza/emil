@@ -198,4 +198,33 @@
     (describe "while"
       (it "basic"
         (expect (Emil:infer-form '(while 0 1 []))
-                :to-equal 'vector)))))
+                :to-equal 'vector)))
+
+    (describe "with environment"
+      (it "basic variable"
+        (expect (Emil:infer-form
+                 'a
+                 (Emil:Env:Alist:read '((a . integer)) nil))
+                :to-equal 'integer))
+
+      (it "funcall let-bound function"
+        (expect
+         (Emil:infer-form
+          '(let ((fn (lambda (x) (length x))))
+             (funcall fn "string"))
+          (Emil:Env:Alist:read
+           nil
+           '((funcall . (-> ((-> ('a) 'b) 'a) 'b))
+             (length . (-> (string) integer)))))
+         :to-equal 'integer))
+
+      (it "funcall let*-bound function"
+        (expect
+         (Emil:infer-form
+          '(let* ((fn (lambda (x) (length x))))
+             (funcall fn "string"))
+          (Emil:Env:Alist:read
+           nil
+           '((funcall . (-> ((-> ('a) 'b) 'a) 'b))
+             (length . (-> (string) integer)))))
+         :to-equal 'integer)))))
