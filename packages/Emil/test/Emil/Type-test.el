@@ -212,7 +212,7 @@
     
     (it "instance"
       (expect (Emil:Type:print (Emil:Type:Existential :name 'a))
-              :to-equal '''a))
+              :to-equal ''a))
 
     (it "monomorph function"
       (expect (Emil:Type:print (Emil:Type:read '(-> () Void)))
@@ -230,10 +230,35 @@
                 :returns (Emil:Type:Existential :name 'c)
                 :rest? t
                 :min-arity 1))
-              :to-equal '(-> (''a &rest ''b) ''c)))
+              :to-equal '(-> ('a &rest 'b) 'c)))
 
     (it "forAll"
       (expect (Emil:Type:print '(Emil:Type:Forall
                                  :parameters (Emil:Type:Variable :name a)
                                  :type (Emil:Type:Never)))
-              :to-equal 'Never))))
+              :to-equal 'Never)))
+
+  (describe "Emil:Type:pretty-print"
+    (it "basic"
+      (expect (Emil:Type:pretty-print (Emil:Type:read 'integer))
+              :to-equal 'integer))
+
+    (it "monomorph function"
+      (expect (Emil:Type:pretty-print (Emil:Type:read '(-> (integer) string)))
+              :to-equal '(-> (integer) string)))
+
+    (it "polymorph function"
+      (expect (Emil:Type:pretty-print (Emil:Type:read '(-> ('x 'y) 'y)))
+              :to-equal '(-> ('a 'b) 'b)))
+
+    (it "mixed function"
+      (expect (Emil:Type:pretty-print (Emil:Type:read
+                                       '(-> (string 'y) 'y)))
+              :to-equal '(-> (string 'a) 'a)))
+
+    (it "nested function"
+      (expect (Emil:Type:pretty-print
+               (Emil:Type:read '(-> ((-> ('x) 'y) 'x 'y)
+                                    (-> ('x 'y) 'z))))
+              :to-equal '(-> ((-> ('a) 'b) 'a 'b)
+                                    (-> ('a 'b) 'c))))))

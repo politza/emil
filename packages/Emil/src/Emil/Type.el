@@ -5,6 +5,7 @@
 (require 'Commons)
 (require 'Struct)
 (require 'Trait)
+(require 'Emil/Util)
 
 ;; Shut up cl-type-check's compiler warnings.
 (cl-deftype Emil:Type:Variable ())
@@ -335,5 +336,22 @@ type will be polymorphic."
       (if parameters
           (Emil:Type:Forall* parameters type)
         type))))
+
+(defun Emil:Type:pretty-print (type)
+  (let ((generator (Emil:Util:NameGenerator))
+        (names nil))
+    (cl-labels ((generate ()
+                  (Emil:Util:NameGenerator:next generator))
+                (pretty-print (type)
+                  (pcase-exhaustive type
+                    ((pred symbolp) type)
+                    (`(quote ,name)
+                     (if-let (element (assq name names))
+                         (list 'quote (cdr element))
+                       (push (cons name (generate)) names)
+                       (list 'quote (cdr (car names)))))
+                    ((pred consp)
+                     (-map #'pretty-print type)))))
+      (pretty-print (Emil:Type:print type)))))
 
 (provide 'Emil/Type)

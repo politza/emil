@@ -19,6 +19,7 @@
 
 (define-minor-mode Emil:Trace:mode
   "Trace methods calls."
+  :group 'emacs
   :global t
   (cond
    (Emil:Trace:mode
