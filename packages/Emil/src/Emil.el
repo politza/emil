@@ -16,23 +16,15 @@
 (require 'Transformer)
 (require 'Emil/Type)
 (require 'Emil/Context)
-
-(eval-when-compile
-  (pcase-defmacro list (&rest elements)
-    (cons '\` (list (--map (list '\, it) elements))))
-
-  (pcase-defmacro cons (head tail)
-    (cons '\` (list (cons (list '\, head) (list '\, tail))))))
+(require 'Emil/Infer)
 
 (defvar Emil:environment nil)
 
 (defvar Emil:prepared-environment nil)
 
-(Struct:define Emil:State
+(Struct:define Emil
   (infer-transformer
-   :type Emil:InferTransformer)
-  (check-transformer
-   :type Emil:CheckTransformer)
+   :type Emil:Infer :mutable t)
   (generator
    :type Emil:ExistentialGenerator :default (Emil:ExistentialGenerator))
   (messages :type list))
@@ -47,41 +39,56 @@
   (form
    "An optional form associated with this message."))
 
-(Struct:define Emil:InferTransformer)
-
-(Struct:define Emil:CheckTransformer)
-
-(Trait:implement Transformer Emil:InferTransformer)
-
-(Trait:implement Transformer Emil:CheckTransformer)
-
 (Struct:define Emil:ExistentialGenerator
   "Generator for instances of type `Emil:Type:Existential'."
   (counter :type number :default -1 :mutable t))
 
-(defun Emil:ExistentialsGenerator:next (self)
+(defun Emil:ExistentialGenerator:next (self)
   (Emil:Type:Existential
    :name (->> (Struct:update self :counter #'1+)
               (format "t%d")
               (intern))))
 
-(Struct:implement Emil:State
-  (fn Emil:infer (self form)
+(Struct:implement Emil
+  (fn Emil:infer (self form (context Emil:Context))
     (Transformer:transform-form
-     (Struct:get self :infer-transformer)
-     form
-     self))
+     (Struct:get self :infer-transformer) form context))
 
-  (fn Emil:check (self form type)
-    (Transformer:transform-form
-     (Struct:get self :check-transformer)
-     form
-     type
-     self))
+  (fn Emil:infer-do (self (context Emil:Context) forms)
+    (--reduce-from (Emil:infer self acc it) context forms))
+
+  (fn Emil:check (self form type (context Emil:Context))
+    (pcase type
+      ((Struct Emil:Type:Forall parameters :type forall-type)
+       (let* ((marker (Emil:Context:Marker))
+              (intermediate-context
+               (Emil:Context:concat (reverse parameters) marker context))
+              (result-context
+               (Emil:check self form forall-type intermediate-context)))
+         (Emil:Context:drop-until-after result-context marker)))
+      ((and (Struct Emil:Type:Arrow :arguments argument-types returns)
+            (let `(function (lambda ,arguments . ,body)) form))
+       ;; FIXME: &optional and &rest not handled.
+       (let* ((bindings
+               (--map (Emil:Context:Binding
+                       :name (car it) :type (cdr it))
+                      (-zip-pair arguments argument-types)))
+              (marker (Emil:Context:Marker))
+              (intermediate-context
+               (Emil:Context:concat (reverse bindings) marker context))
+              (result-context (Emil:check self body returns intermediate-context)))
+         (Emil:Context:drop-until-after result-context marker)))
+      (_
+       (-let (((inferred-type . intermediate-context)
+               (Emil:infer self form context)))
+         (Emil:subtype
+          self intermediate-context
+          (Emil:Context:resolve intermediate-context inferred-type)
+          (Emil:Context:resolve intermediate-context type))))))
 
   (fn Emil:generate-existential (self)
     "Returns a new `Emil:Type:Existential'."
-    (Emil:ExistentialsGenerator:next (Struct:get self :generator)))
+    (Emil:ExistentialGenerator:next (Struct:get self :generator)))
 
   (fn Emil:generate-existentials (self count)
     "Returns a list of COUNT new `Emil:Type:Existential's."
@@ -111,13 +118,13 @@ replaced with instances of `Emil:Type:Existential'."
               (Emil:Context:hole context variable))
             (guard (Emil:Context:well-formed? bottom type)))
        (Emil:Context:concat
-        top (Emil:Context:SolvedVarInst* variable type) bottom))
+        top (Emil:Context:Solution* variable type) bottom))
       ;; InstLReach
       ((and (Struct Emil:Type:Existential)
             (let `(,top ,center ,bottom)
               (Emil:Context:double-hole context type variable)))
-       (Emil:Context:concat top (Emil:Context:SolvedVarInst
-                                 :variable type :type variable)
+       (Emil:Context:concat top (Emil:Context:Solution
+                                 :existential type :type variable)
                             center variable bottom))
       ;; InstLArr
       ((and (Struct Emil:Type:Arrow)
@@ -126,7 +133,7 @@ replaced with instances of `Emil:Type:Existential'."
        (let* ((instance (Emil:instantiate-arrow
                          type (Struct:get self :generator)))
               (solved-var-inst
-               (Emil:Context:SolvedVarInst* variable :type instance))
+               (Emil:Context:Solution* variable :type instance))
               (initial-context
                (Emil:Context:concat
                 top solved-var-inst
@@ -166,13 +173,13 @@ replaced with instances of `Emil:Type:Existential'."
               (Emil:Context:hole context variable))
             (guard (Emil:Context:well-formed? bottom type)))
        (Emil:Context:concat
-        top (Emil:Context:SolvedVarInst* variable type) bottom))
+        top (Emil:Context:Solution* variable type) bottom))
       ;; InstRReach
       ((and (Struct Emil:Type:Existential)
             (let `(,top ,center ,bottom)
               (Emil:Context:double-hole context type variable)))
-       (Emil:Context:concat top (Emil:Context:SolvedVarInst
-                                 :variable type :type variable)
+       (Emil:Context:concat top (Emil:Context:Solution
+                                 :existential type :type variable)
                             center variable bottom))
       ;; InstRArr
       ((and (Struct Emil:Type:Arrow)
@@ -181,7 +188,7 @@ replaced with instances of `Emil:Type:Existential'."
        (let* ((instance (Emil:instantiate-arrow
                          type (Struct:get self :generator)))
               (solved-var-inst
-               (Emil:Context:SolvedVarInst* variable :type instance))
+               (Emil:Context:Solution* variable :type instance))
               (initial-context
                (Emil:Context:concat
                 top solved-var-inst
@@ -226,19 +233,19 @@ replaced with instances of `Emil:Type:Existential'."
                          (left (Trait Emil:Type))
                          (right (Trait Emil:Type)))
     ;; Figure 9. Algorithmic subtyping
-    (pcase-exhaustive (cons left right)
+    (pcase-exhaustive (list left right)
       ;; Var / Exvar
-      ((and (or (cons (Struct Emil:Type:Variable)
-                      (Struct Emil:Type:Variable))
-                (cons (Struct Emil:Type:Existential)
-                      (Struct Emil:Type:Existential)))
+      ((and (or `(,(Struct Emil:Type:Variable)
+                  ,(Struct Emil:Type:Variable))
+                `(,(Struct Emil:Type:Existential)
+                  ,(Struct Emil:Type:Existential)))
             (guard (equal left right)))
        nil)
       ;; Arrow
-      ((cons (Struct Emil:Type:Arrow
-                     :arguments left-arguments :returns left-returns)
-             (Struct Emil:Type:Arrow
-                     :arguments right-arguments :returns right-returns))
+      (`(,(Struct Emil:Type:Arrow
+                  :arguments left-arguments :returns left-returns)
+         ,(Struct Emil:Type:Arrow
+                  :arguments right-arguments :returns right-returns))
        (-let (((left-min . left-max) (Emil:Type:Arrow:arity left))
               ((right-min . right-max) (Emil:Type:Arrow:arity right)))
          (unless (and (<= left-min right-min)
@@ -251,7 +258,7 @@ replaced with instances of `Emil:Type:Existential'."
                 (-zip-pair right-arguments left-arguments))
           left-returns right-returns)))
       ;; Forall L
-      ((cons (Struct Emil:Type:Forall parameters type) _)
+      (`(,(Struct Emil:Type:Forall parameters type) ,_)
        (let* ((instances (Emil:generate-existentials
                           self (length parameters)))
               (marker (Emil:Context:Marker))
@@ -267,7 +274,7 @@ replaced with instances of `Emil:Type:Existential'."
                 right)))
          (Emil:Context:drop-until-after intermediate-context marker)))
       ;; Forall R
-      ((cons _ (Struct Emil:Type:Forall parameters type))
+      (`(,_ ,(Struct Emil:Type:Forall parameters type))
        (let* ((marker (Emil:Context:Marker))
               (initial-context
                (Emil:Context:concat
@@ -278,28 +285,37 @@ replaced with instances of `Emil:Type:Existential'."
                (Emil:subtype self initial-context left type)))
          (Emil:Context:drop-until-after intermediate-context marker)))
       ;; Instantiate L
-      ((and (cons (Struct Emil:Type:Existential name) _)
+      ((and `(,(Struct Emil:Type:Existential name) ,_)
             (guard (not (member name (Emil:Type:free-variables right)))))
        (Emil:instantiate-left self context left right))
       ;; Instantiate R
-      ((and (cons _ (Struct Emil:Type:Existential name))
+      ((and `(,_ ,(Struct Emil:Type:Existential name))
             (guard (not (member name (Emil:Type:free-variables left)))))
        (Emil:instantiate-right self context left right))
       ;; Unit
-      ((or (cons (Struct Emil:Type:Never) _)
-           (cons _ (Struct Emil:Type:Any))
-           (and (cons (Struct Emil:Type:Null) _)
+      ((or `(,(Struct Emil:Type:Never) ,_)
+           `(,_ ,(Struct Emil:Type:Any))
+           (and `(,(Struct Emil:Type:Null) ,_)
                 (guard (not (Emil:Type:Never? right))))
-           (and (cons (Struct Emil:Type:Void) _)
+           (and `(,(Struct Emil:Type:Void) ,_)
                 (guard (not (Emil:Type:Never? right))))
-           (and (cons (Struct Emil:Type:Basic :name left-name)
-                      (Struct Emil:Type:Basic :name right-name))
-                (guard (pcase (cons left-name right-name)
-                         ((cons 'integer 'number) t)
-                         ((cons 'float 'number) t)
-                         ((and _ (guard (equal left-name right-name)))
-                          t)))))
+           (and `(,(Struct Emil:Type:Basic :name left-name)
+                  ,(Struct Emil:Type:Basic :name right-name))
+                (guard (pcase (list left-name right-name)
+                         (`(integer number) t)
+                         (`(float number) t)
+                         ((guard (equal left-name right-name)) t)))))
        nil))))
+
+(defun Emil:infer-form (form)
+  (-let* ((emil (Emil))
+          (infer-transformer (Emil:Infer* emil))
+          ((type . context)
+           (Emil:infer (progn
+                         (Struct:set emil :infer-transformer infer-transformer)
+                         emil)
+                       form (Emil:Context))))
+    (Emil:Context:resolve context type)))
 
 (provide 'Emil)
 ;;; Emil.el ends here
