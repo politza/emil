@@ -34,7 +34,7 @@
          :documentation "Returns A plus B."
          :body ((+ a b))
          :filename nil)))
-    
+
     (it "documentation, but no body"
       (expect
        (Struct:Function:read
@@ -220,4 +220,76 @@
                  '(fn test (a &optional b &rest c))
                  'Test))
               :to-equal
-              '(a &optional b &rest c)))))
+              '(a &optional b &rest c)))
+
+    (describe "Struct:Function:arity"
+      (it "no arguments"
+        (expect (Struct:Function:arity
+                 (Struct:Function:read '(fn a ())))
+                :to-equal '(0 . 0)))
+
+      (it "single argument"
+        (expect (Struct:Function:arity
+                 (Struct:Function:read '(fn a (a))))
+                :to-equal '(1 . 1)))
+
+      (it "optional argument"
+        (expect (Struct:Function:arity
+                 (Struct:Function:read '(fn a (a &optional b))))
+                :to-equal '(1 . 2)))
+
+      (it "rest argument"
+        (expect (Struct:Function:arity
+                 (Struct:Function:read '(fn a (a &rest b))))
+                :to-equal (cons 1 most-positive-fixnum))))
+
+    (describe "Struct:Function:subtype?"
+      (it "can be invoked with at least as many arguments"
+        (expect (Struct:Function:subtype?
+                 (Struct:Function:read '(fn a (&optional a)))
+                 (Struct:Function:read '(fn b (a))))
+                :to-equal t)
+        (expect (Struct:Function:subtype?
+                 (Struct:Function:read '(fn a (a)))
+                 (Struct:Function:read '(fn b (&optional a))))
+                :to-equal nil))
+
+      (it "accepts at least as many arguments with &optional"
+        (expect (Struct:Function:subtype?
+                 (Struct:Function:read '(fn a (a &optional b)))
+                 (Struct:Function:read '(fn b (a))))
+                :to-equal t)
+        (expect (Struct:Function:subtype?
+                 (Struct:Function:read '(fn a (a)))
+                 (Struct:Function:read '(fn b (a &optional b))))
+                :to-equal nil))
+
+      (it "accepts at least as many arguments with &rest"
+        (expect (Struct:Function:subtype?
+                 (Struct:Function:read '(fn a (a &rest b)))
+                 (Struct:Function:read '(fn b (a))))
+                :to-equal t)
+        (expect (Struct:Function:subtype?
+                 (Struct:Function:read '(fn a (a)))
+                 (Struct:Function:read '(fn b (a &rest b))))
+                :to-equal nil))
+
+      (it "is contra-variant in its arguments"
+        (expect (Struct:Function:subtype?
+                 (Struct:Function:read '(fn a (a)))
+                 (Struct:Function:read '(fn b ((a string)))))
+                :to-equal t)
+        (expect (Struct:Function:subtype?
+                 (Struct:Function:read '(fn a ((a string))))
+                 (Struct:Function:read '(fn b (a))))
+                :to-equal nil))
+
+      (it "is co-variant in its return-type"
+        (expect (Struct:Function:subtype?
+                 (Struct:Function:read '(fn a (-> string)))
+                 (Struct:Function:read '(fn b ())))
+                :to-equal t)
+        (expect (Struct:Function:subtype?
+                 (Struct:Function:read '(fn a ()))
+                 (Struct:Function:read '(fn b (-> string))))
+                :to-equal nil)))))
