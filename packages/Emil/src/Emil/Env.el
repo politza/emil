@@ -2,6 +2,8 @@
 
 (require 'Commons)
 (require 'dash)
+(require 'Struct)
+(require 'Trait)
 (require 'Emil/Type)
 
 (Trait:define Emil:Env ()

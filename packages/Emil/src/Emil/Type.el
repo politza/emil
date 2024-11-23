@@ -339,8 +339,8 @@ Compound types are currently always covariant."
 
   (fn Emil:Type:substitute (self (source Emil:Type:Variable)
                                  (target Emil:Type:Existential))
-    (Emil:Type:Compound*
-     ,@self
+    (Emil:Type:Compound
+     :name (Struct:get self :name)
      :parameters (--map (Emil:Type:substitute it source target)
                         (Struct:get self :parameters)))))
 

@@ -13,6 +13,47 @@ Apart from that, this just expands to FORM.
   (declare (indent 1))
   form)
 
+(Struct:implement Emil:Analyzer
+  (fn Emil:Analyzer:infer-do (self forms (context Emil:Context)
+                                   (environment (Trait Emil:Env)))
+    (Emil:Util:map-reduce
+     (-lambda (context form)
+       (Emil:Analyzer:infer self form context environment))
+     context
+     forms))
+  
+  (fn Emil:Analyzer:infer-progn-like (self form (context Emil:Context)
+                                           (environment (Trait Emil:Env)))
+    (-let* ((body (cdr (Transformer:Form:value form)))
+            ((context . forms)
+             (Emil:Analyzer:infer-do self body context environment)))
+      (cons context (Emil:TypedForm:new
+                     (cons (car (Transformer:Form:value form)) forms)
+                     (Emil:Analyzer:type-of-body forms)
+                     environment))))
+
+  (fn Emil:Analyzer:thread-let*-bindings (self bindings context environment)
+    "Thread CONTEXT and ENVIRONMENT through let* BINDINGS."
+    (Emil:Util:map-reduce
+     (-lambda ((variable-context . variable-environment) (variable binding))
+       (-let* (((binding-context . binding-form)
+                (Emil:Analyzer:infer
+                 self binding variable-context variable-environment))
+               (type (Struct:get binding-form :type)))
+         (cons (cons (Emil:Context:concat (Emil:Context:Binding* variable type)
+                                          binding-context)
+                     (Emil:Env:Alist :variables (list (cons variable type))
+                                     :parent variable-environment))
+               binding-form)))
+     (cons context
+           (Emil:Env:Alist :parent environment))
+     bindings))
+
+  (fn Emil:Analyzer:type-of-body (body-forms)
+    (if body-forms
+        (Struct:get (-last-item body-forms) :type)
+      (Emil:Type:Null))))
+
 (Trait:implement Transformer Emil:Analyzer
   (fn Transformer:transform-number (_self form number &optional context environment
                                           &rest _)
@@ -188,7 +229,7 @@ Apart from that, this just expands to FORM.
     (-let* ((marker (Emil:Context:Marker))
             (variables (--map (Transformer:Form:value (car it)) bindings))
             (((bindings-context . body-environment) . binding-forms)
-             (Emil:let*-thread-bindings
+             (Emil:Analyzer:thread-let*-bindings
               self bindings (Emil:Context:concat marker context) environment))
             ((body-context . body-forms)
              (Emil:Analyzer:infer-do self body bindings-context body-environment))

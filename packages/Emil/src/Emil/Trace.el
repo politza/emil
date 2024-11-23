@@ -1,6 +1,7 @@
 ;; -*- lexical-binding: t -*-
 
 (require 'Transformer)
+(require 'Struct)
 (require 'Trait)
 (require 'trace)
 (require 'Emil)

@@ -1,6 +1,7 @@
 ;; -*- lexical-binding: t -*-
 
 (require 'Struct)
+(require 'pcase)
 
 (Struct:define Emil:Message
   (type

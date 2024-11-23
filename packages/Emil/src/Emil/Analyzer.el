@@ -2,6 +2,7 @@
 
 (require 'dash)
 (require 'Struct)
+(require 'Trait)
 (require 'Emil/Util)
 (require 'Emil/Context)
 (require 'Emil/Type)
@@ -92,6 +93,12 @@
                 (list (car form)
                       (cons (-take 2 lambda) body-forms))
                 returns environment))))))
+
+  (fn Emil:Analyzer:check-do (self forms type (context Emil:Context)
+                                   (environment (Trait Emil:Env)))
+    (-let (((context . form)
+            (Emil:Analyzer:check self (cons 'progn forms) type context environment)))
+      (cons context (cdr (Transformer:Form:value form)))))
 
   (fn Emil:Analyzer:instantiate (self (context Emil:Context)
                                       (variable Emil:Type:Existential)
@@ -185,10 +192,9 @@
                  (intermediate-context
                   (Emil:Analyzer:instantiate
                    self initial-context variable
-                   (--reduce-from
-                    (Emil:Type:substitute acc (car it) (cdr it))
+                   (Emil:Type:substitute-all
                     (Emil:Type:Forall:type type)
-                    (-zip-pair parameters instances))
+                    parameters instances)
                    relation)))
             (Emil:Context:drop-until-after intermediate-context marker)))))))
 
@@ -439,20 +445,6 @@ replaced with instances of `Emil:Type:Existential'."
      :parameters (Emil:Analyzer:generate-existentials
                   self (length (Struct:get type :parameters)))))
 
-  (fn Emil:Analyzer:infer-do (self forms (context Emil:Context)
-                                   (environment (Trait Emil:Env)))
-    (Emil:Util:map-reduce
-     (-lambda (context form)
-       (Emil:Analyzer:infer self form context environment))
-     context
-     forms))
-
-  (fn Emil:Analyzer:check-do (self forms type (context Emil:Context)
-                                   (environment (Trait Emil:Env)))
-    (-let (((context . form)
-            (Emil:Analyzer:check self (cons 'progn forms) type context environment)))
-      (cons context (cdr (Transformer:Form:value form)))))
-
   (fn Emil:Analyzer:subtype-pairwise (self context left-types right-types)
     (unless (= (length left-types) (length right-types))
       (Emil:error "Left and right types of different lengths passed: %s, %s"
@@ -463,39 +455,7 @@ replaced with instances of `Emil:Type:Existential'."
                             (Emil:Context:resolve acc (cdr it)))
      context
      (-zip-pair left-types right-types)))
-
-  (fn Emil:Analyzer:infer-progn-like (self form (context Emil:Context)
-                                           (environment (Trait Emil:Env)))
-    (-let* ((body (cdr (Transformer:Form:value form)))
-            ((context . forms)
-             (Emil:Analyzer:infer-do self body context environment)))
-      (cons context (Emil:TypedForm:new
-                     (cons (car (Transformer:Form:value form)) forms)
-                     (Emil:Analyzer:type-of-body forms)
-                     environment))))
-
-  (fn Emil:let*-thread-bindings (self bindings context environment)
-    "Thread CONTEXT and ENVIRONMENT through let* BINDINGS."
-    (Emil:Util:map-reduce
-     (-lambda ((variable-context . variable-environment) (variable binding))
-       (-let* (((binding-context . binding-form)
-                (Emil:Analyzer:infer
-                 self binding variable-context variable-environment))
-               (type (Struct:get binding-form :type)))
-         (cons (cons (Emil:Context:concat (Emil:Context:Binding* variable type)
-                                          binding-context)
-                     (Emil:Env:Alist :variables (list (cons variable type))
-                                     :parent variable-environment))
-               binding-form)))
-     (cons context
-           (Emil:Env:Alist :parent environment))
-     bindings))
-
-  (fn Emil:Analyzer:type-of-body (body-forms)
-    (if body-forms
-        (Struct:get (-last-item body-forms) :type)
-      (Emil:Type:Null)))
-
+  
   (fn Emil:Analyzer:add-message (self (message Emil:Message))
     (Struct:update self :messages (-rpartial #'append (list message))))
 
