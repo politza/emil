@@ -25,12 +25,12 @@
 (setq use-package-always-defer t)
 
 (straight-use-package
-       `(Core
+       `(Blue
          :local-repo
-         ,(expand-file-name "packages/Core" user-emacs-directory)
+         ,(expand-file-name "packages/Blue" user-emacs-directory)
          :files ("src/*.el")))
 
-(Core:init)
+(Blue:init)
 
-(when (file-exists-p (expand-file-name "init.el" Core:user-directory))
-  (load-file (expand-file-name "init.el" Core:user-directory)))
+(when (file-exists-p (expand-file-name "init.el" Blue:user-directory))
+  (load-file (expand-file-name "init.el" Blue:user-directory)))
