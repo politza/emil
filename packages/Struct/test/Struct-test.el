@@ -261,8 +261,85 @@
 
   (describe "Struct:defun"
     (before-each
-      (Struct:define TestStruct property))
+      (Struct:define TestStruct (property :default-value 0)))
 
-    (it "can be used"
-      (Struct:defun TestStruct:method ((self TestStruct) argument)
-        (+ (Struct:get self :property))))))
+    (describe "used at compile-time"
+      (it "throws errors when appropriate"
+        (expect (eval '(Struct:defun fn (&rest rest &struct struct)))
+                :to-throw
+                'error '("&rest and &struct are mutually exclusive: (&rest rest &struct struct)"))
+        (expect (eval '(Struct:defun fn (&struct)))
+                :to-throw
+                'error '("&struct is missing an argument: (&struct)"))
+        (expect (eval '(Struct:defun fn (&struct struct argument)))
+                :to-throw
+                'error '("&struct argument must be last: (&struct struct argument)"))
+        (expect (eval '(Struct:defun fn (&struct struct)))
+                :to-throw
+                'error '("&struct argument should specify a struct-type: (&struct struct)"))
+        (expect (eval '(Struct:defun fn (&rest)))
+                :to-throw
+                'error '("&rest is missing an argument: (&rest)"))
+        (expect (eval '(Struct:defun fn (&rest rest argument)))
+                :to-throw
+                'error '("&rest argument must be last: (&rest rest argument)"))
+        (expect (eval '(Struct:defun fn (&rest (integer rest))))
+                :to-throw
+                'error '("Providing a type for &rest arguments is not supported: (&rest (integer rest))"))
+        (expect (eval '(Struct:defun fn (&rest [])))
+                :to-throw
+                'error '("Argument should be a symbol or have the form (argument type): (&rest [])"))
+        (expect (eval '(Struct:defun fn ((a b c))))
+                :to-throw
+                'error '("Argument should be a symbol or have the form (argument type): ((a b c))"))))
+    
+    (describe "used at runtime"
+      (after-each (fmakunbound 'TestFn))
+      (it "can be defined"
+        (Struct:defun TestFn ((self TestStruct) argument)
+          (+ (Struct:get self :property))))
+
+      (it "can be used without types"
+        (Struct:defun TestFn (a b)
+          (+ a b))
+        (expect (TestFn 2 3) :to-be 5))
+
+      (it "can be used with types"
+        (Struct:defun TestFn ((a number) (b number))
+          (+ a b))
+        (expect (TestFn 2 3) :to-be 5)
+        (expect (TestFn "2" "3")
+                :to-throw 'wrong-type-argument '(number "2" a)))
+
+      (it "can be used with &optional arguments"
+        (Struct:defun TestFn ((a number) &optional (b number))
+          (+ a (or b 10)))
+        (expect (TestFn 2 3) :to-be 5)
+        (expect (TestFn 2) :to-be 12)
+        (expect (TestFn "2")
+                :to-throw 'wrong-type-argument '(number "2" a))
+        (expect (TestFn 2 "3")
+                :to-throw 'wrong-type-argument '((or null number) "3" b)))
+
+      (it "can be used with a &rest argument"
+        (Struct:defun TestFn ((a number) &rest rest)
+          (apply #'+ a rest))
+        (expect (TestFn 2 3 4) :to-be 9)
+        (expect (TestFn 2 3) :to-be 5)
+        (expect (TestFn 2) :to-be 2)
+        (expect (TestFn "2")
+                :to-throw 'wrong-type-argument '(number "2" a))
+        (expect (TestFn 2 "3")
+                :to-throw 'wrong-type-argument '(number-or-marker-p "3")))
+
+      (it "can be used with a &struct argument"
+        (Struct:defun TestFn ((a number) &struct (struct TestStruct))
+          (+ a (Struct:get struct :property)))
+        
+        (expect (TestFn 2) :to-be 2)
+        (expect (TestFn 2 :property 3) :to-be 5)
+        (expect (TestFn 2 (TestStruct :property 4)) :to-be 6)
+        (expect (TestFn "2")
+                :to-throw 'wrong-type-argument '(number "2" a))
+        (expect (TestFn 2 3)
+                :to-throw)))))
