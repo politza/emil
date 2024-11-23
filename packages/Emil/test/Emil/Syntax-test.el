@@ -14,7 +14,7 @@
                      :body nil)))
 
     (before-each
-      (eval '(Struct:define TestStruct (property :type integer)))
+      (eval '(Struct:define TestStruct (property :type integer :mutable t)))
       (eval '(Struct:implement TestStruct (fn method (self)))))
 
     (after-each
@@ -315,7 +315,7 @@
 
     (it "updating a member's property"
       (expect (eval '(progn
-                       (Struct:define OtherStruct (property :type number))
+                       (Struct:define OtherStruct (property :type number :mutable t))
                        (Struct:define TestStruct (other :type OtherStruct))
                        (Struct:implement TestStruct
                          (fn set (self (value number))
@@ -326,4 +326,12 @@
       (expect (eval '(let ((struct (TestStruct :other (OtherStruct :property 0))))
                        (TestStruct:set struct 1)
                        (TestStruct:get struct)))
-              :to-equal 1))))
+              :to-equal 1))
+
+    (it "updating a read-only property"
+      (expect (eval '(progn
+                       (Struct:define TestStruct (property :type number))
+                       (Struct:implement TestStruct
+                         (fn set (self (value number))
+                           (setf self.property value)))))
+              :to-throw 'Emil:type-error))))

@@ -197,6 +197,9 @@
              (accesor (--reduce `(Struct:unsafe-get
                                   ,acc ,(Commons:symbol-to-keyword it))
                                 (butlast components))))
+        (unless (Struct:get property :mutable)
+          (Emil:type-error "Attempting to modify read-only property `%s'"
+                           (Struct:get property :name)))
         `(Struct:unsafe-set ,accesor ,(Commons:symbol-to-keyword
                                        (car (last components)))
                             (Emil:is ,(cadr form) ,(Struct:get property :type 'Any))))

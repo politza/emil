@@ -8,12 +8,9 @@
   "Subscription handling a single subscriber."
   (subscriber :type (Trait Rs:Subscriber))
   (publisher :type Rs:Publisher:Submission)
-  (buffer-size :default Rs:default-buffer-size
-               :type number)
-  (buffer :default (make-ring buffer-size)
-          :type ring)
-  (request-count :default 0
-                 :type (integer 0 *) :mutable t)
+  (buffer-size :default Rs:default-buffer-size :type number)
+  (buffer :default (make-ring buffer-size) :type ring)
+  (request-count :default 0 :type number :mutable t)
   (closed? :type boolean :mutable t)
   (emitting? :type boolean :mutable t))
 
