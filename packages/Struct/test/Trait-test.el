@@ -3,6 +3,9 @@
 (require 'buttercup)
 (require 'Trait)
 
+;; Shutup "Optimization failure for cl-typep" warnings.
+(put 'cl-typep 'compiler-macro nil)
+
 (describe "Trait"
   (before-each
     (Struct:define TestStruct property))

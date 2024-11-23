@@ -3,6 +3,9 @@
 (require 'buttercup)
 (require 'Struct)
 
+;; Shutup "Optimization failure for cl-typep" warnings.
+(put 'cl-typep 'compiler-macro nil)
+
 (describe "Struct"
   (after-each
       (Struct:undefine 'TestStruct))
