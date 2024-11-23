@@ -117,6 +117,15 @@ Returns DEFAULT if value is nil."
 (cl-deftype Struct:Type ()
   `(satisfies Struct:Type?))
 
+(defun Struct:Type:define (name type)
+  (cl-check-type type Struct:Type)
+  (put name Struct:Type:definition-symbol (copy-sequence type)))
+
+(defun Struct:Type:undefine (name)
+  (when (memq name '(Struct:Type Struct:Property))
+    (error "Attempted to undefine primitive type: %s" name))
+  (put name Struct:Type:definition-symbol nil))
+
 (defun Struct:Name? (name)
   (not (null (Struct:Type:get name))))
 

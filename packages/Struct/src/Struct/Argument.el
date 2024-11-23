@@ -3,18 +3,15 @@
 (require 'Struct)
 
 (Struct:define Struct:Argument
-  "Defines an argument of a `Struct:Function'."
+  "Defines an argument of a `Struct:FunctionDeclaration'."
   (name
-   "The name of the argument."
+   "The name of this argument."
    :type symbol)
   (type
-   "The type of the argument."
+   "The type of this argument."
    :type nil)
   (default
-   "The default value of the argument.
-
-It is actually a form, which will be evaluated in the context of
-previous arguments."
+   "The default value of this argument."
    :type nil)
   (kind
    "The kind of this argument.
@@ -42,7 +39,6 @@ specifies the kind of the read argument."
 
 (defun Struct:Argument:read-list (form)
   "Reads a complete argument-list from FORM."
-  (cl-check-type form list)
   (let ((kind nil)
         (kinds nil)
         (arguments nil))
