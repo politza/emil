@@ -34,7 +34,7 @@ Instead of just using symbols, properties can be defined using the extended list
 for the definition of a number of meta-properties.
 
 #+begin_src emacs-lisp
-  (Struct:define RectangleWithDefaults
+  (Struct:define Rectangle
     (width :default 0)
     (height :default 0))
 #+end_src
