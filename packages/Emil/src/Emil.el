@@ -30,7 +30,7 @@
       Emil:Type:normalize
       Emil:Type:print))
 
-(defun Emil:transform (form &optional environment)
+(defun Emil:transform (form &optional environment no-error)
   (let ((standard-env (Emil:Env:Hierarchy
                        :environments
                        (list (Emil:Env:Global) (Emil:Env:Fallback)))))
@@ -39,9 +39,10 @@
      (if environment
          (Emil:Env:Hierarchy
           :environments (list environment standard-env))
-       standard-env))))
+       standard-env)
+     no-error)))
 
-(defun Emil:transform* (form &optional environment)
+(defun Emil:transform* (form &optional environment no-error)
   (-let* ((analyzer (Emil:Analyzer))
           ((context . typed-form)
            (Emil:Analyzer:infer
@@ -51,7 +52,8 @@
       ('compile
        (mapc #'Emil:Message:byte-compile-log
              (Struct:get analyzer :messages))))
-    (if-let (error (Emil:Analyzer:first-error analyzer))
+    (if-let (error (unless no-error
+                     (Emil:Analyzer:first-error analyzer)))
         (pcase (Commons:evaluation-context)
           ((or 'eval 'load)
            (signal (Struct:get error :error-condition)

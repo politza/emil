@@ -9,7 +9,7 @@
 (require 'cl-lib)
 (require 'elisp-mode)
 
-(declare-function Emil:transform "Emil" (form &optional env))
+(declare-function Emil:transform "Emil" (form &optional env no-error))
 
 (Struct:define Emil:Syntax env)
 
