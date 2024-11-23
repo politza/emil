@@ -312,6 +312,38 @@ Currently, only function types are supported."
   (fn Emil:Type:free-variables (self)
     (list (Struct:get self :name))))
 
+(Struct:define Emil:Type:Compound
+  "Represents a compound type.
+
+Compound types are currently always covariant."
+  (name
+   "The name of this type's constructor."
+    :type symbol)
+  (parameters
+   "The parameters of this type."
+   :type (List (Trait Emil:Type))))
+
+(Trait:implement Emil:Type Emil:Type:Compound
+  (fn Emil:Type:print (self)
+    (cons (Struct:get self :name)
+          (-map #'Emil:Type:print
+                (Struct:get self :parameters))))
+
+  (fn Emil:Type:free-variables (self)
+    (-mapcat #'Emil:Type:free-variables
+             (Struct:get self :parameters)))
+
+  (fn Emil:Type:monomorph? (self)
+    (--every? (Emil:Type:monomorph? it)
+              (Struct:get self :parameters)))
+
+  (fn Emil:Type:substitute (self (source Emil:Type:Variable)
+                                 (target Emil:Type:Existential))
+    (Emil:Type:Compound*
+     ,@self
+     :parameters (--map (Emil:Type:substitute it source target)
+                        (Struct:get self :parameters)))))
+
 (defun Emil:Type:read (form)
   "Reads a type from form FORM and returns it.
 
@@ -339,6 +371,8 @@ type will be polymorphic."
                   ((Struct Emil:Type:Arrow arguments returns)
                    (append (variables returns)
                            (-mapcat #'variables arguments)))
+                  ((Struct Emil:Type:Compound parameters)
+                   (-mapcat #'variables parameters))
                   ((Struct Emil:Type:Variable name)
                    (list name))
                   (_ nil))))
@@ -372,22 +406,33 @@ The result may contain type-variables."
     ('Never (Emil:Type:Never))
     ('Void (Emil:Type:Void))
     ((pred symbolp)
-     (when (eq form 'quote)
-       (Emil:invalid-type-form "quote can not be used as a type-name: %s" form))
+     (Emil:Type:-assert-valid-name form)
      (Emil:Type:Basic :name form))
-    ((and `(quote ,name) (guard (symbolp name)))
-     (when (Commons:constant-symbol? name)
-       (Emil:invalid-type-form
-        "Constant symbol used as type variable: %s in %s"
-        name form))
-     (unless (string-match-p "\\`[a-zA-Z0-9]+\\'" (symbol-name name))
-       (Emil:invalid-type-form
-        "Variables should only contain letters and numbers: %s in %s" name form))
+    ((and `(quote ,name)
+          (guard (symbolp name)))
+     (Emil:Type:-assert-valid-name name)
      (Emil:Type:Variable :name name))
     ((and `(-> ,arguments ,returns)
           (guard (listp arguments)))
      (Emil:Type:-read-fn arguments returns))
+    ((and `(,name . ,parameters)
+          (guard (and (symbolp name)
+                      (listp parameters))))
+     (Emil:Type:-assert-valid-name name)
+     (Emil:Type:Compound* name :parameters (-map #'Emil:Type:-read parameters)))
     (_ (Emil:invalid-type-form "Failed to read form as a type: %s" form))))
+
+(defun Emil:Type:-assert-valid-name (name)
+  (unless (symbolp name)
+    (Emil:invalid-type-form "Expected a symbol: %s" name))
+  (when (eq 'quote name)
+    (Emil:invalid-type-form "quote can not be used as a name: %s" name))
+  (when (string-suffix-p "?" (symbol-name name))
+    (Emil:invalid-type-form "Names may not end with a `?': %s" name))
+  (unless (string-match-p "\\`[a-zA-Z]" (symbol-name name))
+    (Emil:invalid-type-form "Names should start with a letter: %s" name))
+  (when (Commons:constant-symbol? name)
+    (Emil:invalid-type-form "Names may not be constant symbols: %s" name)))
 
 (defun Emil:Type:-read-fn (argument-forms returns-form)
   (let ((optional? nil)
@@ -445,6 +490,10 @@ This renames all type-variables with standard ones."
                       ,@type
                       :arguments (-map #'normalize arguments)
                       :returns (normalize returns)))
+                    ((Struct Emil:Type:Compound parameters)
+                     (Emil:Type:Compound*
+                      ,@type
+                      :parameters(-map #'normalize parameters)))
                     ((Struct Emil:Type:Variable)
                      (Emil:Type:Variable :name (replace type)))
                     ((Struct Emil:Type:Existential)

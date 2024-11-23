@@ -25,6 +25,26 @@
       (expect (Emil:Type:read 'string)
               :to-equal (Emil:Type:Basic :name 'string)))
 
+    (it "names should start with a letter"
+      (expect (Emil:Type:read '0-is-the-new-1)
+              :to-throw 'Emil:invalid-type-form))
+
+    (it "names should not end with a question-mark"
+      (expect (Emil:Type:read 'ready?)
+              :to-throw 'Emil:invalid-type-form))
+
+    (it "quote may not be used as a name"
+      (expect (Emil:Type:read 'quote)
+              :to-throw 'Emil:invalid-type-form))
+
+    (it "constant symbols may not be used as a name"
+      (expect (Emil:Type:read t)
+              :to-throw 'Emil:invalid-type-form)
+      (expect (Emil:Type:read nil)
+              :to-throw 'Emil:invalid-type-form)
+      (expect (Emil:Type:read :keyword)
+              :to-throw 'Emil:invalid-type-form))
+
     (describe "function"
       (it "basic"
         (expect (Emil:Type:read '(-> (string) number))
@@ -88,6 +108,42 @@
 
       (it "invalid polymorph function"
         (expect (Emil:Type:read '(-> 'a 'b))
+                :to-throw 'Emil:invalid-type-form)))
+
+    (describe "compound types"
+      (it "zero parameter"
+        (expect (Emil:Type:read '(Nothing))
+                :to-equal
+                '(Emil:Type:Compound
+                  :name Nothing
+                  :parameters nil)))
+
+      (it "multiple parameters"
+        (expect (Emil:Type:read '(Map string integer))
+                :to-equal
+                '(Emil:Type:Compound
+                  :name Map
+                  :parameters ((Emil:Type:Basic :name string)
+                               (Emil:Type:Basic :name integer)))))
+
+      (it "monomorph"
+        (expect (Emil:Type:read '(List integer))
+                :to-equal
+                '(Emil:Type:Compound
+                  :name List
+                  :parameters ((Emil:Type:Basic :name integer)))))
+
+      (it "polymorph"
+        (expect (Emil:Type:read '(List 'a))
+                :to-equal
+                '(Emil:Type:Forall
+                  :parameters ((Emil:Type:Variable :name a))
+                  :type (Emil:Type:Compound
+                         :name List
+                         :parameters ((Emil:Type:Variable :name a))))))
+
+      (it "constructor name may not end with a ?"
+        (expect (Emil:Type:read '(list? 'a))
                 :to-throw 'Emil:invalid-type-form))))
 
   (describe "Emil:Type:monomorph?"
@@ -143,7 +199,15 @@
       (expect (Emil:Type:monomorph? '(Emil:Type:Forall
                                       :parameters nil
                                       :type (Emil:Type:Never)))
-              :to-equal t)))
+              :to-equal t))
+
+    (it "monomorph compound"
+      (expect (Emil:Type:monomorph? (Emil:Type:read '(Map string integer)))
+              :to-equal t))
+
+    (it "polymorph compound"
+      (expect (Emil:Type:monomorph? (Emil:Type:read '(Map 'a 'b)))
+              :to-equal nil)))
 
   (describe "Emil:Type:free-variables"
     (it "Null"
@@ -204,7 +268,21 @@
                         :returns (Emil:Type:Existential :name c)
                         :rest? t
                         :min-arity 1)))
-              :to-equal '(a b c))))
+              :to-equal '(a b c)))
+
+    (it "compound"
+      (expect (Emil:Type:free-variables
+               (Emil:Type:Compound
+                :name 'List :parameters
+                (list (Emil:Type:Variable :name 'a))))
+              :to-equal nil))
+
+    (it "compound instantiated"
+      (expect (Emil:Type:free-variables
+               (Emil:Type:Compound
+                :name 'List :parameters
+                (list (Emil:Type:Existential :name 'a))))
+              :to-equal '(a))))
 
   (describe "print"
     (it "Null"
@@ -257,7 +335,13 @@
       (expect (Emil:Type:print '(Emil:Type:Forall
                                  :parameters (Emil:Type:Variable :name a)
                                  :type (Emil:Type:Never)))
-              :to-equal 'Never)))
+              :to-equal 'Never))
+
+    (it "compound"
+      (expect (Emil:Type:print '(Emil:Type:Compound
+                                 :name List :parameters
+                                 ((Emil:Type:Variable :name a))))
+              :to-equal '(List 'a))))
 
   (describe "Emil:Type:normalize"
     (it "basic"
@@ -278,14 +362,14 @@
     (it "mixed function"
       (expect (Emil:Type:print
                (Emil:Type:normalize (Emil:Type:read
-                                           '(-> (string 'y) 'y))))
+                                     '(-> (string 'y) 'y))))
               :to-equal '(-> (string 'a) 'a)))
 
     (it "nested function"
       (expect (Emil:Type:print
                (Emil:Type:normalize
-               (Emil:Type:read '(-> ((-> ('x) 'y) 'x 'y)
-                                    (-> ('x 'y) 'z)))))
+                (Emil:Type:read '(-> ((-> ('x) 'y) 'x 'y)
+                                     (-> ('x 'y) 'z)))))
               :to-equal '(-> ((-> ('a) 'b) 'a 'b)
                              (-> ('a 'b) 'c)))))
 
