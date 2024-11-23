@@ -4,8 +4,9 @@
 (require 'Commons)
 (eval-when-compile (require 'cl-macs))
 
-(declare-function Emil:Syntax:transform "Emil/Syntax"
-                  (function &optional defined-type defined-functions))
+(declare-function Emil:Syntax:transform "Emil/Syntax" (function))
+
+(defvar Struct:declared-functions nil)
 
 ;; FIXME: Improve handling of redefined functions, same for traits.
 (defmacro Struct:implement (name &rest properties-and-body)
@@ -18,11 +19,13 @@
           (functions (Struct:-read-body name body (unless disable-syntax name)))
           (transformer (unless (or disable-syntax
                                    (not (require 'Emil nil t)))
-                         (lambda (function)
-                           (Emil:Syntax:transform function name functions)))))
+                         #'Emil:Syntax:transform))
+          (Struct:declared-functions
+           (cons (cons name functions)
+                 Struct:declared-functions)))
     `(progn
        (eval-and-compile
-         (Struct:-merge-functions
+         (Struct:-update-functions
           (Struct:Type:get ',name :ensure)
           (copy-sequence ',functions)))
        ;; FIXME: Functions should be unimplemented, if defining them throws an error.
@@ -62,12 +65,14 @@
             ))))
     functions))
 
-(defun Struct:-merge-functions (type functions)
-  (Struct:update type :functions
-    (lambda (alist)
-      (let* ((update (--annotate (Struct:get it :qualified-name) functions))
-             (filtered (--remove (assq (car it) update) alist)))
-        (append update filtered)))))
+(defun Struct:-update-functions (type functions)
+  (Struct:set type :functions
+    (Struct:-merged-functions type functions)))
+
+(defun Struct:-merged-functions (type functions)
+  (let* ((update (--annotate (Struct:get it :qualified-name) functions))
+         (filtered (--remove (assq (car it) update) (Struct:get type :functions))))
+    (append update filtered)))
 
 (defun Struct:unimplement (name)
   (when-let (type (Struct:Type:get name))
@@ -87,5 +92,11 @@
 (defun Struct:-functions-from (type filename)
   (--filter (Struct:Function:declared-in it filename)
             (-map #'cdr (Struct:get type :functions))))
+
+(defun Struct:functions (name)
+  "Returns a list of functions implemented by struct with name NAME."
+  (when-let (type (Struct:Type:get name))
+    (-map #'cdr (Struct:-merged-functions
+                 type (cdr (assq name Struct:declared-functions))))))
 
 (provide 'Struct/Impl)

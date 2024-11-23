@@ -11,10 +11,7 @@
 
 (declare-function Emil:transform "Emil" (form &optional env))
 
-(Struct:define Emil:Syntax
-  env
-  (defined-type :type (or null (Trait Emil:Type)))
-  defined-functions)
+(Struct:define Emil:Syntax env)
 
 (defun Emil:Syntax:transform-form (self form &optional env)
   (cl-labels ((recurse (form &optional local-env)
@@ -106,7 +103,7 @@
         (list function)))))
 
 (defun Emil:Syntax:resolve-expression (self expression &optional env)
-  (when-let* ((components 
+  (when-let* ((components
                (-map #'intern (when (Emil:Syntax:dot-expression? expression)
                                 (split-string (symbol-name expression) "[.]"))))
               (type (-reduce-from
@@ -145,59 +142,38 @@
                          property (Emil:Type:print type)))))
 
 (defun Emil:Syntax:resolve-function (self expression &optional env)
-  (-when-let* (((function . type)
+  (-when-let* (((name . type)
                 (Emil:Syntax:resolve-expression self expression env)))
-    (let ((functions nil)
-          (struct (and (Emil:Type:Basic? type)
-                       (Struct:Type:get (Struct:get type :name))))
-          (trait (and (Emil:Type:trait? type)
-                      (Trait:get (Struct:get
-                                  (car (Struct:get type :arguments)) :name))))
-          (defined-type? (and (Struct:get self :defined-type)
-                              (equal type (Struct:get self :defined-type)))))
-      (cond
-       (struct
-        (setq functions
-              (append (Emil:Syntax:defined-functions self type)
-                      (-map #'cdr (Struct:get struct :functions))
-                      (-flatten-n
-                       1 (--map
-                          (--map (Struct:get (cdr it) :function)
-                                 (Struct:get (Trait:get it :ensure) :functions))
-                          (Trait:implemented (Struct:get struct :name)))))))
-       (trait
-        (setq functions
-              (append (Emil:Syntax:defined-functions self type)
-                      (--mapcat (--map
-                                 (Struct:get (cdr it) :function)
-                                 (Struct:get (Trait:get it :ensure) :functions))
-                                (cons (Struct:get trait :name)
-                                      (Struct:get trait :supertraits))))))
-       (defined-type? (setq functions
-                            (Emil:Syntax:defined-functions self type))))
-      (let ((candidates
-             (--filter (eq function (Struct:get it :name))
-                       functions)))
-        (pcase (length candidates)
-          (0 (Emil:type-error "Method %s does not exist on type %s"
-                              function (Emil:Type:print type)))
-          (1 (car candidates))
-          (_ (Emil:type-error
-              "Multiple methods named %s exist for type %s: %s"
-              function (Emil:Type:print type)
-              (-map #'Struct:Function:type functions))))))))
+    (let* ((functions (Emil:Syntax:type-functions type))
+           (candidates
+            (--filter (eq name (Struct:get it :name)) functions)))
+      (pcase (length candidates)
+        (0 (Emil:type-error "Method %s does not exist on type %s"
+                            name (Emil:Type:print type)))
+        (1 (car candidates))
+        (_ (Emil:type-error
+            "Multiple methods named %s exist for type %s: %s"
+            name (Emil:Type:print type)
+            (-map #'Struct:Function:type functions)))))))
+
+(defun Emil:Syntax:type-functions (type)
+  (pcase type
+    ((Struct Emil:Type:Basic name)
+     (append (Struct:functions name)
+             (Trait:implemented-functions name)))
+    ((pred Emil:Type:trait?)
+     (Trait:functions
+      (Struct:get (car (Struct:get type :arguments)) :name)))))
 
 (defun Emil:Syntax:defined-functions (self type)
   (when (and (Struct:get self :defined-type)
              (equal type (Struct:get self :defined-type)))
     (Struct:get self :defined-functions)))
 
-(defun Emil:Syntax:transform (function &optional defined-type defined-functions)
+(defun Emil:Syntax:transform (function)
   (let ((env (Emil:Syntax
               :env
-              (Emil:Env:Alist :variables (Emil:Syntax:Function:bindings function))
-              :defined-type (and defined-type (Emil:Type:read defined-type))
-              :defined-functions defined-functions)))
+              (Emil:Env:Alist :variables (Emil:Syntax:Function:bindings function)))))
     (cdr (Emil:Syntax:transform-form
           env
           (Emil:transform `(progn ,@(Struct:get function :body)) env)))))

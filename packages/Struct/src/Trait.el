@@ -6,8 +6,7 @@
 (require 'dash)
 (require 'cl-macs)
 
-(declare-function Emil:Syntax:transform "Emil/Syntax"
-                  (function &optional defined-type defined-functions))
+(declare-function Emil:Syntax:transform "Emil/Syntax" (function))
 
 (defconst Trait:definition-symbol 'Trait:definition-symbol
   "Ths symbol by which to associate traits with their name.
@@ -69,6 +68,8 @@ provided, this function is required for implementors to implement."
 This is the case, if FUNCTION does not define a default implementation."
   (null (Struct:get function :default-implementation)))
 
+(defvar Trait:declared-functions nil)
+
 (defmacro Trait:define (name supertraits &optional documentation &rest properties-and-body)
   "Defines a new trait named NAME.
 
@@ -91,9 +92,10 @@ This is the case, if FUNCTION does not define a default implementation."
                             body))
           (transformer (unless (or disable-syntax
                                    (not (require 'Emil nil t)))
-                         (lambda (function)
-                           (Emil:Syntax:transform
-                            function `(Trait ,name) functions)))))
+                         #'Emil:Syntax:transform))
+          (Trait:declared-functions
+           (cons (cons name functions)
+                 Trait:declared-functions)))
   `(eval-and-compile
      ,@(--map (Struct:Function:emit-declaration it) functions)
      (Trait:define*
@@ -339,6 +341,22 @@ If VALUE is a struct type, return it's name. Otherwise, calls
 `type-of' on VALUE and return its result."
   (or (Struct:name value)
       (type-of value)))
+
+(defun Trait:functions (trait)
+  "Returns a list of functions declared by TRAIT.
+
+TRAIT should be a symbol."
+  (if-let (declared (assq trait Trait:declared-functions))
+      (cdr declared)
+    (when-let (type (Trait:get trait))
+      (--map (Struct:get (cdr it) :function)
+             (Struct:get type :functions)))))
+
+(defun Trait:implemented-functions (type)
+  "Returns a list of trait-functions implemented by TYPE.
+
+TYPE should be a symbol."
+  (-mapcat #'Trait:functions (Trait:implemented type)))
 
 (provide 'Trait)
 ;;; Trait.el ends here
