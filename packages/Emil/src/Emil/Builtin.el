@@ -735,7 +735,7 @@
   (lcms-temp->white-point . (-> (&rest Any) Any))
   (lcms-xyz->jch . (-> (&rest Any) Any))
   (ldexp . (-> (&rest Any) Any))
-  (length . (-> (&rest Any) Any))
+  (length . (-> (sequence) integer))
   (length< . (-> (&rest Any) Any))
   (length= . (-> (&rest Any) Any))
   (length> . (-> (&rest Any) Any))

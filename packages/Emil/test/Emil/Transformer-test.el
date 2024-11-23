@@ -3,10 +3,10 @@
 (require 'buttercup)
 (require 'Emil)
 
-(describe "Emil:transform"
+(describe "Emil:transform*"
   (describe "basic values"
     (it "nil"
-      (expect (Emil:transform nil)
+      (expect (Emil:transform* nil)
               :to-equal
               '(Emil:TypedForm:Basic
                 :value nil
@@ -16,7 +16,7 @@
                  :variables nil :functions nil :macros nil :parent nil))))
 
     (it "t"
-      (expect (Emil:transform t)
+      (expect (Emil:transform* t)
               :to-equal
               '(Emil:TypedForm:Basic
                 :value t
@@ -26,7 +26,7 @@
                  :variables nil :functions nil :macros nil :parent nil))))
 
     (it "keyword"
-      (expect (Emil:transform :keyword)
+      (expect (Emil:transform* :keyword)
               :to-equal
               '(Emil:TypedForm:Basic
                 :value :keyword
@@ -35,7 +35,7 @@
                 (Emil:Env:Alist :variables nil :functions nil :macros nil :parent nil))))
 
     (it "string"
-      (expect (Emil:transform "string")
+      (expect (Emil:transform* "string")
               :to-equal
               '(Emil:TypedForm:Basic
                 :value "string"
@@ -44,7 +44,7 @@
                 (Emil:Env:Alist :variables nil :functions nil :macros nil :parent nil))))
 
     (it "integer"
-      (expect (Emil:transform 0)
+      (expect (Emil:transform* 0)
               :to-equal
               '(Emil:TypedForm:Basic
                 :value 0
@@ -53,7 +53,7 @@
                 (Emil:Env:Alist :variables nil :functions nil :macros nil :parent nil))))
 
     (it "float"
-      (expect (Emil:transform 0.0)
+      (expect (Emil:transform* 0.0)
               :to-equal
               '(Emil:TypedForm:Basic
                 :value 0.0
@@ -62,7 +62,7 @@
                 (Emil:Env:Alist :variables nil :functions nil :macros nil :parent nil))))
 
     (it "vector"
-      (expect (Emil:transform [])
+      (expect (Emil:transform* [])
               :to-equal
               '(Emil:TypedForm:Basic
                 :value []
@@ -73,7 +73,7 @@
 
   (describe "lambda"
     (it "identity"
-      (expect (Emil:transform '(lambda (x) x))
+      (expect (Emil:transform* '(lambda (x) x))
               :to-equal
               '(Emil:TypedForm:Function
                 :value (Emil:TypedForm:Lambda
@@ -95,7 +95,7 @@
 
   (describe "let"
     (it "basic"
-      (expect (Emil:transform '(let ((a 0)) a))
+      (expect (Emil:transform* '(let ((a 0)) a))
               :to-equal
               '(Emil:TypedForm:Let
                 :kind let
@@ -117,7 +117,7 @@
 
   (describe "let*"
     (it "basic"
-      (expect (Emil:transform '(let* ((a 0)) a))
+      (expect (Emil:transform* '(let* ((a 0)) a))
               :to-equal
               '(Emil:TypedForm:Let
                 :kind let*
@@ -145,7 +145,7 @@
 
   (describe "application"
     (it "identity"
-      (expect (Emil:transform '((lambda (x) x) 0))
+      (expect (Emil:transform* '((lambda (x) x) 0))
               :to-equal
               '(Emil:TypedForm:Application
                 :function (Emil:TypedForm:Function
@@ -176,7 +176,7 @@
 
   (describe "and"
     (it "basic"
-      (expect (Emil:transform '(and 0))
+      (expect (Emil:transform* '(and 0))
               :to-equal
               '(Emil:TypedForm:And
                 :conditions ((Emil:TypedForm:Basic
@@ -188,7 +188,7 @@
 
   (describe "catch"
     (it "basic"
-      (expect (Emil:transform '(catch 'tag 0))
+      (expect (Emil:transform* '(catch 'tag 0))
               :to-equal
               '(Emil:TypedForm:Catch
                 :tag (Emil:TypedForm:Quote
@@ -204,7 +204,7 @@
 
   (describe "cond"
     (it "basic"
-      (expect (Emil:transform '(cond (nil 0)))
+      (expect (Emil:transform* '(cond (nil 0)))
               :to-equal
               '(Emil:TypedForm:Cond
                 :clauses ((Emil:TypedForm:Clause
@@ -223,7 +223,7 @@
 
   (describe "defconst"
     (it "basic"
-      (expect (Emil:transform '(defconst a 0 "0"))
+      (expect (Emil:transform* '(defconst a 0 "0"))
               :to-equal
               '(Emil:TypedForm:DefConst
                 :symbol a
@@ -240,7 +240,7 @@
 
   (describe "defvar"
     (it "basic"
-      (expect (Emil:transform '(defvar a 0 "0"))
+      (expect (Emil:transform* '(defvar a 0 "0"))
               :to-equal
               '(Emil:TypedForm:DefVar
                 :symbol a
@@ -257,7 +257,7 @@
 
   (describe "if"
     (it "basic"
-      (expect (Emil:transform '(if 0 1 2))
+      (expect (Emil:transform* '(if 0 1 2))
               :to-equal
               '(Emil:TypedForm:If
                 :condition (Emil:TypedForm:Basic
@@ -277,7 +277,7 @@
 
   (describe "interactive"
     (it "basic"
-      (expect (Emil:transform '(interactive "p"))
+      (expect (Emil:transform* '(interactive "p"))
               :to-equal
               '(Emil:TypedForm:Interactive
                 :forms ("p")
@@ -286,7 +286,7 @@
 
   (describe "or"
     (it "basic"
-      (expect (Emil:transform '(or 0))
+      (expect (Emil:transform* '(or 0))
               :to-equal
               '(Emil:TypedForm:Or
                 :conditions ((Emil:TypedForm:Basic
@@ -298,7 +298,7 @@
 
   (describe "prog1"
     (it "basic"
-      (expect (Emil:transform '(prog1 0 1))
+      (expect (Emil:transform* '(prog1 0 1))
               :to-equal
               '(Emil:TypedForm:Prog1
                 :first (Emil:TypedForm:Basic
@@ -314,7 +314,7 @@
 
   (describe "progn"
     (it "basic"
-      (expect (Emil:transform '(progn 0 1))
+      (expect (Emil:transform* '(progn 0 1))
               :to-equal
               '(Emil:TypedForm:PrognLike
                 :kind progn
@@ -331,7 +331,7 @@
 
   (describe "quote"
     (it "basic"
-      (expect (Emil:transform '(quote x))
+      (expect (Emil:transform* '(quote x))
               :to-equal
               '(Emil:TypedForm:Quote
                 :value x
@@ -341,7 +341,7 @@
 
   (describe "save-current-buffer"
     (it "basic"
-      (expect (Emil:transform '(save-current-buffer 0 1))
+      (expect (Emil:transform* '(save-current-buffer 0 1))
               :to-equal
               '(Emil:TypedForm:PrognLike
                 :kind save-current-buffer
@@ -358,7 +358,7 @@
 
   (describe "save-excursion"
     (it "basic"
-      (expect (Emil:transform '(save-excursion 0 1))
+      (expect (Emil:transform* '(save-excursion 0 1))
               :to-equal
               '(Emil:TypedForm:PrognLike
                 :kind save-excursion
@@ -375,7 +375,7 @@
 
   (describe "save-restriction"
     (it "basic"
-      (expect (Emil:transform '(save-restriction 0 1))
+      (expect (Emil:transform* '(save-restriction 0 1))
               :to-equal
               '(Emil:TypedForm:PrognLike
                 :kind save-restriction
@@ -392,7 +392,7 @@
 
   (describe "setq"
     (it "basic"
-      (expect (Emil:transform '(setq a 0 b 1))
+      (expect (Emil:transform* '(setq a 0 b 1))
               :to-equal
               '(Emil:TypedForm:Setq
                 :bindings ((Emil:TypedForm:Binding
@@ -412,7 +412,7 @@
 
   (describe "unwind-protect"
     (it "basic"
-      (expect (Emil:transform '(unwind-protect 0 1))
+      (expect (Emil:transform* '(unwind-protect 0 1))
               :to-equal
               '(Emil:TypedForm:UnwindProtect
                 :body-form (Emil:TypedForm:Basic
@@ -428,7 +428,7 @@
 
   (describe "while"
     (it "basic"
-      (expect (Emil:transform '(while 0 1))
+      (expect (Emil:transform* '(while 0 1))
               :to-equal
               '(Emil:TypedForm:While
                 :condition (Emil:TypedForm:Basic

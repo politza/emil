@@ -28,6 +28,14 @@
       Emil:Type:print))
 
 (defun Emil:transform (form &optional environment)
+  (Emil:transform*
+   form
+   (if environment
+       (Emil:Env:Hierarchy
+        :environments (list environment (Emil:Env:Global)))
+     (Emil:Env:Global))))
+
+(defun Emil:transform* (form &optional environment)
   (-let* ((analyzer (Emil:Analyzer))
           ((context . typed-form)
            (Emil:Analyzer:infer
