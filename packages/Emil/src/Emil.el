@@ -50,10 +50,10 @@ Apart from that, this just expands to FORM.
     (pcase type
       ((Struct Emil:Type:Forall parameters :type forall-type)
        (-let* ((marker (Emil:Context:Marker))
-              (intermediate-context
-               (Emil:Context:concat (reverse parameters) marker context))
-              ((result-context . result-form)
-               (Emil:check self form forall-type intermediate-context environment)))
+               (intermediate-context
+                (Emil:Context:concat (reverse parameters) marker context))
+               ((result-context . result-form)
+                (Emil:check self form forall-type intermediate-context environment)))
          (cons (Emil:Context:drop-until-after result-context marker)
                (Emil:TypedForm* ,@result-form :type type))))
       ((and (Struct Emil:Type:Arrow returns)
@@ -94,35 +94,6 @@ Apart from that, this just expands to FORM.
            (Emil:Context:resolve intermediate-context inferred-type)
            (Emil:Context:resolve intermediate-context type))
           typed-form)))))
-
-  (fn Emil:generate-existential (self)
-    "Returns a new `Emil:Type:Existential'."
-    (Emil:ExistentialGenerator:next (Struct:get self :generator)))
-
-  (fn Emil:generate-existentials (self count)
-    "Returns a list of COUNT new `Emil:Type:Existential's."
-    (-map (lambda (_)
-            (Emil:generate-existential self))
-          (-repeat count nil)))
-
-  (fn Emil:lookup-variable (variable context environment)
-    (or (Emil:Context:lookup-variable context variable)
-        (Emil:Env:lookup-variable environment variable context)))
-
-  (fn Emil:lookup-function (function context environment)
-    (or (Emil:Context:lookup-function context function)
-        (Emil:Env:lookup-function environment function context)))
-
-  (fn Emil:instantiate-arrow (self (type Emil:Type:Arrow))
-    "Instantiates the function-type with existentials.
-
-Returns a variant of this function in which all types are
-replaced with instances of `Emil:Type:Existential'."
-    (Emil:Type:Arrow*
-     ,@type
-     :arguments (Emil:generate-existentials
-                 self (length (Emil:Type:Arrow:arguments type)))
-     :returns (Emil:generate-existential self)))
 
   (fn Emil:instantiate (self (context Emil:Context)
                              (variable Emil:Type:Existential)
@@ -297,58 +268,6 @@ replaced with instances of `Emil:Type:Existential'."
                          ((guard (equal left-name right-name)) t)))))
        context)))
 
-  (fn Emil:infer-do (self forms (context Emil:Context) (environment (Trait Emil:Env)))
-    (Emil:Util:map-reduce
-     (-lambda (context form)
-       (Transformer:transform-form self form context environment))
-     context
-     forms))
-
-  (fn Emil:check-do (self forms type (context Emil:Context)
-                          (environment (Trait Emil:Env)))
-    (-let (((context . form)
-            (Emil:check self (cons 'progn forms) type context environment)))
-      (cons context (cdr (Transformer:Form:value form)))))
-
-  (fn Emil:infer-progn-like (self form (context Emil:Context)
-                                  (environment (Trait Emil:Env)))
-    (-let* ((body (cdr (Transformer:Form:value form)))
-            ((context . forms)
-             (Emil:infer-do self body context environment)))
-      (cons context (Emil:TypedForm:new
-                     (cons (car (Transformer:Form:value form)) forms)
-                     (if forms
-                         (Struct:get (-last-item forms) :type)
-                       (Emil:Type:Null))
-                     environment))))
-
-  (fn Emil:let*-thread-bindings (self bindings context environment)
-    "Thread CONTEXT and ENVIRONMENT through bindings."
-    (Emil:Util:map-reduce
-     (-lambda ((variable-context . variable-environment) (variable binding))
-       (-let* (((binding-context . binding-form)
-                (Transformer:transform-form
-                 self binding variable-context variable-environment))
-               (type (Struct:get binding-form :type))
-               (next-variable-context
-                (Emil:Context:concat
-                 (Emil:Context:Binding* variable type)
-                 binding-context))
-               (next-variable-environment
-                (Emil:Env:Alist :variables (list (cons variable type))
-                                :parent variable-environment)))
-         (cons (cons next-variable-context
-                     next-variable-environment)
-               binding-form)))
-     (cons context
-           (Emil:Env:Alist :parent environment))
-     bindings))
-
-  (fn Emil:type-of-body (body-forms)
-    (if body-forms
-        (Struct:get (-last-item body-forms) :type)
-      (Emil:Type:Null)))
-
   (fn Emil:infer-application (self arrow-type arguments context environment)
     (pcase-exhaustive arrow-type
       ((Struct Emil:Type:Forall parameters type)
@@ -404,7 +323,81 @@ replaced with instances of `Emil:Type:Existential'."
                      (Emil:check self argument instance context environment))
                    context
                    (-zip-pair adjusted-arguments argument-types))))
-           (cons result-context (cons returns argument-forms))))))))
+           (cons result-context (cons returns argument-forms)))))))
+
+  (fn Emil:generate-existential (self)
+    "Returns a new `Emil:Type:Existential'."
+    (Emil:ExistentialGenerator:next (Struct:get self :generator)))
+
+  (fn Emil:generate-existentials (self count)
+    "Returns a list of COUNT new `Emil:Type:Existential's."
+    (-map (lambda (_)
+            (Emil:generate-existential self))
+          (-repeat count nil)))
+
+  (fn Emil:lookup-variable (variable context environment)
+    (or (Emil:Context:lookup-variable context variable)
+        (Emil:Env:lookup-variable environment variable context)))
+
+  (fn Emil:lookup-function (function context environment)
+    (or (Emil:Context:lookup-function context function)
+        (Emil:Env:lookup-function environment function context)))
+
+  (fn Emil:instantiate-arrow (self (type Emil:Type:Arrow))
+    "Instantiates the function-type with existentials.
+
+Returns a variant of this function in which all types are
+replaced with instances of `Emil:Type:Existential'."
+    (Emil:Type:Arrow*
+     ,@type
+     :arguments (Emil:generate-existentials
+                 self (length (Emil:Type:Arrow:arguments type)))
+     :returns (Emil:generate-existential self)))
+
+  (fn Emil:infer-do (self forms (context Emil:Context) (environment (Trait Emil:Env)))
+    (Emil:Util:map-reduce
+     (-lambda (context form)
+       (Transformer:transform-form self form context environment))
+     context
+     forms))
+
+  (fn Emil:check-do (self forms type (context Emil:Context)
+                          (environment (Trait Emil:Env)))
+    (-let (((context . form)
+            (Emil:check self (cons 'progn forms) type context environment)))
+      (cons context (cdr (Transformer:Form:value form)))))
+
+  (fn Emil:infer-progn-like (self form (context Emil:Context)
+                                  (environment (Trait Emil:Env)))
+    (-let* ((body (cdr (Transformer:Form:value form)))
+            ((context . forms)
+             (Emil:infer-do self body context environment)))
+      (cons context (Emil:TypedForm:new
+                     (cons (car (Transformer:Form:value form)) forms)
+                     (Emil:type-of-body forms)
+                     environment))))
+
+  (fn Emil:let*-thread-bindings (self bindings context environment)
+    "Thread CONTEXT and ENVIRONMENT through let* BINDINGS."
+    (Emil:Util:map-reduce
+     (-lambda ((variable-context . variable-environment) (variable binding))
+       (-let* (((binding-context . binding-form)
+                (Transformer:transform-form
+                 self binding variable-context variable-environment))
+               (type (Struct:get binding-form :type)))
+         (cons (cons (Emil:Context:concat (Emil:Context:Binding* variable type)
+                                          binding-context)
+                     (Emil:Env:Alist :variables (list (cons variable type))
+                                     :parent variable-environment))
+               binding-form)))
+     (cons context
+           (Emil:Env:Alist :parent environment))
+     bindings))
+
+  (fn Emil:type-of-body (body-forms)
+    (if body-forms
+        (Struct:get (-last-item body-forms) :type)
+      (Emil:Type:Null))))
 
 (Trait:implement Transformer Emil
   (fn Transformer:transform-number (_self form number &optional context environment
@@ -429,7 +422,7 @@ replaced with instances of `Emil:Type:Existential'."
                    environment)))
 
   (fn Transformer:transform-symbol (_self form symbol &optional context environment
-                                         &rest _)
+                                          &rest _)
     (let ((type (cond
                  ((null symbol)
                   (Emil:Type:Null))
@@ -495,26 +488,26 @@ replaced with instances of `Emil:Type:Existential'."
       ((and `(lambda ,argument-list . ,body)
             (guard (listp argument-list)))
        (-let* ((arity (func-arity argument))
-              (min-arity (car arity))
-              (rest? (eq 'many (cdr arity)))
-              (argument-variables
-               (Emil:Type:Arrow:lambda-variables argument-list))
-              (arguments (Emil:generate-existentials
-                          self (length argument-variables)))
-              (returns (Emil:generate-existential self))
-              (bindings (--map (Emil:Context:Binding
-                                :variable (car it) :type (cdr it))
-                               (-zip-pair argument-variables arguments)))
-              (marker (Emil:Context:Marker))
-              (body-environment (Emil:Env:Alist :parent environment))
-              (initial-context
-               (Emil:Context:concat
-                (reverse bindings) marker returns
-                (reverse arguments) context))
-              ((body-context . body-forms)
-               (Emil:check-do self body
-                              returns initial-context body-environment))
-              (type (Emil:Type:Arrow* arguments returns min-arity rest?)))
+               (min-arity (car arity))
+               (rest? (eq 'many (cdr arity)))
+               (argument-variables
+                (Emil:Type:Arrow:lambda-variables argument-list))
+               (arguments (Emil:generate-existentials
+                           self (length argument-variables)))
+               (returns (Emil:generate-existential self))
+               (bindings (--map (Emil:Context:Binding
+                                 :variable (car it) :type (cdr it))
+                                (-zip-pair argument-variables arguments)))
+               (marker (Emil:Context:Marker))
+               (body-environment (Emil:Env:Alist :parent environment))
+               (initial-context
+                (Emil:Context:concat
+                 (reverse bindings) marker returns
+                 (reverse arguments) context))
+               ((body-context . body-forms)
+                (Emil:check-do self body
+                               returns initial-context body-environment))
+               (type (Emil:Type:Arrow* arguments returns min-arity rest?)))
          (Emil:Env:Alist:update-from body-environment body-context
                                      argument-variables nil)
          (cons (Emil:Context:drop-until-after body-context marker)
@@ -524,9 +517,9 @@ replaced with instances of `Emil:Type:Existential'."
                 type environment))))
       ((pred symbolp)
        (let ((type (or (Emil:lookup-function argument context environment)
-                      (error "Unbound function: %s" argument))))
-           (cons context
-                 (Emil:TypedForm:new form type environment))))))
+                       (error "Unbound function: %s" argument))))
+         (cons context
+               (Emil:TypedForm:new form type environment))))))
 
   (fn Transformer:transform-if (self form condition then else
                                      &optional context environment
@@ -544,8 +537,8 @@ replaced with instances of `Emil:Type:Existential'."
 
   (fn Transformer:transform-let (self form bindings body &optional
                                       context environment &rest _)
-    (-let* ((variables (-map #'car bindings))
-            ((binding-context . binding-forms)
+    (-let* ((variables (--map (Transformer:Form:value (car it)) bindings))
+            ((bindings-context . binding-forms)
              (Emil:Util:map-reduce
               (-lambda (context (_variable binding))
                 (Transformer:transform-form self binding context environment))
@@ -556,12 +549,13 @@ replaced with instances of `Emil:Type:Existential'."
                      :variable (car it) :type (Struct:get (cdr it) :type))
                     (-zip-pair variables binding-forms)))
             (marker (Emil:Context:Marker))
-            (body-context (Emil:Context:concat
-                           (reverse context-bindings)
-                           marker binding-context))
             (body-environment (Emil:Env:Alist :parent environment))
             ((body-context . body-forms)
-             (Emil:infer-do self body body-context body-environment))
+             (Emil:infer-do
+              self body (Emil:Context:concat
+                         (reverse context-bindings)
+                         marker bindings-context)
+              body-environment))
             (body-type (Emil:type-of-body body-forms)))
       (Emil:Env:Alist:update-from body-environment body-context
                                   variables nil)
@@ -634,8 +628,8 @@ replaced with instances of `Emil:Type:Existential'."
     (Emil:infer-progn-like self form context environment))
 
   (fn Transformer:transform-setq (_self form _definitions
-                                       &optional context environment
-                                       &rest _)
+                                        &optional context environment
+                                        &rest _)
     (cons context (Emil:TypedForm:new
                    form
                    (Emil:Type:Any)
