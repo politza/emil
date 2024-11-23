@@ -79,13 +79,13 @@ namespace."
 
 Returns a cons \(MIN . MAX\) denoting the minimally and maximally
 accepted number of arguments. MAX may be `most-positive-fixnum', if a
-`&rest' or `&struct' argument is present."
+`&rest' argument is present."
   (let* ((arguments (Struct:get self :arguments))
          (min (or (--find-index (Struct:get it :kind) arguments)
                   (length arguments)))
          (max (if (and arguments
-                       (memq (Struct:get (car (last arguments)) :kind)
-                             '(&rest &struct)))
+                       (eq (Struct:get (car (last arguments)) :kind)
+                           '&rest))
                   most-positive-fixnum
                 (length arguments))))
     (cons min max)))
@@ -133,19 +133,17 @@ Returns a cons of (ARGUMENTS . RETURN_TYPE)."
         (pcase argument
           ((guard (memq argument kinds))
            (error "Invalid arguments: %s provided multiple times" argument))
-          ((or `&optional `&rest `&struct)
+          ((or `&optional `&rest)
            (when (and kind (eq argument '&optional))
              (error "Invalid arguments: &optional may not succeed %s" kind))
-           (when (memq kind '(&rest &struct))
-             (error "Invalid arguments: &rest and &struct are mutually exclusive"))
            (unless (and form
                         (not (memq (car form)
-                                   '(&optional &rest &struct))))
+                                   '(&optional &rest))))
              (error "Specifier is missing an argument: %s" argument))
-           (when (and (memq argument '(&rest &struct))
+           (when (and (eq argument '&rest)
                       (cdr form)
                       (not (eq (cadr form) Struct:Function:arrow-symbol)))
-             (error "Extra argument after &rest or &struct: %s" form))
+             (error "Extra argument after &rest provided: %s" form))
            (setq kind argument)
            (push argument kinds))
           ((guard (eq argument Struct:Function:arrow-symbol))
@@ -183,7 +181,7 @@ Returns a cons of (ARGUMENTS . RETURN_TYPE)."
       (let ((argument (pop arguments)))
         (-let ((kind (Struct:get argument :kind)))
           (when (and kind (not (eq kind previous-kind)))
-            (push (if (eq kind '&struct) '&rest kind) result)
+            (push kind result)
             (setq previous-kind kind))
           (push (Struct:get argument :name)
                 result))))
@@ -214,21 +212,7 @@ Returns a cons of (ARGUMENTS . RETURN_TYPE)."
             (--map `(or ,(Struct:get it :name)
                         (setq ,(Struct:get it :name)
                               ,(Struct:get it :default)))
-                   (-filter #'Struct:Argument:default? arguments))
-            (--map (prog1
-                       `(setq ,(Struct:get it :name)
-                          (Struct:Function:-struct-argument-handler
-                           ',(Struct:get it :type)
-                           ,(Struct:get it :name)))
-                     (Struct:Type:get (Struct:get it :type) :ensure))
-                   (-filter #'Struct:Argument:struct? arguments)))))
-
-(defun Struct:Function:-struct-argument-handler (type rest)
-  (if (and (consp rest)
-           (= 1 (length rest))
-           (eq type (car-safe (car rest))))
-      (car rest)
-    (apply type rest)))
+                   (-filter #'Struct:Argument:default? arguments)))))
 
 (defun Struct:Function:type (fn &optional as-method?)
   (let* ((argument-types (--map

@@ -144,14 +144,7 @@
          '(fn test (a -> b c))
          'Test)
        :to-throw))
-
-    (it "&struct and &rest used together"
-      (expect
-       (Struct:Function:read
-         '(fn test (&struct a &rest b))
-         'Test)
-       :to-throw))
-
+    
     (it "specifier used multiple times"
       (expect
        (Struct:Function:read
@@ -204,16 +197,7 @@
                  'Test))
               :to-equal
               '(&rest a)))
-
-    (it "struct argument"
-      (Struct:define TestStruct)
-      (expect (Struct:Function:emit-arguments
-               (Struct:Function:read
-                 '(fn test (&struct (a TestStruct)))
-                 'Test))
-              :to-equal
-              '(&rest a)))
-
+    
     (it "mixed arguments"
       (expect (Struct:Function:emit-arguments
                (Struct:Function:read

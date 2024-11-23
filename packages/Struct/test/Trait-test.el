@@ -310,17 +310,13 @@
       (eval '(Trait:define TestTrait ()
                :disable-syntax t
                (fn TestTrait:with-number (self (arg number)))
-               (fn TestTrait:with-struct (self (arg TestStruct)))
-               (fn TestTrait:with-rest-struct (self &struct (arg TestStruct)))))
+               (fn TestTrait:with-struct (self (arg TestStruct)))))
 
       (eval '(Trait:implement TestTrait TestStruct
                :disable-syntax t
                (fn TestTrait:with-number (self (arg number))
                  (+ (Struct:get self :property 0) arg))
                (fn TestTrait:with-struct (self (arg TestStruct))
-                 (+ (Struct:get self :property 0)
-                    (Struct:get arg :property 0)))
-               (fn TestTrait:with-rest-struct (self &struct (arg TestStruct))
                  (+ (Struct:get self :property 0)
                     (Struct:get arg :property 0))))))
 
@@ -333,15 +329,6 @@
               :to-be 0)
       (expect (TestTrait:with-struct (TestStruct :property 1)
                                      (TestStruct :property 2))
-              :to-be 3)
-      (expect (TestTrait:with-rest-struct (TestStruct))
-              :to-be 0)
-      (expect (TestTrait:with-rest-struct
-               (TestStruct :property 1) :property 2)
-              :to-be 3)
-      (expect (TestTrait:with-rest-struct
-               (TestStruct :property 1)
-               (TestStruct :property 2))
               :to-be 3))
 
     (it "rejects wrong types in functions"

@@ -16,9 +16,9 @@
   (kind
    "The kind of this argument.
 
-This may be one of `&optional', `&rest', `&struct' for optional, rest
-and struct arguments; or nil for regular ones."
-   :type (member &optional &rest &struct nil)))
+This may be one of `&optional' and `&rest' for optional and rest
+arguments; or nil for regular ones."
+   :type (member &optional &rest nil)))
 
 (defun Struct:Argument:equivalent? (argument other)
   (cl-check-type argument Struct:Argument)
@@ -31,17 +31,14 @@ and struct arguments; or nil for regular ones."
 (defun Struct:Argument:read (form &optional kind)
   "Reads an argument from FORM.
 
-KIND should be one of `&optional', '&rest', `&struct' or nil and
-specifies the kind of the read argument."
+KIND should be one of `&optional', '&rest' or nil and specifies the
+kind of the read argument."
   (when (symbolp form)
     (setq form (list form)))
   (unless (and (consp form)
                (<= (length form) 3)
                (symbolp (car form)))
     (error "Form is not a valid argument: %s" form))
-  (when (and (eq kind '&struct)
-             (not (nth 1 form)))
-    (error "Type annotation required for &struct argument: %s" form))
   
   (Struct:Argument
    :name (pop form)
@@ -54,9 +51,6 @@ specifies the kind of the read argument."
 
 (defun Struct:Argument:rest? (self)
   (eq '&rest (Struct:get self :kind)))
-
-(defun Struct:Argument:struct? (self)
-  (eq '&struct (Struct:get self :kind)))
 
 (defun Struct:Argument:regular? (self)
   (null (Struct:get self :kind)))
