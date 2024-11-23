@@ -1,10 +1,10 @@
 ;; -*- lexical-binding: t -*-
 
 (require 'buttercup)
-(require 'Transformer/Identity)
+(require 'Transformer)
 (require 'cl-macs)
 
-(describe "Transformer/Identity"
+(describe "Transformer"
   (describe "provides an identity mapping by default for"
     (it "numbers"
       (expect (Transformer:transform 0) :to-equal 0))
