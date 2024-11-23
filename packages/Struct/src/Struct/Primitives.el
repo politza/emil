@@ -51,9 +51,7 @@ Returns DEFAULT if value is nil."
         (Struct:Property
          :name mutable
          :default nil
-         :documentation "Whether this property is mutable after its construction.
-
-Defaults to `nil'."
+         :documentation "Whether this property can be changed."
          :mutable nil
          :type boolean)
         (Struct:Property
@@ -169,10 +167,11 @@ Returns nil, if PROPERTY does not name a property of struct."
     initial-properties))
 
 (defun Struct:-empty-properties (type)
-  (--splice (prog1 t (ignore it))
-            (list it nil)
-            (-map #'car
-                  (Struct:unsafe-get type :properties))))
+  (let ((properties nil))
+    (dolist (declared-property (Struct:unsafe-get type :properties))
+      (push (car declared-property) properties)
+      (push nil properties))
+    (nreverse properties)))
 
 (defun Struct:-construct-properties (type properties)
   (let ((declared-properties
@@ -210,7 +209,7 @@ Returns DEFAULT, if value is `nil'."
 
 Throws an error if
 - PROPERTY is not a member of STRUCT, or
-- PROPERTY is not mutable, or
+- PROPERTY is immutable, or
 - PROPERTY has an associated type and VALUE does not match it."
   (let* ((struct-type (Struct:Type:get (car struct) :ensure))
          (property-type (Struct:Type:get-property struct-type property)))
@@ -222,13 +221,14 @@ Throws an error if
   (Struct:unsafe-set struct property value))
 
 (defun Struct:update (struct property fn)
+  "Sets STRUCT's PROPERTY using update-function FN."
   (Struct:set struct property
               (funcall fn (Struct:get struct property))))
 
 (defun Struct:properties (struct)
   "Returns STRUCT's properties and values as a property-list.
 
-This function returns a new property-list everytime its called."
+This function returns a new property-list everytime it's invoked."
   (copy-sequence (Struct:unsafe-properties struct)))
 
 (provide 'Struct/Primitives)
