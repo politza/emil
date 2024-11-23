@@ -151,7 +151,10 @@ It does nothing, if NAME does not name a defined struct-type."
     (put name 'cl-deftype-handler nil)
     (fmakunbound name)
     (fmakunbound (intern (concat (symbol-name name) "*")))
-    (fmakunbound (intern (concat (symbol-name name) "?")))))
+    (fmakunbound (intern (concat (symbol-name name) "?")))
+    (put name 'function-documentation nil)
+    (put (intern (concat (symbol-name name) "*")) 'function-documentation nil)
+    (put (intern (concat (symbol-name name) "?")) 'function-documentation nil)))
 
 (provide 'Struct)
 ;;; Struct.el ends here

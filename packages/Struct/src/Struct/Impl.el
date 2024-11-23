@@ -9,9 +9,10 @@
   (let ((functions (-map #'Struct:Function:read body)))
     `(progn
        ,@(--map (Struct:Function:emit-definition it nil t) functions)
-       (Struct:-merge-functions
-        (Struct:Type:get ',name :ensure)
-        (copy-sequence ',functions))
+       (eval-and-compile
+         (Struct:-merge-functions
+          (Struct:Type:get ',name :ensure)
+          (copy-sequence ',functions)))
        ',name)))
 
 (defun Struct:-handle-evaluation-context (name)

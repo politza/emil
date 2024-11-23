@@ -154,9 +154,14 @@ idempotent."
   (unless (symbolp type)
     (signal 'wrong-type-argument `(symbol ,type)))
   (let ((functions (-map #'Struct:Function:read body)))
-    `(eval-and-compile
-       (Trait:unimplement ',trait ',type)
-       (Trait:-check-implementation ',trait ',type (copy-sequence ',functions))   
+    `(progn
+       ;; Ensure that a type's traits are available at compile-time.
+       (eval-and-compile
+         (Trait:unimplement ',trait ',type)
+         (Trait:-check-implementation ',trait ',type (copy-sequence ',functions))
+         (Trait:-declare ',trait ',type))
+       ;; Emit code outside of `eval-and-compile', such that the
+       ;; compiler emits warnings with good source-positions.
        (Trait:implement*
         ',trait ',type
         (list ,@(-map #'Trait:-construct-method-impl functions))))))
@@ -187,15 +192,19 @@ idempotent."
   `(cons ',(Struct:get function :qualified-name)
         ,(Struct:Function:emit-lambda function nil t)))
 
+(defun Trait:-declare (trait type)
+  "Declare that TRAIT is implemented by TYPE."
+  (Struct:update (Trait:get trait :ensure)
+                 :implementing-types (-partial #'cons type))
+  type)
+
 (defun Trait:implement* (trait type functions)
   "Defines an implementation of TRAIT for TYPE."
-  (let ((struct (Trait:get trait :ensure)))
-    (Struct:update struct :implementing-types (-partial #'cons type))
-    (--each (Struct:get struct :methods)
-      (when-let (entry (assq (car it) functions))
-        (Struct:update (cdr it) :implementations
-          (-partial #'cons (cons type (cdr entry))))))
-    type))
+  (--each (Struct:get (Trait:get trait :ensure) :methods)
+    (when-let (entry (assq (car it) functions))
+      (Struct:update (cdr it) :implementations
+                     (-partial #'cons (cons type (cdr entry))))))
+  type)
 
 (defun Trait:unimplement (trait type)
   (when-let (struct (Trait:get trait))
