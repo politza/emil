@@ -68,7 +68,10 @@ Prefix each line of the result with PREFIX."
 (defun Emil:Trace:entry-message (function level arguments _context)
   "Replacement for `trace-entry-message'."
   (let ((print-escape-newlines t)
-        (arguments (--filter (not (or (Emil? it) (Emil:Context? it) (Emil:Env:Alist? it))) arguments))
+        (arguments (--filter (not (or (Emil:Analyzer? it)
+                                      (Emil:Context? it)
+                                      (Emil:Env:Alist? it)))
+                             arguments))
         (context (-find #'Emil:Context? arguments))
         (prefix (concat
                  (mapconcat #'char-to-string (make-string (max 0 (1- level)) ?|) " ")
