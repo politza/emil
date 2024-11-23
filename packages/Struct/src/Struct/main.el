@@ -32,15 +32,16 @@ Returns DEFAULT if value is nil."
   "Returns STRUCT's properties."
   (cdr struct))
 
-(defmacro Struct:Type (&rest property-list)
+(defun Struct:Type (&rest property-list)
+  "Constructs a new struct-type."
+  (Struct:-construct 'Struct:Type property-list))
+
+(defmacro Struct:Type* (&rest property-list)
+  "Constructs a new struct-type."
   (declare (no-font-lock-keyword t)
            (debug t))
   (list 'Struct:-construct
         'Struct:Type (Struct:-expand-syntax property-list)))
-
-(defun Struct:Type* (&rest property-list)
-  "Constructs a new struct-type."
-  (Struct:-construct 'Struct:Type property-list))
 
 (define-symbol-prop 'Struct:Type Struct:Type:definition-symbol
      '(Struct:MetaType
@@ -98,13 +99,15 @@ the type itself."
                        name-or-type-struct)))
     (eq 'Struct:Type (car-safe type-struct))))
 
-(defmacro Struct:Property (&rest property-list)
+(defmacro Struct:Property* (&rest property-list)
+  "Creates a new struct-property."
   (declare (no-font-lock-keyword t)
            (debug t))
   (list 'Struct:-construct
         'Struct:Property (Struct:-expand-syntax property-list)))
 
-(defun Struct:Property* (&rest property-list)
+(defun Struct:Property (&rest property-list)
+  "Creates a new struct-property."
   (Struct:-construct 'Struct:Property property-list))
 
 (define-symbol-prop 'Struct:Property Struct:Type:definition-symbol
@@ -245,18 +248,18 @@ meta-properties.  All of which mentioned there can be used.
 Defining a struct also defines 2 functions, a macro and a new cl-type,
 which are:
 
-1. A type-constructor with the name of the struct with an asterisk
-appended. It accepts keyword/value pairs for defining the properties
-of the struct-value.
+1. A type-constructor having the name of the struct. It accepts
+keyword/value pairs for defining the properties of the struct-value.
 
-2. A type-predicate using the name of the struct with a question-mark
+2. A type-predicate having the name of the struct with a question-mark
 appended.
 
-3. Another type-constructor with just the name of type.  It works like
-the first constructor, except that it is defined as a macro and is
-therefore able to support shorthand- as well as splice-syntax.
+3. Another type-constructor with the name of type with an asterisk
+appended. It works like the first constructor, except that it is
+defined as a macro and is therefore able to support shorthand- as well
+as splice-syntax.
 
-4. A cl-type having the name of the struct, which may be used in
+4. A cl-type having the name of the struct, which may be used with
 `cl-check-type' and other cl-type features.
 
 (fn NAME [DOCUMENTATION]? [STRUCT-META-PROPERTY]* [PROPERTY-NAME |
@@ -276,19 +279,19 @@ therefore able to support shorthand- as well as splice-syntax.
                          :properties
                          (-map #'Struct:-construct-property
                                property-declarations))))
-          (type (apply #'Struct:Type* struct-property-list))
-          (starred-name (intern (concat (symbol-name name) "*")))
+          (type (apply #'Struct:Type struct-property-list))
+          (macro-name (intern (concat (symbol-name name) "*")))
           (predicate-name (intern (concat (symbol-name name) "?"))))
     `(progn
-       (defmacro ,name (&rest property-list)
+       (defun ,name (&rest property-list)
+         ,(Struct:-doc-constructor type)
+         (Struct:-construct ',name property-list))
+       (defmacro ,macro-name (&rest property-list)
          ,(Struct:-doc-constructor type)
          (declare (no-font-lock-keyword t)
                   (debug t))
          (list 'Struct:-construct
                '',name (Struct:-expand-syntax property-list)))
-       (defun ,starred-name (&rest property-list)
-         ,(Struct:-doc-constructor type)
-         (Struct:-construct ',name property-list))
        (defun ,predicate-name (object &optional ensure)
          ,(Struct:-doc-predicate type)
          (or (eq (car-safe object) ',name)
@@ -306,7 +309,7 @@ therefore able to support shorthand- as well as splice-syntax.
 (defun Struct:-construct-property (declaration)
   (cond
    ((symbolp declaration)
-    (Struct:Property* :name declaration))
+    (Struct:Property :name declaration))
    ((consp declaration)
     (-let* ((((positional &as name documentation)
               property-list)
@@ -317,7 +320,7 @@ therefore able to support shorthand- as well as splice-syntax.
                (1 (list :name name))
                (2 (list :name name :documentation documentation))
                (t (error "Invalid property declaration: %s" declaration)))))
-      (apply #'Struct:Property* (append positional-property-list
+      (apply #'Struct:Property (append positional-property-list
                                        property-list))))
    (t
     (error "Invalid property declaration: %s" declaration))))
@@ -335,12 +338,13 @@ Otherwise returns nil, unless ENSURE is non-nil, in which a
   "Struct `%s' has the following properties:")
 
 (defconst Struct:-doc-constructor-syntax-info
-  "This macro supports shorthand-syntax, i.e. keyword arguments may be
-omitted, when using an identifier eponymous with the property's
-name. And also spread-syntax via the `,@' operator, with other struct
-values as arguments.
+  "The macro-version (with a star appended) of this constructor
+supports shorthand-syntax, i.e. keyword arguments may be omitted, when
+using an identifier eponymous with the property's name. And also
+spread-syntax via the `,@' operator, with other struct values as
+arguments.
 
-See also `%s*'.")
+See also `%s'.")
 
 (defconst Struct:-doc-constructor-functions-info
   "The following functions are associated with this struct:")
@@ -377,11 +381,9 @@ See also `%s*'.")
           (princ (string-trim documentation))
           (terpri nil t))
         (terpri)))
-    (unless (string-suffix-p
-             "*" (symbol-name (Struct:unsafe-get type :name)))
-      (terpri)
-      (princ (format Struct:-doc-constructor-syntax-info
-                     (Struct:unsafe-get type :name))))
+    (terpri nil t)
+    (princ (format Struct:-doc-constructor-syntax-info
+                   (Struct:unsafe-get type :name)))
     (terpri nil t)
     (terpri)
     (princ (Struct:-doc-constructor-signature type))))
@@ -456,8 +458,7 @@ It does nothing, if NAME does not name a defined struct-type."
     (Struct:-remove-syntax-highlighting name :undefine)
     (fmakunbound name)
     (fmakunbound (intern (concat (symbol-name name) "*")))
-    (fmakunbound (intern (concat (symbol-name name) "?")))
-    (fmakunbound (intern (concat (symbol-name name) "-p")))))
+    (fmakunbound (intern (concat (symbol-name name) "?")))))
 
 ;;;###autoload
 (defun Struct:member? (struct property)
@@ -519,21 +520,6 @@ Throws an error if
 
 This function returns a new property-list everytime its called."
   (copy-sequence (Struct:unsafe-properties struct)))
-
-(defun Struct:ensure-struct (type struct)
-  (cl-check-type type symbol)
-  (let ((constructor nil))
-    (cond
-     ((eq type (car-safe struct))
-      struct)
-     ((and (consp struct)
-           (= 1 (length struct))
-           (eq type (car-safe (car struct))))
-      (car struct))
-     ((fboundp (setq constructor
-                     (intern-soft (concat (symbol-name type) "*"))))
-      (apply constructor struct))
-     (t (signal 'wrong-type-argument (list 'Struct:Type type))))))
 
 (defmacro Struct:defun (name arguments
                              &optional documentation declare
@@ -608,9 +594,17 @@ This function returns a new property-list everytime its called."
             (-filter #'consp optional)))))
 
 (defun Struct:-defun-emit-ensure-struct-form (arguments)
-  (-when-let ((name type)
+  (-when-let ((struct type)
               (cadr (memq '&struct arguments)))
-    `(setq ,name (Struct:ensure-struct ',type ,name))))
+    `(setq ,struct (Struct:-defun-handle-struct-rest ',type ,struct))))
+
+(defun Struct:-defun-handle-struct-rest(type rest)
+  (if (and (consp rest)
+           (= 1 (length rest))
+           (eq type (car-safe (car rest))))
+      (car rest)
+    (Struct:Type:get type :ensure)
+    (apply type rest)))
 
 (define-symbol-prop 'Struct:Type 'function-documentation
      (Struct:-doc-constructor (Struct:Type:get 'Struct:Type :ensure)))
