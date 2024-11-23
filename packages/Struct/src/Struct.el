@@ -19,6 +19,23 @@
 (defvar Struct:enable-syntax-highlighting t
   "Whether to highlight struct types with face `font-lock-type-face'.")
 
+(defconst Struct:doc-function-constructor
+  "Constructs a struct of type `%s'.\nSee also `%s'.")
+
+(defconst Struct:doc-constructor-first-line
+  "Constructs a struct of type `%s'.")
+
+(defconst Struct:doc-constructor-properties-line
+  "Struct `%s' has the following properties:")
+
+(defconst Struct:doc-constructor-last-line
+  "This macro supports shorthand-syntax, i.e. keyword arguments may be 
+omitted, when using an identifier eponymous with the property 
+name. And also spread-syntax via the `,@' operator, with other values of 
+this type as arguments.
+
+See also `%s*'.")
+
 (defun Struct:get-type (name &optional no-error)
   (or (get name Struct:Type:symbol)
       (and (not no-error)
@@ -198,10 +215,12 @@
           (star-name (intern (concat (symbol-name name) "*"))))
     `(prog1
          (defmacro ,name (&rest arguments)
+           ,(Struct:doc-constructor type)
            (declare (no-font-lock-keyword t))
            (list 'Struct:construct
                  '',name (Struct:expand-syntax arguments)))
        (defun ,star-name (&rest arguments)
+         ,(Struct:doc-function-constructor type)
          (Struct:construct ',name arguments))
        (put ',name Struct:Type:symbol ',type)
        (when Struct:enable-syntax-highlighting
@@ -227,6 +246,52 @@
                                        property-list))))
    (t
     (error "Invalid property declaration: %s" declaration))))
+
+(defun Struct:doc-function-constructor (type)
+  (with-output-to-string
+    (princ (format Struct:doc-function-constructor
+                   (Struct:unsafe-get type :name)
+                   (format "%s*" (Struct:unsafe-get type :name))))
+    (terpri)))
+
+(defun Struct:doc-constructor (type)
+  (with-output-to-string
+    (princ (format Struct:doc-constructor-first-line
+                   (Struct:unsafe-get type :name)))
+    (terpri)
+    (terpri)
+    (princ (Struct:unsafe-get type :documentation))
+    (terpri)
+    (terpri)
+    (princ (format Struct:doc-constructor-properties-line
+                   (Struct:unsafe-get type :name)))
+    (terpri)
+    (terpri)
+    (--each (Struct:unsafe-get type :properties)
+      (-let* (((&plist :name :documentation :default-value :read-only :required)
+               (Struct:unsafe-properties it))
+              (flags (pcase-exhaustive (list read-only required)
+                       (`(nil nil) nil)
+                       (`(nil t) "required")
+                       (`(t nil) "read-only")
+                       (`(t t) "required:read-only"))))
+        
+        (princ (format "- %s" name))
+        (princ "	(")
+        (when required
+          (princ "required, "))
+        (when read-only
+          (princ "read-only, "))
+        (princ (format "default: %s)" default-value))
+        (terpri)
+        (when documentation
+          (princ (string-trim documentation))
+          (terpri))
+        (terpri)))
+    (terpri)
+    (princ (format Struct:doc-constructor-last-line
+                   (Struct:unsafe-get type :name)))
+    (terpri)))
 
 (defun Struct:expand-syntax (arguments)
   "Expands shorthand and spread-syntax in ARGUMENTS."
