@@ -25,6 +25,8 @@
                 :to-equal
                 'TestStruct)
         (expect (length (Struct:get type :properties)) :to-equal 3)
+        (expect (Struct:Type? 'TestStruct) :to-equal t)
+        (expect (Struct:Type? (Struct:Type:get 'TestStruct)) :to-equal t)
 
         (let ((optional (nth 0 (Struct:get type :properties))))
           (expect (Struct:get optional :name)
