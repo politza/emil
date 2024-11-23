@@ -6,7 +6,8 @@
 (require 'dash)
 (require 'cl-macs)
 
-(declare-function Emil:Syntax:transform "Emil/Syntax" ())
+(declare-function Emil:Syntax:transform "Emil/Syntax"
+                  (function &optional defined-type defined-functions))
 
 (defconst Trait:definition-symbol 'Trait:definition-symbol
   "Ths symbol by which to associate traits with their name.
@@ -90,7 +91,9 @@ This is the case, if FUNCTION does not define a default implementation."
                             body))
           (transformer (unless (or disable-syntax
                                    (not (require 'Emil nil t)))
-                         #'Emil:Syntax:transform)))
+                         (lambda (function)
+                           (Emil:Syntax:transform
+                            function `(Trait ,name) functions)))))
   `(eval-and-compile
      ,@(--map (Struct:Function:emit-declaration it) functions)
      (Trait:define*
@@ -179,7 +182,9 @@ idempotent."
            (Commons:split-property-list properties-and-body))
           (disable-syntax (plist-get properties :disable-syntax))
           (functions (Trait:-check-implementation
-                      trait type (--map (Struct:Function:read it (unless disable-syntax trait)) body)))
+                      trait type (--map (Struct:Function:read
+                                          it (unless disable-syntax trait))
+                                        body)))
           (transformer (unless (or disable-syntax
                                    (not (require 'Emil nil t)))
                          #'Emil:Syntax:transform)))

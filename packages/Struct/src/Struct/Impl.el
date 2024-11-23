@@ -4,8 +4,10 @@
 (require 'Commons)
 (eval-when-compile (require 'cl-macs))
 
-(declare-function Emil:Syntax:transform "Emil/Syntax" ())
+(declare-function Emil:Syntax:transform "Emil/Syntax"
+                  (function &optional defined-type defined-functions))
 
+;; FIXME: Improve handling of redefined functions, same for traits.
 (defmacro Struct:implement (name &rest properties-and-body)
   (declare (indent 1) (no-font-lock-keyword t))
   (cl-check-type name symbol)
@@ -16,7 +18,8 @@
           (functions (Struct:-read-body name body (unless disable-syntax name)))
           (transformer (unless (or disable-syntax
                                    (not (require 'Emil nil t)))
-                         #'Emil:Syntax:transform)))
+                         (lambda (function)
+                           (Emil:Syntax:transform function name functions)))))
     `(progn
        (eval-and-compile
          (Struct:-merge-functions
