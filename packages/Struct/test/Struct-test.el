@@ -4,6 +4,9 @@
 (require 'Struct)
 
 (describe "Struct"
+  (after-each
+      (Struct:undefine 'TestStruct))
+
   (describe "with a basic struct"
     (before-each
       (Struct:define TestStruct
@@ -18,10 +21,7 @@
          "A read-only property."
          :default-value 0
          :read-only t)))
-
-    (after-each
-      (Struct:undefine 'TestStruct))
-
+    
     (it "defines a type"
       (let ((type (Struct:Type:get 'TestStruct)))
         (expect type :to-be-truthy)
@@ -257,4 +257,12 @@
       (expect (Struct:get property :required)
               :to-be nil)
       (expect (Struct:get property :read-only)
-              :to-be nil))))
+              :to-be nil)))
+
+  (describe "Struct:defmethod"
+    (before-each
+      (Struct:define TestStruct property))
+
+    (it "can be used"
+      (Struct:defmethod TestStruct:method ((self TestStruct) argument)
+        (+ (Struct:get self :property))))))
