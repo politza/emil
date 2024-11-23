@@ -1,6 +1,8 @@
 ;; -*- lexical-binding: t -*-
 
 (require 'Commons)
+(require 'dash)
+(require 'Emil/Type)
 
 (Trait:define Emil:Env ()
   (fn Emil:Env:lookup-variable (self (variable symbol)
@@ -25,23 +27,62 @@ Returns `nil', if FUNCTION is not bound in this environment."))
   "Defines an environment represented via association lists."
   (variables
    "An association list mapping variable names to their `Emil:Type'."
-   :type list)
+   :type list :mutable t)
   (functions
    "An association list mapping function names to their `Emil:Type:Arrow'."
-   :type list))
+   :type list :mutable t)
+  (parent
+   "An optional parent environment.
+
+It is consulted, if a variable or function is not present in this
+environment."
+   :type (or null (Trait Emil:Env))))
 
 (Trait:implement Emil:Env Emil:Env:Alist
-  (fn Emil:Env:lookup-variable (self variable &optional _context)
-    (cdr (assq variable (Struct:get self :variables))))
+  (fn Emil:Env:lookup-variable (self variable &optional context)
+    (or (cdr (assq variable (Struct:get self :variables)))
+        (and (Struct:get self :parent)
+             (Emil:Env:lookup-variable (Struct:get self :parent)
+                                       variable context))))
 
-  (fn Emil:Env:lookup-function (self function &optional _context)
-    (cdr (assq function (Struct:get self :functions)))))
+  (fn Emil:Env:lookup-function (self function &optional context)
+    (or (cdr (assq function (Struct:get self :functions)))
+        (and (Struct:get self :parent)
+             (Emil:Env:lookup-function (Struct:get self :parent)
+                                       function context)))))
 
-(defun Emil:Env:Alist:read (variables functions)
+(Struct:implement Emil:Env:Alist
+  (fn Emil:Env:Alist:update-variable (self variable (type (Trait Emil:Type)))
+    "Update VARIABLE's type to TYPE.
+
+Adds VARIABLE to this environment, if it is currently not
+present."
+    (let ((elt (assq variable (Struct:get self :variables))))
+      (if elt
+          (setcdr elt type)
+        (Struct:update
+          self :variables (-partial #'cons (cons variable type))))))
+
+  (fn Emil:Env:Alist:update-function (self function (type (Trait Emil:Type)))
+    "Update FUNCTION's type to TYPE.
+
+Adds FUNCTION to this environment, if it is currently not
+present."
+    (unless (Emil:Type:funtion? type)
+      (error "Argument should be a function type: %s" type))
+    (let ((elt (assq function (Struct:get self :functions))))
+      (if elt
+          (setcdr elt type)
+        (Struct:update
+          self :functions (-partial #'cons (cons function type)))))))
+
+(defun Emil:Env:Alist:read (variables functions &optional parent)
   "Reads an environment from VARIABLES and FUNCTIONS.
 
 Both arguments should be association lists, mapping symbols to the
-printed representation of types.
+printed representation of types. PARENT is an optional parent
+environment, which is consulted, if a lookup in this environment
+fails.
 
 Returns a struct `Emil:Env:Alist' containing the read representation
 of these lists as per `Emil:Type:read'.
@@ -61,7 +102,8 @@ malformed."
    :variables (--map (cons (car it) (Emil:Type:read (cdr it)))
                      variables)
    :functions (--map (cons (car it) (Emil:Type:read-function (cdr it)))
-                     functions)))
+                     functions)
+   :parent parent))
 
 (Struct:define Emil:Env:Hierarchy
   "Defines a hierarchy of environments via an ordered list.
@@ -84,6 +126,6 @@ ones until some environment returns a non-`nil' value."
 
 (defun Emil:Env:empty ()
   "Returns an empty environment."
-  (Emil:Env:Alist :variables nil :functions nil))
+  (Emil:Env:Alist))
 
 (provide 'Emil/Env)
