@@ -49,13 +49,13 @@ assignments."
   (fn Emil:Context:hole (self (variable Emil:Type:Existential))
     "Splits this context at VARIABLE.
 
-Returns a list of 2 new contexts \(TOP BOTTOM\) representing the
-entries above resp. below VARIABLE, which itself is not included
-in neither. Remember that the context read bottom to top.
+Returns a cons of 2 new contexts \(TOP . BOTTOM\) representing the
+entries above resp. below VARIABLE, which itself is not included in
+neither.
 
 Returns `nil', if VARIABLE is not a member of this context."
     (when-let (tail (member variable (Struct:get self :entries)))
-      (list (Emil:Context :entries
+      (cons (Emil:Context :entries
                           (--take-while (not (equal variable it))
                                         (Struct:get self :entries)))
             (Emil:Context :entries (cdr tail)))))
@@ -72,8 +72,8 @@ given that the entries of this context look like \(TOP (VARIABLE) CENTER
 Returns `nil', if either VARIABLE or OTHER is not a member of this
 context; or if OTHER appears in front of VARIABLE."
     (-when-let* ((top (Emil:Context:hole self variable))
-                 (bottom (Emil:Context:hole (nth 1 top) other)))
-      (cons (car top) bottom)))
+                 (bottom (Emil:Context:hole (cdr top) other)))
+      (cons (car top) (list (car bottom) (cdr bottom)))))
 
   (fn Emil:Context:lookup-binding (self (variable symbol) -> (Trait Emil:Type))
     "Lookup VARIABLE in this context.

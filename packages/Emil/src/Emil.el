@@ -94,7 +94,7 @@ replaced with instances of `Emil:Type:Existential'."
       (pcase-exhaustive type
         ;; InstLSolve / InstRSolve
         ((and (pred Emil:Type:monomorph?)
-              (let `(,top ,bottom)
+              (let `(,top . ,bottom)
                 (Emil:Context:hole context variable))
               (guard (Emil:Context:well-formed? bottom type)))
          (Emil:Context:concat
@@ -108,7 +108,7 @@ replaced with instances of `Emil:Type:Existential'."
                               center variable bottom))
         ;; InstLArr / InstRArr
         ((and (Struct Emil:Type:Arrow)
-              (let `(,top ,bottom)
+              (let `(,top . ,bottom)
                 (Emil:Context:hole context variable)))
          (let* ((instance (Emil:instantiate-arrow self type))
                 (solved-var-inst
@@ -272,7 +272,7 @@ replaced with instances of `Emil:Type:Existential'."
                 (Emil:Type:Arrow:returns instantiated-type))
                (solution (Emil:Context:Solution
                           :variable arrow-type :type instantiated-type))
-               ((top bottom)
+               ((top . bottom)
                 (Emil:Context:hole context arrow-type))
                (result-context
                 (Emil:Context:concat

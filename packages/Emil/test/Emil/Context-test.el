@@ -15,7 +15,7 @@
                (Emil:Context
                 :entries (list (Emil:Type:Existential :name 'a)))
                (Emil:Type:Existential :name 'a))
-              :to-equal (list (Emil:Context)
+              :to-equal (cons (Emil:Context)
                               (Emil:Context))))
 
     (it "singleton / miss"
@@ -32,7 +32,7 @@
                                (Emil:Type:Existential :name 'b)
                                (Emil:Type:Existential :name 'c)))
                (Emil:Type:Existential :name 'b))
-              :to-equal (list
+              :to-equal (cons
                          (Emil:Context
                           :entries (list (Emil:Type:Existential :name 'a)))
                          (Emil:Context
@@ -428,7 +428,7 @@
                                          :type (Emil:Type:Any))))
                         'a))
                 :to-equal (Emil:Type:Any)))
-    
+
     (it "resolves a bound variable"
       (expect (eval '(Emil:Environment:lookup
                         (Emil:Context

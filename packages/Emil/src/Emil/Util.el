@@ -4,7 +4,7 @@
   "Generator for displayable (variable) names.
 
 Creates the sequence of symbols \(a b c ... z aa bb cc ... zz ... aaa
-bbb ...\)." 
+bbb ...\)."
   (character :type (integer 97 122) :default ?a :mutable t)
   (repetition :type (integer 1 *) :default 1 :mutable t))
 

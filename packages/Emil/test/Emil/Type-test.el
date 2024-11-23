@@ -65,7 +65,7 @@
                   :arguments ((Emil:Type:Basic :name string)
                               (Emil:Type:Any)
                               (Emil:Type:Never))
-                  :rest? t 
+                  :rest? t
                   :returns (Emil:Type:Void)
                   :min-arity 2)))))
 
@@ -209,7 +209,7 @@
     (it "variable"
       (expect (Emil:Type:print (Emil:Type:Variable :name 'a))
               :to-equal ''a))
-    
+
     (it "instance"
       (expect (Emil:Type:print (Emil:Type:Existential :name 'a))
               :to-equal ''a))
