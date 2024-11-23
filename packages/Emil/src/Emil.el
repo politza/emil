@@ -20,6 +20,9 @@
 (require 'Emil/TypedForm)
 (require 'Emil/Error)
 
+;; See "Complete and Easy Bidirectional Typechecking for Higher-Rank
+;; Polymorphism"; Jana Dunfield, Neelakantan R. Krishnaswami .
+
 (Struct:define Emil:ExistentialGenerator
   "Generator for instances of type `Emil:Type:Existential'."
   (generator :default (Emil:Util:NameGenerator)))
@@ -269,9 +272,8 @@ Apart from that, this just expands to FORM.
       (_
        (unless (or (Emil:Type:Never? left)
                    (Emil:Type:Any? right)
-                   (and (Emil:Type:Null? left)
-                        (not (Emil:Type:Never? right)))
-                   (and (Emil:Type:Void? left)
+                   (and (or (Emil:Type:Null? left)
+                            (Emil:Type:Void? left))
                         (not (Emil:Type:Never? right)))
                    (and (Emil:Type:Basic? left)
                         (Emil:Type:Basic? right)

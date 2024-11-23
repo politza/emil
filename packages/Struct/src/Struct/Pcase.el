@@ -2,6 +2,7 @@
 
 (require 'pcase)
 (require 'dash)
+(require 'Commons)
 (require 'Struct/Primitives)
 
 (pcase-defmacro Struct (name &rest properties)
@@ -14,12 +15,13 @@ Binds named properties to their corresponding values."
                (Struct:Type:get name :ensure)
                (car it))
         (error "Property is not a member of struct %s: %s" name (car it))))
-    `(and (pred (lambda (value)
-                  (and (consp value)
-                       (eq ',name (car value)))))
-	  ,@(mapcar (-lambda ((property . symbol))
-                      `(app (pcase--flip Struct:unsafe-get ,property) ,symbol))
-                    properties))))
+    (cons
+     'and
+     (cons
+      (list '\` (cons name (list `\, '_)))
+      (mapcar (-lambda ((property . symbol))
+                `(app (pcase--flip Struct:unsafe-get ,property) ,symbol))
+              properties)))))
 
 (defun Struct:Pcase:-normalize-properties (properties)
   (let ((normalized nil))
