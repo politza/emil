@@ -196,8 +196,7 @@ Returns a cons of (ARGUMENTS . RETURN_TYPE)."
                           (Struct:Function:-struct-argument-handler
                            ',(Struct:get it :type)
                            ,(Struct:get it :name)))
-                     ;; (Struct:Type:get (Struct:get it :type) :ensure)
-                     )
+                     (Struct:Type:get (Struct:get it :type) :ensure))
                    (-filter #'Struct:Argument:struct? arguments)))))
 
 (defun Struct:Function:-struct-argument-handler (type rest)
