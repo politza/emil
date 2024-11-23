@@ -202,12 +202,15 @@ replaced with instances of `Emil:Type:Existential'."
          (unless (and (<= left-min right-min)
                       (>= left-max right-max))
            (error "Function is not arity-compatible"))
-         (Emil:subtype
-          self (--reduce-from
-                (Emil:subtype self acc (car it) (cdr it))
-                context
-                (-zip-pair right-arguments left-arguments))
-          left-returns right-returns)))
+         (let ((intermediate-context
+                (--reduce-from
+                 (Emil:subtype self acc (car it) (cdr it))
+                 context
+                 (-zip-pair right-arguments left-arguments))))
+           (Emil:subtype
+            self intermediate-context
+            (Emil:Context:resolve intermediate-context left-returns)
+            (Emil:Context:resolve intermediate-context right-returns)))))
       ;; Forall L
       (`(,(Struct Emil:Type:Forall parameters type) ,_)
        (let* ((instances (Emil:generate-existentials
