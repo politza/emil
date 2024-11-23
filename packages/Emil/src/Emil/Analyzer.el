@@ -136,7 +136,12 @@
       ((and (Struct Emil:Type:Arrow)
             (let `(,top . ,bottom)
               (Emil:Context:hole context variable)))
-       (let* ((instance (Emil:Analyzer:arrow-instantiate self type))
+       (let* ((instance
+               (Emil:Type:Arrow*
+                ,@type
+                :arguments (Emil:Analyzer:generate-existentials
+                            self (length (Emil:Type:Arrow:arguments type)))
+                :returns (Emil:Analyzer:generate-existential self)))
               (solution
                (Emil:Context:Solution* variable :type instance))
               (initial-context
@@ -206,7 +211,10 @@
       ((and (Struct Emil:Type:Compound arguments)
             (let `(,top . ,bottom)
               (Emil:Context:hole context variable)))
-       (let* ((instance (Emil:Analyzer:compound-instantiate self type))
+       (let* ((instance (Emil:Type:Compound*
+                         ,@type
+                         :arguments (Emil:Analyzer:generate-existentials
+                                     self (length (Struct:get type :arguments)))))
               (solution
                (Emil:Context:Solution* variable :type instance))
               (initial-context
@@ -475,24 +483,6 @@
   (fn Emil:Analyzer:lookup-function (function context environment)
     (or (Emil:Context:lookup-function context function)
         (Emil:Env:lookup-function environment function context)))
-
-  (fn Emil:Analyzer:arrow-instantiate (self (type Emil:Type:Arrow))
-    "Instantiates the function-type with existentials.
-
-Returns a variant of this function in which all types are
-replaced with instances of `Emil:Type:Existential'."
-    (Emil:Type:Arrow*
-     ,@type
-     :arguments (Emil:Analyzer:generate-existentials
-                 self (length (Emil:Type:Arrow:arguments type)))
-     :returns (Emil:Analyzer:generate-existential self)))
-
-  (fn Emil:Analyzer:compound-instantiate (self (type Emil:Type:Compound))
-    "Instantiates the compound-type with existentials."
-    (Emil:Type:Compound*
-     ,@type
-     :arguments (Emil:Analyzer:generate-existentials
-                 self (length (Struct:get type :arguments)))))
 
   (fn Emil:Analyzer:subtype-pairwise (self context left-types right-types)
     (unless (= (length left-types) (length right-types))

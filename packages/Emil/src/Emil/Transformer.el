@@ -147,12 +147,18 @@ Apart from that, this just expands to FORM.
                (rest? (eq 'many (cdr arity)))
                (variables
                 (Emil:Type:Arrow:lambda-variables argument-list))
+               (variables-count (length variables))
                (arguments (Emil:Analyzer:generate-existentials
-                           self (length variables)))
+                           self variables-count))
+               (variable-types
+                (if (not rest?) arguments
+                  (append (butlast arguments)
+                          (list (Emil:Type:Compound
+                                 :name 'List :arguments (last arguments))))))
                (returns (Emil:Analyzer:generate-existential self))
                (bindings (--map (Emil:Context:Binding
                                  :variable (car it) :type (cdr it))
-                                (-zip-pair variables arguments)))
+                                (-zip-pair variables variable-types)))
                (marker (Emil:Context:Marker))
                (body-environment (Emil:Env:Alist :parent environment))
                (initial-context
