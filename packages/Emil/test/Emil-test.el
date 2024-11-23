@@ -303,7 +303,7 @@
 
     (it "required annotation provided"
       (expect (Emil:infer-type
-               '(list (Emil:is 0.0 number) 0)
+               '(list 0 (Emil:is 0.0 number))
                (Emil:Env:Alist:read
                 nil
                 '((list . (-> ('a 'a) 'a)))))

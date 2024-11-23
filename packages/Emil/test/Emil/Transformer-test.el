@@ -75,37 +75,40 @@
                                (Emil:Env:Alist:read nil '((f . (-> ((-> ('a) 'a) 'a) 'a)))))
               :to-equal
               '(Emil:Form:Application
-                :function (Emil:Form:ApplicationFn
-                           :value f
-                           :type (Emil:Type:Forall
-                                  :parameters ((Emil:Type:Variable :name a))
-                                  :type (Emil:Type:Arrow
-                                         :arguments
-                                         ((Emil:Type:Arrow
-                                           :arguments
-                                           ((Emil:Type:Variable :name a))
-                                           :rest? nil
-                                           :returns (Emil:Type:Variable :name a)
-                                           :min-arity 1)
-                                          (Emil:Type:Variable :name a))
-                                         :rest? nil
-                                         :returns (Emil:Type:Variable :name a)
-                                         :min-arity 2)))
-                :arguments ((Emil:Form:Function :value
-                                                (Emil:Form:Lambda :arguments
-                                                                  (x)
-                                                                  :body
-                                                                  ((Emil:Form:Atom :value x :type
-                                                                                   (Emil:Type:Existential :name a))))
-                                                :type
-                                                (Emil:Type:Arrow :arguments
-                                                                 ((Emil:Type:Existential :name a))
-                                                                 :rest? nil :returns
-                                                                 (Emil:Type:Existential :name a)
-                                                                 :min-arity 1))
-                            (Emil:Form:Atom :value 0 :type
-                                            (Emil:Type:Existential :name a)))
-                :type (Emil:Type:Basic :name integer)))))
+                :function
+                (Emil:Form:ApplicationFn
+                 :value f
+                 :type
+                 (Emil:Type:Forall :parameters
+                                   ((Emil:Type:Variable :name a))
+                                   :type
+                                   (Emil:Type:Arrow :arguments
+                                                    ((Emil:Type:Arrow :arguments
+                                                                      ((Emil:Type:Variable :name a))
+                                                                      :rest? nil :returns
+                                                                      (Emil:Type:Variable :name a)
+                                                                      :min-arity 1)
+                                                     (Emil:Type:Variable :name a))
+                                                    :rest? nil :returns
+                                                    (Emil:Type:Variable :name a)
+                                                    :min-arity 2)))
+                :arguments
+                ((Emil:Form:Function :value
+                                     (Emil:Form:Lambda :arguments
+                                                       (x)
+                                                       :body
+                                                       ((Emil:Form:Atom :value x :type
+                                                                        (Emil:Type:Basic :name integer))))
+                                     :type
+                                     (Emil:Type:Arrow :arguments
+                                                      ((Emil:Type:Basic :name integer))
+                                                      :rest? nil :returns
+                                                      (Emil:Type:Basic :name integer)
+                                                      :min-arity 1))
+                 (Emil:Form:Atom :value 0 :type
+                                 (Emil:Type:Existential :name a)))
+                :type
+                (Emil:Type:Basic :name integer)))))
 
   (describe "let"
     (it "basic"
