@@ -107,11 +107,12 @@ Returns a cons of (ARGUMENTS . RETURN_TYPE)."
         (result nil)
         (arguments (Struct:get self :arguments)))
     (while arguments
-      (-let ((kind (Struct:get self :kind)))
-        (when (and kind (not (eq kind previous-kind)))
-          (push kind result)
-          (setq previous-kind kind))
-        (push (Struct:get self :name) result)))
+      (let ((argument (pop arguments)))
+        (-let ((kind (Struct:get argument :kind)))
+          (when (and kind (not (eq kind previous-kind)))
+            (push kind result)
+            (setq previous-kind kind))
+          (push (Struct:get argument :name) result))))
     (nreverse result)))
 
 (defun Struct:Function:emit-body (self &optional transformer)
