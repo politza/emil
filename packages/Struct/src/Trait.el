@@ -1,9 +1,8 @@
 ;; -*- lexical-binding: t -*-
 
-
+(require 'Struct)
 (eval-and-compile
-  (require 'dash)
-  (require 'Struct))
+  (require 'dash))
 
 (defconst Trait:definition-symbol 'Trait:definition-symbol
   "Ths symbol by which to associate traits with their name.
