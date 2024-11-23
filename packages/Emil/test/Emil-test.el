@@ -49,7 +49,11 @@
 
       (it "convoluted identity"
         (expect (Emil:infer-type '(lambda (x) ((lambda (y) y) x)))
-                :to-equal '(-> ('a?) 'a?))))
+                :to-equal '(-> ('a?) 'a?)))
+
+      (it "&rest arguments"
+        (expect (Emil:infer-type '(lambda (&rest x) x))
+                :to-equal '(-> (&rest 'a?) (List 'a?)))))
 
     (describe "let"
       (it "empty"
@@ -260,7 +264,25 @@
           (Emil:Env:Alist:read
            '((fill-column . integer))
            '((length . (-> (string) integer)))))
-         :to-equal 'integer)))
+         :to-equal 'integer))
+
+      (it "check with &rest arg and lambda"
+        (expect
+         (Emil:infer-type
+          '(f (lambda (&rest x) x))
+          (Emil:Env:Alist:read
+           nil
+           '((f . (-> ((-> ('a) (List 'a))) (List 'a))))))
+         :to-equal '(List 'a?)))
+
+      (it "check with &rest arg against existing type"
+        (expect
+         (Emil:infer-type
+          '(f g)
+          (Emil:Env:Alist:read
+           '((g . (-> (&rest 'a) (List 'a))))
+           '((f . (-> ((-> ('a) (List 'a))) (List 'a))))))
+         :to-equal '(List 'a?))))
 
     (describe "Emil:is"
       (it "basic type"
@@ -300,7 +322,17 @@
 
         (it "to few arguments"
           (expect (Emil:infer-type '((lambda (a b &optional) a)))
-                  :to-throw)))
+                  :to-throw))
+
+        (it "&rest type"
+          (expect (Emil:infer-type
+                   '((lambda (&rest x) x) 0 1))
+                  :to-equal '(List integer)))
+
+        (it "all arguments are checked"
+          (expect (Emil:infer-type
+                   '((lambda (&rest x) 0) 0.0 0))
+                  :to-throw 'Emil:type-error))))
 
       (describe "subtype"
         (it "&optional in source"
@@ -520,15 +552,4 @@
                                      (Sequence integer))
                                     string))
                       (string-prefix-p . (-> (string string) boolean)))))
-                  :to-equal 'boolean))))
-
-    (xdescribe "existing issues"
-      (xit "not all applied arguments are checked for &rest functions"
-        (expect (Emil:infer-type
-                 '((lambda (&rest x) 0) 0.0 0))
-                :to-throw 'Emil:type-error))
-
-      (it "&rest variable should have list type in function"
-        (expect (Emil:infer-type
-                 '((lambda (&rest x) x) 0 1 2))
-                :to-equal '(List integer))))))
+                  :to-equal 'boolean)))))

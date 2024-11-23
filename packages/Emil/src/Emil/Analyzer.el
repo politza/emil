@@ -406,22 +406,21 @@
                  (-zip-pair arguments instantiated-arguments))))
          (cons result-context
                (cons instantiated-returns argument-forms))))
-      ((Struct Emil:Type:Arrow :arguments argument-types returns)
+      ((Struct Emil:Type:Arrow  returns)
        (let ((argument-count (length arguments)))
          (unless (Emil:Type:Arrow:arity-assignable-to?
                   arrow-type (cons argument-count argument-count))
            (Emil:type-error "Application is not arity compatible: %d, %s"
                             argument-count arrow-type))
-         (-let* ((adjusted-arguments
-                  (append arguments (-repeat (- (length argument-types)
-                                                (length arguments))
-                                             nil)))
+         (-let* ((argument-types
+                  (Emil:Type:Arrow:adjusted-arguments arrow-type argument-count))
                  ((result-context . argument-forms)
                   (Emil:Util:map-reduce
-                   (-lambda (context (argument . instance))
-                     (Emil:Analyzer:check self argument instance context environment))
+                   (-lambda (context (argument . argument-type))
+                     (Emil:Analyzer:check
+                      self argument argument-type context environment))
                    context
-                   (-zip-pair adjusted-arguments argument-types))))
+                   (-zip-pair arguments argument-types))))
            (cons result-context (cons returns argument-forms)))))
       (_
        (Emil:type-error "Function can not be applied to arguments: %s, %s"
