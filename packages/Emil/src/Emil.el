@@ -16,6 +16,7 @@
 (require 'Emil/TypedForm)
 (require 'Emil/Analyzer)
 (require 'Emil/Transformer)
+(require 'Emil/Annotation)
 
 ;; See "Complete and Easy Bidirectional Typechecking for Higher-Rank
 ;; Polymorphism"; Jana Dunfield, Neelakantan R. Krishnaswami .

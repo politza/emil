@@ -3,13 +3,7 @@
 (require 'dash)
 (require 'Transformer)
 (require 'Emil/Analyzer)
-
-(defun Emil:is (_type _form)
-  "Declare that FORM is of type TYPE.
-
-\(fn TYPE FORM\)"
-  (declare (indent 1))
-  (error "Emil:is is not supposed to be invoked"))
+(require 'Emil/Annotation)
 
 (Struct:implement Emil:Analyzer
   (fn Emil:Analyzer:infer-do (self forms (context Emil:Context)
@@ -52,12 +46,27 @@
         (Struct:get (-last-item body-forms) :type)
       (Emil:Type:Null)))
 
-  (fn Emil:Analyzer:transform-annotation (self _form _function arguments &optional context environment)
+  (fn Emil:Analyzer:transform-annotation (self _form macro arguments &optional context environment)
+    (unless (memq macro Emil:Annotation:macros)
+      (error "Internal error: Expected Emil:is or Emil:as: %s" macro))
     (unless (= 2 (length arguments))
-      (Emil:type-error "Syntax error: Emil:is: %s" arguments))
+      (Emil:type-error "Syntax error: %s: %s" macro arguments))
     (-let ((type (Emil:Type:read
-                  (Transformer:Form:value (nth 0 arguments)))))
-      (Emil:Analyzer:check self (nth 1 arguments) type context environment))))
+                  (Transformer:Form:value (nth 1 arguments)))))
+      (pcase-exhaustive macro
+        ('Emil:is
+            (Emil:Analyzer:check self (nth 0 arguments) type context environment))
+        ('Emil:as
+            (cons context
+                  (Emil:TypedForm:new (nth 0 arguments) type environment))))))
+
+  (fn Emil:Analyzer:macroexpand-maybe (self form)
+    (let ((unwrapped (Transformer:Form:unwrap form)))
+      (if (and (macrop (car-safe unwrapped))
+               (not (memq (car-safe unwrapped)
+                          Emil:Annotation:macros)))
+          (macroexpand unwrapped)
+        form))))
 
 (Trait:implement Transformer Emil:Analyzer
   (fn Transformer:transform-number (_self form number &optional context environment
@@ -315,30 +324,30 @@
                                         &optional context environment &rest _)
     (Emil:Analyzer:infer-progn-like self form context environment))
 
-  (fn Transformer:transform-application (self form function arguments
+  (fn Transformer:transform-application (self _form function arguments
                                               &optional context environment
                                               &rest _)
 
-    (if (eq (Transformer:Form:value function) 'Emil:is)
-        (Emil:Analyzer:transform-annotation self form function arguments context environment)
-      (-let* (((function-context . function-form)
+    (-let* (((function-context . function-form)
                (Transformer:transform-function
                 self `(function ,function) function context environment))
               ((context return-type . argument-forms)
                (Emil:Analyzer:infer-application
                 self (Emil:Context:resolve
                       function-context (Struct:get function-form :type))
-                (--map (macroexpand (Transformer:Form:unwrap it)) arguments)
+                (--map (Emil:Analyzer:macroexpand-maybe self it) arguments)
                 function-context environment)))
         (cons context
               (Emil:TypedForm:new
                (cons (nth 1 (Struct:get function-form :form))
                      argument-forms)
-               return-type environment)))))
+               return-type environment))))
 
-  (fn Transformer:transform-macro (self form _macro _arguments
+  (fn Transformer:transform-macro (self form macro arguments
                                         &optional context environment &rest _)
-    (Emil:Analyzer:infer
-     self (macroexpand (Transformer:Form:unwrap form)) context environment)))
+    (if (memq (Transformer:Form:value macro) Emil:Annotation:macros)
+        (Emil:Analyzer:transform-annotation self form macro arguments context environment)
+      (Emil:Analyzer:infer
+       self (macroexpand (Transformer:Form:unwrap form)) context environment))))
 
 (provide 'Emil/Transformer)

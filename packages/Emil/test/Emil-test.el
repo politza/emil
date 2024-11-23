@@ -285,12 +285,12 @@
 
   (describe "annotations"
     (it "basic type"
-      (expect (Emil:infer-type '(Emil:is integer 0))
+      (expect (Emil:infer-type '(Emil:is 0 integer))
               :to-equal 'integer))
 
     (it "lambda"
-      (expect (Emil:infer-type '(Emil:is (-> (string) string)
-                                  (lambda (x) x)))
+      (expect (Emil:infer-type '(Emil:is (lambda (x) x)
+                                  (-> (string) string)))
               :to-equal '(-> (string) string)))
 
     (it "required annotation not provided"
@@ -303,7 +303,7 @@
 
     (it "required annotation provided"
       (expect (Emil:infer-type
-               '(list (Emil:is number 0.0) 0)
+               '(list (Emil:is 0.0 number) 0)
                (Emil:Env:Alist:read
                 nil
                 '((list . (-> ('a 'a) 'a)))))

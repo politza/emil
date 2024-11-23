@@ -541,7 +541,7 @@
 
       (it "three arguments with annotation"
         (expect (Emil:infer-type
-                 '(f (Emil:is Any 0) "1" [2])
+                 '(f (Emil:is 0 Any) "1" [2])
                  env)
                 :to-throw 'Emil:type-error)))
 
