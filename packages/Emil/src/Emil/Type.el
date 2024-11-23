@@ -445,9 +445,9 @@ This renames all type-variables with standard ones."
                       ,@type
                       :arguments (-map #'normalize arguments)
                       :returns (normalize returns)))
-                    ((Struct Emil:Type:Variable name)
+                    ((Struct Emil:Type:Variable)
                      (Emil:Type:Variable :name (replace type)))
-                    ((Struct Emil:Type:Existential name)
+                    ((Struct Emil:Type:Existential)
                      (Emil:Type:Existential :name (replace type)))
                     (_ type))))
       (normalize type))))

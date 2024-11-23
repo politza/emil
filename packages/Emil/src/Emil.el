@@ -266,24 +266,26 @@ Apart from that, this just expands to FORM.
             (guard (not (member name (Emil:Type:free-variables left)))))
        (Emil:instantiate self context right left :greater-or-equal))
       ;; Unit
-      ((or `(,(Struct Emil:Type:Never) ,_)
-           `(,_ ,(Struct Emil:Type:Any))
-           (and `(,(Struct Emil:Type:Null) ,_)
-                (guard (not (Emil:Type:Never? right))))
-           (and `(,(Struct Emil:Type:Void) ,_)
-                (guard (not (Emil:Type:Never? right))))
-           (and `(,(Struct Emil:Type:Basic :name left-name)
-                  ,(Struct Emil:Type:Basic :name right-name))
-                (guard (pcase (list left-name right-name)
-                         (`(integer number) t)
-                         (`(float number) t)
-                         ((guard (equal left-name right-name)) t)))))
-       context)
       (_
-       (Emil:type-error
-        "%s can not be assigned to %s"
-        (Emil:Type:print left)
-        (Emil:Type:print right)))))
+       (unless (or (Emil:Type:Never? left)
+                   (Emil:Type:Any? right)
+                   (and (Emil:Type:Null? left)
+                        (not (Emil:Type:Never? right)))
+                   (and (Emil:Type:Void? left)
+                        (not (Emil:Type:Never? right)))
+                   (and (Emil:Type:Basic? left)
+                        (Emil:Type:Basic? right)
+                        (pcase (list (Struct:get left :name)
+                                     (Struct:get right :name))
+                          (`(integer number) t)
+                          (`(float number) t)
+                          (`(,left-name ,right-name)
+                           (equal left-name right-name)))))
+         (Emil:type-error
+          "%s can not be assigned to %s"
+          (Emil:Type:print left)
+          (Emil:Type:print right)))
+       context)))
 
   (fn Emil:infer-application (self (arrow-type (Trait Emil:Type))
                                    arguments context environment)
