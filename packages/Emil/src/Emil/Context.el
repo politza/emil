@@ -5,6 +5,7 @@
 (require 'dash)
 (require 'Struct)
 (require 'Struct/Pcase)
+(require 'Trait)
 
 (Struct:define Emil:Context
   "Provides a context for type-inference.
@@ -158,19 +159,31 @@ as with regards to its unresolved type-variables."
         parameters
         :type (Emil:Context:resolve self type)))))
 
+  (fn Emil:Context:valid-entry? (object)
+    (or (Trait:implements? (Trait:type-of object) 'Emil:Type)
+        (Emil:Context:Solution? object)
+        (Emil:Context:Marker? object)
+        (Emil:Context:Binding? object)))
+
   (fn Emil:Context:concat (&rest contexts-and-entries)
     "Concat all arguments CONTEXTS-AND-ENTRIES.
 
-Each argument may either be a context an entry or `nil'. Return a
-context with all arguments concatenated, except for `nil' ones, which
-are discarded."
+Each argument may either be a context an entry or a list of entries.
+Returns a context with all arguments concatenated, except for `nil'
+ones, which are discarded."
     (Emil:Context
-     :entries (--mapcat (pcase it
-                          ((Struct Emil:Context entries)
-                           entries)
-                          ('nil nil)
-                          (_ (list it)))
-                        contexts-and-entries)))
+     :entries
+     (--mapcat (pcase it
+                 ((Struct Emil:Context entries)
+                  entries)
+                 ((pred Emil:Context:valid-entry?)
+                  (list it))
+                 ((and (pred listp)
+                       (guard (-every? #'Emil:Context:valid-entry? it)))
+                  it)
+                 (_
+                  (error "Attempted to concat an invalid context entry: %s" it)))
+               contexts-and-entries)))
 
   (fn Emil:Context:member? (self entry)
     (member entry (Struct:get self :entries))))
