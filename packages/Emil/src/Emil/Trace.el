@@ -11,17 +11,22 @@
 (defvar Emil:Trace:included-functions
   '(Emil:Analyzer:infer
     Emil:Analyzer:check
+    Emil:Analyzer:check-forall
+    Emil:Analyzer:check-lambda
+    Emil:Analyzer:lambda-bindings
     Emil:Analyzer:lookup-variable
     Emil:Analyzer:lookup-function
     Emil:Analyzer:instantiate-arrow
     Emil:Analyzer:instantiate
     Emil:Analyzer:subtype
+    Emil:Analyzer:subtype-arrow
+    Emil:Analyzer:subtype-arrow-pairs
+    Emil:Analyzer:subtype-compound
+    Emil:Analyzer:subtype-default
     Emil:Analyzer:infer-do
     Emil:Analyzer:infer-application
     Emil:Type:Arrow:arity-assignable-from?
-    Emil:Type:Arrow:arity-assignable-to?
-    Emil:Type:Arrow:adjusted-arguments
-    Emil:Type:Arrow:lambda-adjusted-arguments))
+    Emil:Type:Arrow:arity-assignable-to?))
 
 (defvar Emil:Trace:excluded-functions
   '(Transformer:transform-form Transformer:transform-cons))

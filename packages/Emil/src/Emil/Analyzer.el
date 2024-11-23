@@ -32,7 +32,10 @@
       ((Struct Emil:Type:Forall)
        (Emil:Analyzer:check-forall self form type context environment))
       ((and (Struct Emil:Type:Arrow)
-            (let `(function ,_) (Transformer:Form:unwrap-n form 1)))
+            (let `(function ,lambda)
+              (Transformer:Form:unwrap-n form 1))
+            (let `(lambda . ,_)
+              (Transformer:Form:unwrap-n lambda 1)))
        (Emil:Analyzer:check-lambda self form type context environment))
       (_
        (-let* (((form-context . typed-form)
@@ -65,23 +68,13 @@
                                        (environment (Trait Emil:Env)))
     (pcase-exhaustive type
       ((and (Struct Emil:Type:Arrow returns)
-            (let `(function ,lambda) form)
-            (let `(lambda ,arguments . ,body)
+            (let `(function ,lambda) (Transformer:Form:unwrap-n form 1))
+            (let `(lambda ,_ . ,body)
               (Transformer:Form:unwrap-n lambda 2)))
-       (unless (Emil:Type:Arrow:arity-assignable-from? type (func-arity lambda))
-         (Emil:type-error "Function is not arity compatible: %s, %s"
-                          form type))
-       (-let* ((argument-count
-                (max (length (Emil:Type:Arrow:lambda-variables arguments))
-                     (length (Emil:Type:Arrow:arguments type))))
-               (arguments-adjusted
-                (Emil:Type:Arrow:lambda-adjusted-arguments arguments argument-count))
-               (argument-types-adjusted
-                (Emil:Type:Arrow:adjusted-arguments type argument-count))
-               (bindings
+       (-let* ((bindings
                 (--map (Emil:Context:Binding
                         :variable (car it) :type (cdr it))
-                       (-zip-pair arguments-adjusted argument-types-adjusted)))
+                       (Emil:Analyzer:lambda-bindings type lambda)))
                (marker (Emil:Context:Marker))
                ((body-context . body-forms)
                 (Emil:Analyzer:check-do
@@ -93,6 +86,44 @@
                 (list (car form)
                       (cons (-take 2 lambda) body-forms))
                 returns environment))))))
+
+  (fn Emil:Analyzer:lambda-bindings ((type Emil:Type:Arrow) lambda)
+    (let* ((lambda-arguments (nth 1 lambda))
+           (variables (Emil:Analyzer:lambda-variables lambda-arguments))
+           (variable-count (length variables))
+           (variable-rest? (memq '&rest lambda-arguments))
+           (arguments (Emil:Type:Arrow:arguments type))
+           (argument-count (length arguments))
+           (last-argument (-last-item arguments))
+           (argument-rest? (Struct:get type :rest?))
+           (bindings nil))
+      (unless (Emil:Type:Arrow:arity-assignable-from? type (func-arity lambda))
+        (Emil:type-error "Function is not assignable to %s: (lambda %s)" (Emil:Type:print type)
+                         lambda-arguments))
+      (when (> variable-count 0)
+        (dotimes (_ (min argument-count (1- variable-count)))
+          (push (cons (pop variables) (pop arguments))
+                bindings))
+        (dotimes (_ (- variable-count
+                       (min argument-count (1- variable-count))
+                       1))
+          (push (cons (pop variables) (if argument-rest? last-argument (Emil:Type:Null)))
+                bindings))
+        (let ((last-type
+               (if (not variable-rest?)
+                   (if (= variable-count argument-count) last-argument (Emil:Type:Null))
+                 (Emil:Type:Compound
+                  :name 'List
+                  :arguments
+                  (list (if (< variable-count argument-count)
+                            (Emil:Type:Any)
+                          (if (or (= variable-count argument-count)
+                                  (and (> variable-count argument-count)
+                                       argument-rest?))
+                              last-argument
+                            (Emil:Type:Null))))))))
+          (push (cons (pop variables) last-type) bindings)))
+      (nreverse bindings)))
 
   (fn Emil:Analyzer:check-do (self forms type (context Emil:Context)
                                    (environment (Trait Emil:Env)))
@@ -220,12 +251,12 @@
               (initial-context
                (Emil:Context:concat
                 top solution
-                (reverse (Struct:get instance :parameters))
+                (reverse (Struct:get instance :arguments))
                 bottom)))
          (--reduce-from
           (Emil:Analyzer:instantiate self acc (car it) (cdr it) relation)
           initial-context
-          (-zip-pair (Struct:get instance :parameters)
+          (-zip-pair (Struct:get instance :arguments)
                      arguments))))))
 
   (fn Emil:Analyzer:subtype (self (context Emil:Context)
@@ -290,31 +321,44 @@
                                         (left Emil:Type:Arrow)
                                         (right Emil:Type:Arrow))
     (pcase-exhaustive (list left right)
-      (`(,(Struct Emil:Type:Arrow
-                  :arguments left-arguments :returns left-returns)
-         ,(Struct Emil:Type:Arrow
-                  :arguments right-arguments :returns right-returns
-                  :rest? right-rest?))
-       (unless (Emil:Type:Arrow:arity-assignable-to? left right)
-         (Emil:type-error "Function is not arity-compatible: %s, %s" left right))
-
-       (let* ((argument-count (if right-rest?
-                                  (max (length left-arguments)
-                                       (length right-arguments))
-                                (length right-arguments)))
-              (left-arguments-adjusted (Emil:Type:Arrow:adjusted-arguments
-                                        left argument-count))
-              (right-arguments-adjusted (Emil:Type:Arrow:adjusted-arguments
-                                         right argument-count))
-              (intermediate-context
+      (`(,(Struct Emil:Type:Arrow :returns left-returns)
+         ,(Struct Emil:Type:Arrow :returns right-returns))
+       (let* ((argument-pairs
+               (Emil:Analyzer:subtype-arrow-pairs left right))
+              (result-context
                (Emil:Analyzer:subtype-pairwise
                 self context
-                right-arguments-adjusted
-                left-arguments-adjusted)))
+                (-map #'cdr argument-pairs)
+                (-map #'car argument-pairs))))
          (Emil:Analyzer:subtype
-          self intermediate-context
-          (Emil:Context:resolve intermediate-context left-returns)
-          (Emil:Context:resolve intermediate-context right-returns))))))
+          self result-context
+          (Emil:Context:resolve result-context left-returns)
+          (Emil:Context:resolve result-context right-returns))))))
+
+  (fn Emil:Analyzer:subtype-arrow-pairs ((left Emil:Type:Arrow) (right Emil:Type:Arrow))
+    (unless (Emil:Type:Arrow:arity-assignable-to? left right)
+      (Emil:type-error "Function is not arity-compatible: %s, %s" left right))
+    (let* ((left-arguments (Emil:Type:Arrow:arguments left))
+           (left-count (length left-arguments))
+           (left-rest (and (Emil:Type:Arrow:rest? left)
+                           (-last-item left-arguments)))
+           (right-arguments (Emil:Type:Arrow:arguments right))
+           (right-count (length right-arguments))
+           (right-rest (and (Emil:Type:Arrow:rest? right)
+                            (-last-item right-arguments))))
+      (cond
+       ((and left-rest right-rest)
+        (-zip-pair (append left-arguments
+                           (-repeat (- (max right-count left-count) left-count) left-rest))
+                   (append right-arguments
+                           (-repeat (- (max right-count left-count) right-count) right-rest))))
+       (left-rest
+        (-zip-pair (append left-arguments
+                           (-repeat (- right-count left-count) left-rest))
+                   right-arguments))
+       (t
+        (-zip-pair left-arguments
+                   (-take left-count right-arguments))))))
 
   (fn Emil:Analyzer:subtype-compound (self (context Emil:Context)
                                            (left (Trait Emil:Type))
@@ -388,8 +432,8 @@
        (t (Emil:Analyzer:subtype-error left right)))))
 
   (fn Emil:Analyzer:subtype-default (_self (context Emil:Context)
-                                          (left (Trait Emil:Type))
-                                          (right (Trait Emil:Type)))
+                                           (left (Trait Emil:Type))
+                                           (right (Trait Emil:Type)))
     (cond
      ((and (Emil:Type:Basic? left)
            (Emil:Type:Basic? right)
@@ -446,25 +490,33 @@
          (cons result-context
                (cons instantiated-returns argument-forms))))
       ((Struct Emil:Type:Arrow  returns)
-       (let ((argument-count (length arguments)))
-         (unless (Emil:Type:Arrow:arity-assignable-to?
-                  arrow-type (cons argument-count argument-count))
-           (Emil:type-error "Application is not arity compatible: %d, %s"
-                            argument-count arrow-type))
-         (-let* ((argument-types
-                  (Emil:Type:Arrow:adjusted-arguments arrow-type argument-count))
-                 ((result-context . argument-forms)
-                  (Emil:Util:map-reduce
-                   (-lambda (context (argument . argument-type))
-                     (Emil:Analyzer:check
-                      self argument argument-type context environment))
-                   context
-                   (-zip-pair arguments argument-types))))
-           (cons result-context (cons returns argument-forms)))))
+       (-let* ((argument-pairs
+                (Emil:infer-application-arrrow-pairs arrow-type arguments))
+               ((result-context . argument-forms)
+                (Emil:Util:map-reduce
+                 (-lambda (context (type . argument))
+                   (Emil:Analyzer:check
+                    self argument type context environment))
+                 context
+                 argument-pairs)))
+         (cons result-context (cons returns argument-forms))))
       (_
        (Emil:type-error "Function can not be applied to arguments: %s, %s"
                         (Emil:Type:print arrow-type)
                         arguments))))
+
+  (fn Emil:infer-application-arrrow-pairs ((arrow-type Emil:Type:Arrow) arguments)
+    (let* ((argument-count (length arguments))
+           (types (Emil:Type:Arrow:arguments arrow-type))
+           (type-count (length types)))
+      (unless (Emil:Type:Arrow:arity-assignable-to?
+               arrow-type (cons argument-count argument-count))
+        (Emil:type-error "Application is not arity compatible: %d, %s"
+                         argument-count arrow-type))
+      (-zip-pair (append types
+                         (-repeat (- argument-count type-count)
+                                  (-last-item types)))
+                 arguments)))
 
   (fn Emil:Analyzer:generate-existential (self)
     "Returns a new `Emil:Type:Existential'."
@@ -500,6 +552,10 @@
 
   (fn Emil:Analyzer:has-errors? (self)
     (--some? (eq :error (Struct:get it :type))
-             (Struct:get self :messages))))
+             (Struct:get self :messages)))
+
+  (fn Emil:Analyzer:lambda-variables (arguments)
+    "Return ARGUMENTS excluding &optional and &rest keywords."
+    (--filter (not (memq it '(&optional &rest))) arguments)))
 
 (provide 'Emil/Analyzer)

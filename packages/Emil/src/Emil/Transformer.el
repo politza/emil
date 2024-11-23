@@ -4,14 +4,12 @@
 (require 'Transformer)
 (require 'Emil/Analyzer)
 
-(defmacro Emil:is (_type form)
+(defun Emil:is (_type _form)
   "Declare that FORM is of type TYPE.
-
-Apart from that, this just expands to FORM.
 
 \(fn TYPE FORM\)"
   (declare (indent 1))
-  form)
+  (error "Emil:is is not supposed to be invoked"))
 
 (Struct:implement Emil:Analyzer
   (fn Emil:Analyzer:infer-do (self forms (context Emil:Context)
@@ -21,7 +19,7 @@ Apart from that, this just expands to FORM.
        (Emil:Analyzer:infer self form context environment))
      context
      forms))
-  
+
   (fn Emil:Analyzer:infer-progn-like (self form (context Emil:Context)
                                            (environment (Trait Emil:Env)))
     (-let* ((body (cdr (Transformer:Form:value form)))
@@ -52,7 +50,14 @@ Apart from that, this just expands to FORM.
   (fn Emil:Analyzer:type-of-body (body-forms)
     (if body-forms
         (Struct:get (-last-item body-forms) :type)
-      (Emil:Type:Null))))
+      (Emil:Type:Null)))
+
+  (fn Emil:Analyzer:transform-annotation (self _form _function arguments &optional context environment)
+    (unless (= 2 (length arguments))
+      (Emil:type-error "Syntax error: Emil:is: %s" arguments))
+    (-let ((type (Emil:Type:read
+                  (Transformer:Form:value (nth 0 arguments)))))
+      (Emil:Analyzer:check self (nth 1 arguments) type context environment))))
 
 (Trait:implement Transformer Emil:Analyzer
   (fn Transformer:transform-number (_self form number &optional context environment
@@ -146,7 +151,7 @@ Apart from that, this just expands to FORM.
                (min-arity (car arity))
                (rest? (eq 'many (cdr arity)))
                (variables
-                (Emil:Type:Arrow:lambda-variables argument-list))
+                (Emil:Analyzer:lambda-variables argument-list))
                (variables-count (length variables))
                (arguments (Emil:Analyzer:generate-existentials
                            self variables-count))
@@ -167,7 +172,7 @@ Apart from that, this just expands to FORM.
                  (reverse arguments) context))
                ((body-context . body-forms)
                 (Emil:Analyzer:check-do self body
-                               returns initial-context body-environment))
+                                        returns initial-context body-environment))
                (type (Emil:Type:Arrow* arguments returns min-arity rest?)))
          (Emil:Env:Alist:update-from body-environment body-context
                                      variables nil)
@@ -310,36 +315,30 @@ Apart from that, this just expands to FORM.
                                         &optional context environment &rest _)
     (Emil:Analyzer:infer-progn-like self form context environment))
 
-  (fn Transformer:transform-application (self _form function arguments
+  (fn Transformer:transform-application (self form function arguments
                                               &optional context environment
                                               &rest _)
 
-    (-let* (((function-context . function-form)
-             (Transformer:transform-function
-              self `(function ,function) function context environment))
-            ((context return-type . argument-forms)
-             (Emil:Analyzer:infer-application
-              self (Emil:Context:resolve
-                    function-context (Struct:get function-form :type))
-              arguments
-              function-context environment)))
-      (cons context
-            (Emil:TypedForm:new
-             (cons (nth 1 (Struct:get function-form :form))
-                   argument-forms)
-             return-type environment))))
+    (if (eq (Transformer:Form:value function) 'Emil:is)
+        (Emil:Analyzer:transform-annotation self form function arguments context environment)
+      (-let* (((function-context . function-form)
+               (Transformer:transform-function
+                self `(function ,function) function context environment))
+              ((context return-type . argument-forms)
+               (Emil:Analyzer:infer-application
+                self (Emil:Context:resolve
+                      function-context (Struct:get function-form :type))
+                (--map (macroexpand (Transformer:Form:unwrap it)) arguments)
+                function-context environment)))
+        (cons context
+              (Emil:TypedForm:new
+               (cons (nth 1 (Struct:get function-form :form))
+                     argument-forms)
+               return-type environment)))))
 
-  (fn Transformer:transform-macro (self form macro arguments
+  (fn Transformer:transform-macro (self form _macro _arguments
                                         &optional context environment &rest _)
-    (cond
-     ((eq (Transformer:Form:value macro) 'Emil:is)
-      (unless (= 2 (length arguments))
-        (Emil:type-error "Syntax error: Emil:is: %s" arguments))
-      (-let* ((type (Emil:Type:read
-                     (Transformer:Form:value (nth 0 arguments)))))
-        (Emil:Analyzer:check self (nth 1 arguments) type context environment)))
-     (t
-      (Emil:Analyzer:infer
-       self (macroexpand (Transformer:Form:unwrap form)) context environment)))))
+    (Emil:Analyzer:infer
+     self (macroexpand (Transformer:Form:unwrap form)) context environment)))
 
 (provide 'Emil/Transformer)

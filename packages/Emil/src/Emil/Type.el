@@ -124,6 +124,10 @@ including itself.")
     "Returns the return type."
     (Struct:get self :returns))
 
+  (fn Emil:Type:Arrow:rest? (self)
+    "Returns non-nil, if the last argument is a rest one."
+    (Struct:get self :rest?))
+
   (fn Emil:Type:Arrow:arity (self &optional numeric?)
     "Returns the minimal and maximal accepted number of arguments.
 
@@ -170,44 +174,7 @@ see."
             (Emil:Type:Arrow:normalize-arity other))
            ((min . max) (Emil:Type:Arrow:arity self t)))
       (and (<= other-min min)
-           (>= other-max max))))
-
-  (fn Emil:Type:Arrow:adjusted-arguments (self count)
-    "Returns an argument-list with COUNT nominal arguments.
-
-Signals an error if COUNT is less than the minimal accepted number of
-arguments of this function; or if COUNT is larger then the maximal
-accepted ones."
-    (let ((rest? (Struct:get self :rest?))
-          (min-arity (Struct:get self :min-arity))
-          (arguments (Emil:Type:Arrow:arguments self)))
-      (Emil:Type:Arrow:-adjusted-arguments arguments count min-arity rest?)))
-
-  (fn Emil:Type:Arrow:lambda-adjusted-arguments (argument-list count)
-    "Like `Emil:Type:Arrow:adjusted-arguments', but for lambda arguments."
-    (let ((rest? (memq '&rest argument-list))
-          (min-arity (car (func-arity `(lambda ,argument-list))))
-          (arguments (Emil:Type:Arrow:lambda-variables argument-list)))
-      (Emil:Type:Arrow:-adjusted-arguments arguments count min-arity rest?)))
-
-  (fn Emil:Type:Arrow:-adjusted-arguments (arguments count min-arity rest?)
-    (cond
-     ((= (length arguments) count)
-      arguments)
-     ((< count min-arity)
-      (error "Attempted to adjust arguments below min-arity: %d, %s"
-             count arguments))
-     ((and (> count (length arguments))
-           (not rest?))
-      (error "Attempted to enlarge arguments of a non-rest function: %s" arguments))
-     (t
-      (append (-take count arguments)
-              (-repeat (- count (length arguments))
-                       (car (last arguments)))))))
-
-  (fn Emil:Type:Arrow:lambda-variables (arguments)
-    "Return ARGUMENTS excluding &optional and &rest keywords."
-    (--filter (not (memq it '(&optional &rest))) arguments)))
+           (>= other-max max)))))
 
 (Trait:implement Emil:Type Emil:Type:Arrow
   (fn Emil:Type:print (self)
