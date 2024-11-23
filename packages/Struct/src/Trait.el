@@ -334,6 +334,14 @@ TRAIT and OTHER should both be symbols."
                                (Trait:implements? type trait))
                              traits)))))
 
+(defun Trait:instanceof (object trait)
+  "Return `t' if OBJECT implements TRAIT
+
+OBJECT may be any value, TRAIT should be a trait symbol.
+
+Signals a `wrong-type-argument', if TRAIT is not a symbol denoting a trait."
+  (Trait:implements? (Trait:type-of object) trait))
+
 (defun Trait:type-of (value)
   "Returns the type of VALUE.
 

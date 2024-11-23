@@ -7,6 +7,7 @@
 (require 'Emil)
 (require 'Emil/Type)
 (require 'Emil/Context)
+(require 'Emil/Form)
 
 (defvar Emil:Trace:included-functions
   '(Emil:Analyzer:infer
@@ -76,7 +77,8 @@ Prefix each line of the result with PREFIX."
   (let ((print-escape-newlines t)
         (arguments (--filter (not (or (Emil:Analyzer? it)
                                       (Emil:Context? it)
-                                      (Emil:Env:Alist? it)))
+                                      (Emil:Syntax? it)
+                                      (Trait:instanceof it 'Emil:Env)))
                              arguments))
         (context (-find #'Emil:Context? arguments))
         (prefix (concat
