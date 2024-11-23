@@ -16,7 +16,7 @@
 
 (Struct:define Rs:Publisher:Submission
   "A publisher where values can be submitted to."
-  (subscriptions :type list :mutable t)
+  (subscriptions :type (List Rs:Publisher:Submission:Subscription) :mutable t)
   (closed? :type boolean :mutable t))
 
 (Struct:implement Rs:Publisher:Submission:Subscription

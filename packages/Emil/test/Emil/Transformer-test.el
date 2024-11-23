@@ -132,7 +132,7 @@
                            :type (Emil:Type:Arrow
                                   :arguments ((Emil:Type:Existential :name a))
                                   :rest? nil
-                                  :returns (Emil:Type:Existential :name b)
+                                  :returns (Emil:Type:Existential :name a)
                                   :min-arity 1))
                 :arguments ((Emil:Form:Atom
                              :value 0

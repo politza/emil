@@ -749,7 +749,7 @@
   (line-number-at-pos . (-> (&rest Any) Any))
   (line-number-display-width . (-> (&rest Any) Any))
   (line-pixel-height . (-> (&rest Any) Any))
-  (list . (-> (&rest Any) Any))
+  (list . (-> (&rest Any) list))
   (list-fonts . (-> (&rest Any) Any))
   (listp . (-> (&rest Any) Any))
   (list-system-processes . (-> (&rest Any) Any))

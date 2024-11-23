@@ -25,7 +25,9 @@
       (cons context (Emil:Form:PrognLike
                      :kind (car form)
                      :body body-forms
-                     :type (Emil:Analyzer:type-of-body body-forms)))))
+                     :type (Emil:Context:resolve
+                            context
+                            (Emil:Analyzer:type-of-body body-forms))))))
 
   (fn Emil:Analyzer:thread-let*-bindings (self bindings context environment)
     "Thread CONTEXT through let* BINDINGS."
@@ -97,9 +99,9 @@
                  (t
                   (or (Emil:Analyzer:lookup-variable form context environment)
                       (Emil:type-error "Unbound variable: %s" form))))))
-      (cons context (Emil:Form:Atom
-                     :value form
-                     :type type))))
+      (cons context
+            (Emil:Form:Atom :value form
+                            :type (Emil:Context:resolve context type)))))
 
   (fn Transformer:transform-and (self _form conditions &optional context environment
                                       &rest _)
@@ -220,14 +222,14 @@
                 :value (Emil:Form:Lambda
                         :arguments argument-list
                         :body body-forms)
-                :type type))))
+                :type (Emil:Context:resolve body-context type)))))
       ((pred symbolp)
        (let ((type (or (Emil:Analyzer:lookup-function argument context environment)
                        (Emil:type-error "Unbound function: %s" argument))))
          (cons context
                (Emil:Form:Function
                 :value argument
-                :type type))))
+                :type (Emil:Context:resolve context type)))))
       (value
        (Emil:type-error "Not a function: %s" value))))
 
@@ -316,7 +318,7 @@
       (cons context (Emil:Form:Prog1
                      :first (car prog1-forms)
                      :body (cdr prog1-forms)
-                     :type type))))
+                     :type (Emil:Context:resolve context type)))))
 
   (fn Transformer:transform-progn (self form _body &optional context environment
                                         &rest _)
@@ -364,7 +366,7 @@
       (cons context (Emil:Form:UnwindProtect
                      :body-form (car unwind-protect-forms)
                      :unwind-forms (cdr unwind-protect-forms)
-                     :type type))))
+                     :type (Emil:Context:resolve context type)))))
 
   (fn Transformer:transform-while (self _form condition body
                                         &optional context environment &rest _)
@@ -394,9 +396,8 @@
              :function (Emil:Form:ApplicationFn
                         :value (Struct:get function-form :value)
                         :type (Struct:get function-form :type))
-             ;; FIXME: Various types need to be resolved, e.g. for lambdas to have a proper, non-generic type.
              :arguments argument-forms
-             :type return-type))))
+             :type (Emil:Context:resolve context return-type)))))
 
   (fn Transformer:transform-macro (self form macro arguments
                                         &optional context environment &rest _)
