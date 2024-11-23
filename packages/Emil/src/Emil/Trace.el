@@ -38,11 +38,11 @@
   (-difference
    (append
     Emil:Trace:included-functions
-    (-map #'car (Struct:get (Trait:get 'Transformer) :methods)))
+    (-map #'car (Struct:get (Trait:get 'Transformer) :functions)))
    Emil:Trace:excluded-functions))
 
 (define-minor-mode Emil:Trace:mode
-  "Trace methods calls of type-inference."
+  "Trace functions calls of type-inference."
   :group 'emacs
   :global t
   (cond

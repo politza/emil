@@ -1693,3 +1693,5 @@
   (zlib-decompress-region . (-> (&rest Any) Any)))
 
 (Emil:Env:declare-variables)
+
+(provide 'Emil/Builtin)

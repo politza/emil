@@ -26,6 +26,7 @@
         bindings))
 
 (Trait:define Transformer ()
+  :disable-syntax t
   (fn Transformer:transform-form (self form &rest data)
     (cond
      ((numberp form)
@@ -264,7 +265,8 @@
          transformer data))
 
 (Struct:define Transformer:Identity)
-(Trait:implement Transformer Transformer:Identity)
+(Trait:implement Transformer Transformer:Identity
+  :disable-syntax t)
 
 (defun Transformer:transform (form &optional transformer &rest data)
   (apply #'Transformer:transform-form

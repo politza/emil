@@ -14,6 +14,7 @@
    "An optional form associated with this message."))
 
 (Struct:implement Emil:Message
+  :disable-syntax t
   (fn Emil:Message:format(self)
     (format "%s: %s%s"
             (pcase-exhaustive (Struct:get self :type)

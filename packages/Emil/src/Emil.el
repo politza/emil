@@ -10,13 +10,15 @@
 (require 'dash)
 (require 'pcase)
 (require 'Struct)
+(require 'Emil/Error)
 (require 'Emil/Type)
 (require 'Emil/Env)
-(require 'Emil/Error)
 (require 'Emil/TypedForm)
 (require 'Emil/Analyzer)
 (require 'Emil/Transformer)
 (require 'Emil/Annotation)
+(require 'Emil/Syntax)
+(require 'Emil/Builtin)
 
 ;; See "Complete and Easy Bidirectional Typechecking for Higher-Rank
 ;; Polymorphism"; Jana Dunfield, Neelakantan R. Krishnaswami .

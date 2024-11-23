@@ -243,53 +243,28 @@
                  (Struct:Function:read '(fn a (a &rest b))))
                 :to-equal (cons 1 most-positive-fixnum))))
 
-    (describe "Struct:Function:subtype?"
-      (it "can be invoked with at least as many arguments"
-        (expect (Struct:Function:subtype?
-                 (Struct:Function:read '(fn a (&optional a)))
-                 (Struct:Function:read '(fn b (a))))
-                :to-equal t)
-        (expect (Struct:Function:subtype?
-                 (Struct:Function:read '(fn a (a)))
-                 (Struct:Function:read '(fn b (&optional a))))
-                :to-equal nil))
+    (describe "Emil:Function:type"
+      (it "no arguments"
+        (expect (Struct:Function:type
+                 (Struct:Function:read '(fn f ())))
+                :to-equal '(-> () Any)))
 
-      (it "accepts at least as many arguments with &optional"
-        (expect (Struct:Function:subtype?
-                 (Struct:Function:read '(fn a (a &optional b)))
-                 (Struct:Function:read '(fn b (a))))
-                :to-equal t)
-        (expect (Struct:Function:subtype?
-                 (Struct:Function:read '(fn a (a)))
-                 (Struct:Function:read '(fn b (a &optional b))))
-                :to-equal nil))
+      (it "single argument"
+        (expect (Struct:Function:type
+                 (Struct:Function:read '(fn f (a))))
+                :to-equal '(-> (Any) Any)))
 
-      (it "accepts at least as many arguments with &rest"
-        (expect (Struct:Function:subtype?
-                 (Struct:Function:read '(fn a (a &rest b)))
-                 (Struct:Function:read '(fn b (a))))
-                :to-equal t)
-        (expect (Struct:Function:subtype?
-                 (Struct:Function:read '(fn a (a)))
-                 (Struct:Function:read '(fn b (a &rest b))))
-                :to-equal nil))
+      (it "optional argument"
+        (expect (Struct:Function:type
+                 (Struct:Function:read '(fn f (a &optional b))))
+                :to-equal '(-> (Any &optional Any) Any)))
 
-      (it "type handling of arguments"
-        (expect (Struct:Function:subtype?
-                 (Struct:Function:read '(fn a (a)))
-                 (Struct:Function:read '(fn b ((a string)))))
-                :to-equal t)
-        (expect (Struct:Function:subtype?
-                 (Struct:Function:read '(fn a ((a string))))
-                 (Struct:Function:read '(fn b (a))))
-                :to-equal nil))
+      (it "rest argument"
+        (expect (Struct:Function:type
+                 (Struct:Function:read '(fn f (a &rest b))))
+                :to-equal '(-> (Any &rest Any) Any)))
 
-      (it "type handling of returns"
-        (expect (Struct:Function:subtype?
-                 (Struct:Function:read '(fn a (-> string)))
-                 (Struct:Function:read '(fn b ())))
-                :to-equal nil)
-        (expect (Struct:Function:subtype?
-                 (Struct:Function:read '(fn a ()))
-                 (Struct:Function:read '(fn b (-> string))))
-                :to-equal t)))))
+      (it "with provided types"
+        (expect (Struct:Function:type
+                 (Struct:Function:read '(fn f ((a number) &optional (b string) &rest (c symbol) -> integer))))
+                :to-equal '(-> (number &optional string &rest symbol) integer))))))

@@ -93,7 +93,7 @@ corresponding property."
          :default nil
          :documentation "Implemented functions associated with this struct-type.
 
-This association-list maps function-names to their declaration."
+This association-list maps qualified names to their declaration."
          :mutable t
          :type list)))))
 

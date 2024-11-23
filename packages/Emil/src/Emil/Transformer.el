@@ -6,6 +6,7 @@
 (require 'Emil/Annotation)
 
 (Struct:implement Emil:Analyzer
+  :disable-syntax t
   (fn Emil:Analyzer:infer-do (self forms (context Emil:Context)
                                    (environment (Trait Emil:Env)))
     (Emil:Util:map-reduce
@@ -69,23 +70,24 @@
       form)))
 
 (Trait:implement Transformer Emil:Analyzer
+  :disable-syntax t
   (fn Transformer:transform-number (_self form &optional context environment
                                           &rest _)
-    (cons context (Emil:TypedForm:Basic
+    (cons context (Emil:TypedForm:Atom
                    :value form
                    :type (Emil:Type:Basic :name (type-of form))
                    :environment environment)))
 
   (fn Transformer:transform-string (_self form &optional context environment
                                           &rest _)
-    (cons context (Emil:TypedForm:Basic
+    (cons context (Emil:TypedForm:Atom
                    :value form
                    :type (Emil:Type:Basic :name 'string)
                    :environment environment)))
 
   (fn Transformer:transform-vector (_self form &optional context environment
                                           &rest _)
-    (cons context (Emil:TypedForm:Basic
+    (cons context (Emil:TypedForm:Atom
                    :value form
                    :type (Emil:Type:Basic :name (type-of form))
                    :environment environment)))
@@ -100,7 +102,7 @@
                  (t
                   (or (Emil:Analyzer:lookup-variable form context environment)
                       (Emil:type-error "Unbound variable: %s" form))))))
-      (cons context (Emil:TypedForm:Basic
+      (cons context (Emil:TypedForm:Atom
                      :value form
                      :type type
                      :environment environment))))

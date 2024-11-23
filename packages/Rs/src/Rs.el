@@ -22,6 +22,7 @@
 
 ;; See https://github.com/reactive-streams/reactive-streams-jvm/blob/v1.0.4/README.md#specification
 (Trait:define Rs:Subscriber ()
+  :disable-syntax t
   (fn Rs:Subscriber:on-subscribe (self (subscription (Trait Rs:Subscription))))
   (fn Rs:Subscriber:on-next (self value))
   (fn Rs:Subscriber:on-error (self (error error)))
@@ -67,6 +68,7 @@
         (funcall on-complete)))))
 
 (Trait:define Rs:Publisher ()
+  :disable-syntax t
   (fn Rs:Publisher:subscribe (self (subscriber (Trait Rs:Subscriber))))
 
   (fn Rs:Publisher:subscribe* (self &struct (subscriber Rs:PartialSubscriber))
@@ -74,10 +76,12 @@
     subscriber))
 
 (Trait:define Rs:Subscription ()
+  :disable-syntax t
   (fn Rs:Subscription:request (self (count (integer 0 *))))
   (fn Rs:Subscription:cancel (self)))
 
-(Trait:define Rs:Processor (Rs:Publisher Rs:Subscriber))
+(Trait:define Rs:Processor (Rs:Publisher Rs:Subscriber)
+  :disable-syntax t)
 
 (provide 'Rs)
 ;;; Rs.el ends here

@@ -15,6 +15,7 @@
     (list 'satisfies #'Emil:Type:Existential?))
 
 (Trait:define Emil:Type ()
+  :disable-syntax t
   (fn Emil:Type:monomorph? (self)
     "Returns non-nil, if this is a monomorphic type.
 
@@ -59,6 +60,7 @@ Every type can be assigned to this type, including itself. This type
 can be assinged to any other type, including itself. ")
 
 (Trait:implement Emil:Type Emil:Type:Any
+  :disable-syntax t
   (fn Emil:Type:print (_) 'Any))
 
 (Struct:define Emil:Type:Never
@@ -69,6 +71,7 @@ type, including itself. No other type can be assigned to this type,
 including itself.")
 
 (Trait:implement Emil:Type Emil:Type:Never
+  :disable-syntax t
   (fn Emil:Type:print (_) 'Never))
 
 (Struct:define Emil:Type:Null
@@ -78,6 +81,7 @@ This type has a single value, which is `nil'. This type can be
 assigned to any other type, excluding `Never'.")
 
 (Trait:implement Emil:Type Emil:Type:Null
+  :disable-syntax t
   (fn Emil:Type:print (_) 'Null))
 
 (Struct:define Emil:Type:Void
@@ -88,6 +92,7 @@ type, excluding itself. Any type can be assigned to this type,
 including itself.")
 
 (Trait:implement Emil:Type Emil:Type:Void
+  :disable-syntax t
   (fn Emil:Type:print (_) 'Void))
 
 (Struct:define Emil:Type:Basic
@@ -97,6 +102,7 @@ including itself.")
    :type symbol))
 
 (Trait:implement Emil:Type Emil:Type:Basic
+  :disable-syntax t
   (fn Emil:Type:print (self)
     (Struct:get self :name)))
 
@@ -116,6 +122,7 @@ including itself.")
    :type number))
 
 (Struct:implement Emil:Type:Arrow
+  :disable-syntax t
   (fn Emil:Type:Arrow:arguments (self)
     "Returns the list of argument."
     (Struct:get self :arguments))
@@ -177,6 +184,7 @@ see."
            (>= other-max max)))))
 
 (Trait:implement Emil:Type Emil:Type:Arrow
+  :disable-syntax t
   (fn Emil:Type:print (self)
     (let* ((arguments (Struct:get self :arguments))
            (rest? (Struct:get self :rest?))
@@ -223,6 +231,7 @@ Currently, only function types are supported."
    :type (Trait Emil:Type)))
 
 (Struct:implement Emil:Type:Forall
+  :disable-syntax t
   (fn Emil:Type:Forall:parameters (self)
     "Returns the list of parameters"
     (Struct:get self :parameters))
@@ -230,8 +239,10 @@ Currently, only function types are supported."
   (fn Emil:Type:Forall:type (self)
     "Returns the parameterized type."
     (Struct:get self :type)))
+:disable-syntax t
 
 (Trait:implement Emil:Type Emil:Type:Forall
+  :disable-syntax t
   (fn Emil:Type:print (self)
     (Emil:Type:print (Struct:get self :type)))
 
@@ -255,6 +266,7 @@ Currently, only function types are supported."
    :type symbol))
 
 (Trait:implement Emil:Type Emil:Type:Variable
+  :disable-syntax t
   (fn Emil:Type:print (self)
     `(quote ,(Struct:get self :name)))
 
@@ -271,6 +283,7 @@ Currently, only function types are supported."
    :type symbol))
 
 (Trait:implement Emil:Type Emil:Type:Existential
+  :disable-syntax t
   (fn Emil:Type:print (self)
     `(quote ,(intern (format "%s?" (Struct:get self :name)))))
 
@@ -289,6 +302,7 @@ Compound types are currently always covariant."
    :type (List (Trait Emil:Type))))
 
 (Trait:implement Emil:Type Emil:Type:Compound
+  :disable-syntax t
   (fn Emil:Type:print (self)
     (cons (Struct:get self :name)
           (-map #'Emil:Type:print
@@ -368,10 +382,17 @@ type will be polymorphic."
 
 The result may contain type-variables."
   (pcase form
-    ('Null (Emil:Type:Null))
-    ('Any (Emil:Type:Any))
+    ((or 'Null 'null) (Emil:Type:Null))
+    ((or 'Any 't) (Emil:Type:Any))
     ('Never (Emil:Type:Never))
     ('Void (Emil:Type:Void))
+    (`(,(or 'integer 'float 'real 'number) . ,_)
+     (Emil:Type:-read (car form)))
+    ((or `(or ,(or 'Null 'null) ,type)
+         `(or ,type ,(or 'Null 'null)))
+     (Emil:Type:-read type))
+    (`(,(or 'or 'and 'not 'member 'satisfies) . ,_)
+     (Emil:Type:Any))
     ((pred symbolp)
      (Emil:Type:-assert-valid-name form form)
      (Emil:Type:Basic :name form))
@@ -529,5 +550,11 @@ Returns nil, if TYPE is not an alias."
   (when-let (name (and (Emil:Type:Basic? type)
                        (Struct:get type :name)))
     (cdr (assq name Emil:Type:type-aliases))))
+
+(defun Emil:Type:trait? (type)
+  "Return non `nil', if TYPE represents a trait-type."
+  (and (Emil:Type:Compound? type)
+       (eq 'Trait (Struct:get type :name))
+       (= 1 (length (Struct:get type :arguments)))))
 
 (provide 'Emil/Type)

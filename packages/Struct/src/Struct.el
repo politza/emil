@@ -13,7 +13,6 @@
 (require 'Struct/Primitives)
 (require 'Struct/Doc)
 (require 'Struct/Pcase)
-
 (require 'Struct/Syntax)
 
 (defconst Struct:syntax-highlight-symbol 'Struct:syntax-highlight-symbol
@@ -69,7 +68,7 @@ as splice-syntax.
     (setq documentation nil))
 
   (-let* (((struct-declarations property-declarations)
-           (Commons:split-property-list-start declarations))
+           (Commons:split-property-list declarations))
           (struct-properties
            (append struct-declarations
                    (list :name name :documentation documentation
@@ -112,10 +111,10 @@ as splice-syntax.
 
 (defun Struct:-construct-property-entry (declaration)
   (unless (consp declaration)
-    (error "Property declaration should be a non-empty list: %s" declaration))
+    (setq declaration (list declaration)))
   (-let* ((((positional &as name documentation)
             properties)
-           (Commons:split-property-list-end declaration))
+           (Commons:split-property-list declaration :end))
           (positional-properties
            (cl-case (length positional)
              (0 nil)

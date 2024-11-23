@@ -23,16 +23,19 @@
    (t
     (signal 'wrong-type-argument (list 'symbol symbol)))))
 
-(defun Commons:split-property-list-start (list)
-  (let ((property-list nil))
-    (while (and (cdr list)
-                (keywordp (car list)))
-      (push (pop list) property-list)
-      (push (pop list) property-list))
-    (list (nreverse property-list) list)))
-
-(defun Commons:split-property-list-end (list)
-  (--split-with (not (keywordp it)) list))
+(defun Commons:split-property-list (list &optional where)
+  (pcase (or where :start)
+    (:start
+     (let ((property-list nil))
+       (while (and (cdr list)
+                   (keywordp (car list)))
+         (push (pop list) property-list)
+         (push (pop list) property-list))
+       (list (nreverse property-list) list)))
+    (:end
+     (--split-with (not (keywordp it)) list))
+    (argument (signal 'wrong-type-argument
+                      (list '(member :start :end) argument)))))
 
 (defun Commons:load-relative (feature)
   (let ((load-path (cons (file-name-directory

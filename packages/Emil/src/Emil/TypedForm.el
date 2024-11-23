@@ -6,16 +6,24 @@
 (require 'Emil/Context)
 (require 'Emil/Env)
 
+;; Shut up cl-type-check's compiler warnings.
+(cl-deftype Emil:TypedForm nil t)
+
 (Trait:define Emil:TypedForm ()
+  :disable-syntax t
   (fn Emil:TypedForm:environment (self -> (Trait Emil:Env))
     (Struct:get self :environment))
 
-  (fn Emil:TypedForm:value (self))
+  (fn Emil:TypedForm:value (self)
+    (Emil:TypedForm:map self #'identity))
+
+  (fn Emil:TypedForm:map (self fn))
 
   (fn Emil:TypedForm:position (self)
     (Struct:get self :position)))
 
 (Trait:implement Emil:Env Emil:TypedForm
+  :disable-syntax t
   (fn Emil:Env:lookup-variable (self variable &optional context)
     (Emil:Env:lookup-variable (Emil:TypedForm:environment self) variable context))
 
@@ -32,44 +40,37 @@
 (defun Emil:TypedForm? (object)
   (Trait:implements? 'Emil:TypedForm (Trait:type-of object)))
 
-(Struct:define Emil:TypedForm:Basic
+(Struct:define Emil:TypedForm:Atom
   (value)
   (type :type (Trait Emil:Type))
   (environment :type (Trait Emil:Env)))
 
+(Trait:implement Emil:TypedForm Emil:TypedForm:Atom
+  :disable-syntax t
+  (fn Emil:TypedForm:map (self _fn)
+    (Struct:get self :value)))
+
 (Struct:define Emil:TypedForm:Application
-  (function :type Emil:TypedForm:Function)
+  (function :type (or Emil:TypedForm:Function Emil:TypedForm:Lambda))
   (arguments :type (List (Trait Emil:TypedForm)))
   (type :type (Trait Emil:Type))
   (environment :type (Trait Emil:Env)))
 
 (Trait:implement Emil:TypedForm Emil:TypedForm:Application
-  (fn Emil:TypedForm:value (self)
-    `(,(nth 1 (Emil:TypedForm:value (Struct:get self :function)))
-      ,@(Emil:TypedForm:value (Struct:get self :arguments)))))
+  :disable-syntax t
+  (fn Emil:TypedForm:map (self fn)
+    `(,(nth 1 (funcall fn (Struct:get self :function fn)))
+      ,@(-map fn (Struct:get self :arguments fn)))))
 
-(Struct:define Emil:TypedForm:Macro
-  (form)
-  (expansion :type (Trait Emil:TypedForm))
-  (type :type (Trait Emil:Type))
-  (environment :type (Trait Emil:Env)))
-
-(Trait:implement Emil:TypedForm Emil:TypedForm:Macro
-  (fn Emil:TypedForm:value (self)
-    (Emil:TypedForm:value (Struct:get self :expansion))))
-
-(Struct:define Emil:TypedForm:AnyForm
+(Struct:define Emil:TypedForm:Invalid
   (form)
   (type :type (Trait Emil:Type))
   (environment :type (Trait Emil:Env)))
 
-(Trait:implement Emil:TypedForm Emil:TypedForm:AnyForm
-  (fn Emil:TypedForm:value (self)
+(Trait:implement Emil:TypedForm Emil:TypedForm:Invalid
+  :disable-syntax t
+  (fn Emil:TypedForm:map (self _fn)
     (Struct:get self :form)))
-
-(Trait:implement Emil:TypedForm Emil:TypedForm:Basic
-  (fn Emil:TypedForm:value (self)
-    (Struct:get self :value)))
 
 (Struct:define Emil:TypedForm:And
   (conditions :type (List (Trait Emil:TypedForm)))
@@ -77,9 +78,10 @@
   (environment :type (Trait Emil:Env)))
 
 (Trait:implement Emil:TypedForm Emil:TypedForm:And
-  (fn Emil:TypedForm:value (self)
+  :disable-syntax t
+  (fn Emil:TypedForm:map (self fn)
     `(and
-      ,@(-map #'Emil:TypedForm:value (Struct:get self :conditions)))))
+      ,@(-map fn (Struct:get self :conditions fn)))))
 
 (Struct:define Emil:TypedForm:Catch
   (tag :type (Trait Emil:TypedForm))
@@ -88,10 +90,11 @@
   (environment :type (Trait Emil:Env)))
 
 (Trait:implement Emil:TypedForm Emil:TypedForm:Catch
-  (fn Emil:TypedForm:value (self)
+  :disable-syntax t
+  (fn Emil:TypedForm:map (self fn)
     `(catch
-         ,(Emil:TypedForm:value (Struct:get self :tag))
-       ,@(-map #'Emil:TypedForm:value (Struct:get self :body)))))
+         ,(funcall fn (Struct:get self :tag fn))
+       ,@(-map fn (Struct:get self :body fn)))))
 
 (Struct:define Emil:TypedForm:Cond
   (clauses :type (List Emil:TypedForm:Clause))
@@ -103,9 +106,10 @@
   (body :type (List (Trait Emil:TypedForm))))
 
 (Trait:implement Emil:TypedForm Emil:TypedForm:Cond
-  (fn Emil:TypedForm:value (self)
+  :disable-syntax t
+  (fn Emil:TypedForm:map (self fn)
     `(cond
-      ,@(-map #'Emil:TypedForm:value (Struct:get self :clauses)))))
+      ,@(-map fn (Struct:get self :clauses fn)))))
 
 (Struct:define Emil:TypedForm:DefConst
   (symbol :type symbol)
@@ -115,11 +119,12 @@
   (environment :type (Trait Emil:Env)))
 
 (Trait:implement Emil:TypedForm Emil:TypedForm:DefConst
-  (fn Emil:TypedForm:value (self)
+  :disable-syntax t
+  (fn Emil:TypedForm:map (self fn)
     `(defconst
-       ,(Emil:TypedForm:value (Struct:get self :symbol))
-       ,(Emil:TypedForm:value (Struct:get self :init-value))
-       ,(Emil:TypedForm:value (Struct:get self :documentation)))))
+       ,(funcall fn (Struct:get self :symbol fn))
+       ,(funcall fn (Struct:get self :init-value fn))
+       ,(funcall fn (Struct:get self :documentation fn)))))
 
 (Struct:define Emil:TypedForm:DefVar
   (symbol :type symbol)
@@ -129,11 +134,12 @@
   (environment :type (Trait Emil:Env)))
 
 (Trait:implement Emil:TypedForm Emil:TypedForm:DefVar
-  (fn Emil:TypedForm:value (self)
+  :disable-syntax t
+  (fn Emil:TypedForm:map (self fn)
     `(defvar
-       ,(Emil:TypedForm:value (Struct:get self :symbol))
-       ,(Emil:TypedForm:value (Struct:get self :init-value))
-       ,(Emil:TypedForm:value (Struct:get self :documentation)))))
+       ,(funcall fn (Struct:get self :symbol fn))
+       ,(funcall fn (Struct:get self :init-value fn))
+       ,(funcall fn (Struct:get self :documentation fn)))))
 
 (Struct:define Emil:TypedForm:Function
   (value :type (or symbol (Emil:TypedForm:Lambda)))
@@ -162,11 +168,12 @@
   (environment :type (Trait Emil:Env)))
 
 (Trait:implement Emil:TypedForm Emil:TypedForm:If
-  (fn Emil:TypedForm:value (self)
+  :disable-syntax t
+  (fn Emil:TypedForm:map (self fn)
     `(if
-       ,(Emil:TypedForm:value (Struct:get self :condition))
-       ,(Emil:TypedForm:value (Struct:get self :then))
-       ,(Emil:TypedForm:value (Struct:get self :else)))))
+       ,(funcall fn (Struct:get self :condition fn))
+       ,(funcall fn (Struct:get self :then fn))
+       ,(funcall fn (Struct:get self :else fn)))))
 
 (Struct:define Emil:TypedForm:Interactive
   (forms)
@@ -174,7 +181,8 @@
   (environment :type (Trait Emil:Env)))
 
 (Trait:implement Emil:TypedForm Emil:TypedForm:Interactive
-  (fn Emil:TypedForm:value (self)
+  :disable-syntax t
+  (fn Emil:TypedForm:map (self _fn)
     `(interactive ,@(Struct:get self :forms))))
 
 (Struct:define Emil:TypedForm:Let
@@ -185,11 +193,12 @@
   (environment :type (Trait Emil:Env)))
 
 (Trait:implement Emil:TypedForm Emil:TypedForm:Let
-  (fn Emil:TypedForm:value (self)
+  :disable-syntax t
+  (fn Emil:TypedForm:map (self fn)
     `(let ,@(--map (list (Struct:get it :name)
-                         (Emil:TypedForm:value (Struct:get it :name)))
+                         (funcall fn (Struct:get it :name fn)))
                    (Struct:get self :bindings))
-       ,@(-map #'Emil:TypedForm:value (Struct:get self :body)))))
+       ,@(-map fn (Struct:get self :body fn)))))
 
 (Struct:define Emil:TypedForm:Binding
   (name :type symbol)
@@ -201,9 +210,10 @@
   (environment :type (Trait Emil:Env)))
 
 (Trait:implement Emil:TypedForm Emil:TypedForm:Or
-  (fn Emil:TypedForm:value (self)
+  :disable-syntax t
+  (fn Emil:TypedForm:map (self fn)
     `(or
-      ,@(-map #'Emil:TypedForm:value (Struct:get self :conditions)))))
+      ,@(-map fn (Struct:get self :conditions fn)))))
 
 (Struct:define Emil:TypedForm:Prog1
   (first :type (Trait Emil:TypedForm))
@@ -212,10 +222,11 @@
   (environment :type (Trait Emil:Env)))
 
 (Trait:implement Emil:TypedForm Emil:TypedForm:Prog1
-  (fn Emil:TypedForm:value (self)
+  :disable-syntax t
+  (fn Emil:TypedForm:map (self fn)
     `(prog1
-         (Emil:TypedForm:value (Struct:get self :first))
-       ,@(-map #'Emil:TypedForm:value (Struct:get self :body)))))
+         (funcall fn (Struct:get self :first fn))
+       ,@(-map fn (Struct:get self :body fn)))))
 
 (Struct:define Emil:TypedForm:PrognLike
   (kind :type (member progn save-current-buffer save-excursion save-restriction))
@@ -224,9 +235,10 @@
   (environment :type (Trait Emil:Env)))
 
 (Trait:implement Emil:TypedForm Emil:TypedForm:PrognLike
-  (fn Emil:TypedForm:value (self)
+  :disable-syntax t
+  (fn Emil:TypedForm:map (self fn)
     `(,(Struct:get self :kind)
-      ,@(-map #'Emil:TypedForm:value (Struct:get self :body)))))
+      ,@(-map fn (Struct:get self :body fn)))))
 
 (Struct:define Emil:TypedForm:Quote
   (value)
@@ -234,7 +246,8 @@
   (environment :type (Trait Emil:Env)))
 
 (Trait:implement Emil:TypedForm Emil:TypedForm:Quote
-  (fn Emil:TypedForm:value (self)
+  :disable-syntax t
+  (fn Emil:TypedForm:map (self _fn)
     `(quote ,(Struct:get self :value))))
 
 (Struct:define Emil:TypedForm:Setq
@@ -243,9 +256,10 @@
   (environment :type (Trait Emil:Env)))
 
 (Trait:implement Emil:TypedForm Emil:TypedForm:Setq
-  (fn Emil:TypedForm:value (self)
+  :disable-syntax t
+  (fn Emil:TypedForm:map (self fn)
     `(setq ,@(--mapcat (list (Struct:get it :name)
-                             (Emil:TypedForm:value (Struct:get it :name)))
+                             (funcall fn (Struct:get it :name fn)))
                        (Struct:get self :bindings)))))
 
 (Struct:define Emil:TypedForm:UnwindProtect
@@ -255,10 +269,11 @@
   (environment :type (Trait Emil:Env)))
 
 (Trait:implement Emil:TypedForm Emil:TypedForm:UnwindProtect
-  (fn Emil:TypedForm:value (self)
+  :disable-syntax t
+  (fn Emil:TypedForm:map (self fn)
     `(unwind-protect
-         ,(Emil:TypedForm:value (Struct:get self :body-form))
-       ,@(-map #'Emil:TypedForm:value (Struct:get self :unwind-forms)))))
+         ,(funcall fn (Struct:get self :body-form fn))
+       ,@(-map fn (Struct:get self :unwind-forms fn)))))
 
 (Struct:define Emil:TypedForm:While
   (condition :type (Trait Emil:TypedForm))
@@ -267,8 +282,9 @@
   (environment :type (Trait Emil:Env)))
 
 (Trait:implement Emil:TypedForm Emil:TypedForm:While
-  (fn Emil:TypedForm:value (self)
-    `(while ,(Emil:TypedForm:value (Struct:get self :condition))
-       ,@(-map #'Emil:TypedForm:value (Struct:get self :body)))))
+  :disable-syntax t
+  (fn Emil:TypedForm:map (self fn)
+    `(while ,(funcall fn (Struct:get self :condition fn))
+       ,@(-map fn (Struct:get self :body fn)))))
 
 (provide 'Emil/TypedForm)

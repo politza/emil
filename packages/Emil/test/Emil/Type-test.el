@@ -25,6 +25,38 @@
       (expect (Emil:Type:read 'string)
               :to-equal (Emil:Type:Basic :name 'string)))
 
+    (it "null"
+      (expect (Emil:Type:read 'null)
+              :to-equal (Emil:Type:Null)))
+
+    (it "t"
+      (expect (Emil:Type:read 't)
+              :to-equal (Emil:Type:Any)))
+
+    (it "bound integer"
+      (expect (Emil:Type:read '(integer 0 99))
+              :to-equal (Emil:Type:Basic :name 'integer)))
+
+    (it "bound number"
+      (expect (Emil:Type:read '(number 0 99))
+              :to-equal (Emil:Type:Basic :name 'number)))
+
+    (it "nullable"
+      (expect (Emil:Type:read '(or null number))
+              :to-equal (Emil:Type:Basic :name 'number)))
+
+    (it "and"
+      (expect (Emil:Type:read '(and null number))
+              :to-equal (Emil:Type:Any)))
+
+    (it "not"
+      (expect (Emil:Type:read '(not number))
+              :to-equal (Emil:Type:Any)))
+
+    (it "Nullable"
+      (expect (Emil:Type:read '(or Null number))
+              :to-equal (Emil:Type:Basic :name 'number)))
+
     (it "names should start with a letter"
       (expect (Emil:Type:read '0-is-the-new-1)
               :to-throw 'Emil:invalid-type-form))
@@ -38,8 +70,6 @@
               :to-throw 'Emil:invalid-type-form))
 
     (it "constant symbols may not be used as a name"
-      (expect (Emil:Type:read t)
-              :to-throw 'Emil:invalid-type-form)
       (expect (Emil:Type:read nil)
               :to-throw 'Emil:invalid-type-form)
       (expect (Emil:Type:read :keyword)

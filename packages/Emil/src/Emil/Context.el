@@ -46,6 +46,7 @@ assignments."
   (type :type (Trait Emil:Type)))
 
 (Struct:implement Emil:Context
+  :disable-syntax t
   (fn Emil:Context:hole (self (variable Emil:Type:Existential))
     "Splits this context at VARIABLE.
 

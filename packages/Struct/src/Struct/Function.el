@@ -70,23 +70,6 @@ namespace."
                 (-zip-pair (Struct:get self :arguments)
                            (Struct:get other :arguments)))))
 
-(defun Struct:Function:subtype? (self other)
-  (cl-check-type self Struct:Function)
-  (cl-check-type other Struct:Function)
-  (let ((other-arity (Struct:Function:arity other))
-        (self-arity (Struct:Function:arity self)))
-    (and (<= (car self-arity) (car other-arity))
-         (>= (cdr self-arity) (cdr other-arity))
-         (-every? (-lambda ((self-argument . other-argument))
-                    (or (null (Struct:get self-argument :type))
-                        (equal (Struct:get self-argument :type)
-                               (Struct:get other-argument :type))))
-                  (-zip-pair (Struct:get self :arguments)
-                             (Struct:get other :arguments)))
-         (or (null (Struct:get self :return-type))
-             (equal (Struct:get self :return-type)
-                    (Struct:get other :return-type))))))
-
 (defun Struct:Function:arity (self)
   "Calculates the number of accepted arguments of this function.
 
@@ -198,20 +181,22 @@ Returns a cons of (ARGUMENTS . RETURN_TYPE)."
           (when (and kind (not (eq kind previous-kind)))
             (push (if (eq kind '&struct) '&rest kind) result)
             (setq previous-kind kind))
-          (push (Struct:get argument :name) result))))
+          (push (Struct:get argument :name)
+                result))))
     (nreverse result)))
 
 (defun Struct:Function:emit-body (self &optional transformer flush?)
   (let ((body (append (Struct:Function:emit-body-preamble self)
-                      (Struct:get self :body))))
+                      (if transformer
+                          (funcall transformer self)
+                        (Struct:get self :body)))))
     (when flush?
       (Struct:set self :body nil))
-    (if transformer
-        (funcall transformer body)
-      body)))
+    body))
 
 (defun Struct:Function:emit-body-preamble (self)
-  (let* ((arguments (Struct:get self :arguments))
+  (let* ((arguments (--remove (string-prefix-p "_" (symbol-name (Struct:get it :name)))
+                              (Struct:get self :arguments)))
          (annotated (--filter (Struct:get it :type) arguments)))
     (append (--map `(cl-check-type ,(Struct:get it :name)
                                    ,(Struct:get it :type))
@@ -240,5 +225,18 @@ Returns a cons of (ARGUMENTS . RETURN_TYPE)."
            (eq type (car-safe (car rest))))
       (car rest)
     (apply type rest)))
+
+(defun Struct:Function:type (fn)
+  (let* ((argument-types (--map
+                          (or (Struct:get it :type) 'Any)
+                          (Struct:get fn :arguments)))
+         (arguments (--map
+                     (cond
+                      ((memq it '(&rest &optional)) it)
+                      (argument-types (pop argument-types))
+                      (t (error "internal error")))
+                     (Struct:Function:emit-arguments fn)))
+         (return-type (or (Struct:get fn :return-type) 'Any)))
+    `(-> ,arguments ,return-type)))
 
 (provide 'Struct/Function)

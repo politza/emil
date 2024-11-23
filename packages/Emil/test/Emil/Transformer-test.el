@@ -8,7 +8,7 @@
     (it "nil"
       (expect (Emil:transform* nil)
               :to-equal
-              '(Emil:TypedForm:Basic
+              '(Emil:TypedForm:Atom
                 :value nil
                 :type (Emil:Type:Null)
                 :environment
@@ -18,7 +18,7 @@
     (it "t"
       (expect (Emil:transform* t)
               :to-equal
-              '(Emil:TypedForm:Basic
+              '(Emil:TypedForm:Atom
                 :value t
                 :type (Emil:Type:Basic :name symbol)
                 :environment
@@ -28,7 +28,7 @@
     (it "keyword"
       (expect (Emil:transform* :keyword)
               :to-equal
-              '(Emil:TypedForm:Basic
+              '(Emil:TypedForm:Atom
                 :value :keyword
                 :type (Emil:Type:Basic :name symbol)
                 :environment
@@ -37,7 +37,7 @@
     (it "string"
       (expect (Emil:transform* "string")
               :to-equal
-              '(Emil:TypedForm:Basic
+              '(Emil:TypedForm:Atom
                 :value "string"
                 :type (Emil:Type:Basic :name string)
                 :environment
@@ -46,7 +46,7 @@
     (it "integer"
       (expect (Emil:transform* 0)
               :to-equal
-              '(Emil:TypedForm:Basic
+              '(Emil:TypedForm:Atom
                 :value 0
                 :type (Emil:Type:Basic :name integer)
                 :environment
@@ -55,7 +55,7 @@
     (it "float"
       (expect (Emil:transform* 0.0)
               :to-equal
-              '(Emil:TypedForm:Basic
+              '(Emil:TypedForm:Atom
                 :value 0.0
                 :type (Emil:Type:Basic :name float)
                 :environment
@@ -64,7 +64,7 @@
     (it "vector"
       (expect (Emil:transform* [])
               :to-equal
-              '(Emil:TypedForm:Basic
+              '(Emil:TypedForm:Atom
                 :value []
                 :type
                 (Emil:Type:Basic :name vector)
@@ -78,7 +78,7 @@
               '(Emil:TypedForm:Function
                 :value (Emil:TypedForm:Lambda
                         :arguments (x)
-                        :body ((Emil:TypedForm:Basic
+                        :body ((Emil:TypedForm:Atom
                                 :value x
                                 :type (Emil:Type:Existential :name a)
                                 :environment (Emil:Env:Alist
@@ -101,11 +101,11 @@
                 :kind let
                 :bindings ((Emil:TypedForm:Binding
                             :name a
-                            :value (Emil:TypedForm:Basic
+                            :value (Emil:TypedForm:Atom
                                     :value 0
                                     :type (Emil:Type:Basic :name integer)
                                     :environment (Emil:Env:Alist :variables nil :functions nil :macros nil :parent nil))))
-                :body ((Emil:TypedForm:Basic
+                :body ((Emil:TypedForm:Atom
                         :value a
                         :type (Emil:Type:Basic :name integer)
                         :environment (Emil:Env:Alist
@@ -123,14 +123,14 @@
                 :kind let*
                 :bindings ((Emil:TypedForm:Binding
                             :name a
-                            :value (Emil:TypedForm:Basic
+                            :value (Emil:TypedForm:Atom
                                     :value 0
                                     :type (Emil:Type:Basic :name integer)
                                     :environment (Emil:Env:Alist
                                                   :variables nil
                                                   :functions nil :macros nil
                                                   :parent (Emil:Env:Alist :variables nil :functions nil :macros nil :parent nil)))))
-                :body ((Emil:TypedForm:Basic
+                :body ((Emil:TypedForm:Atom
                         :value a
                         :type (Emil:Type:Basic :name integer)
                         :environment (Emil:Env:Alist
@@ -151,7 +151,7 @@
                 :function (Emil:TypedForm:Function
                            :value (Emil:TypedForm:Lambda
                                    :arguments (x)
-                                   :body ((Emil:TypedForm:Basic
+                                   :body ((Emil:TypedForm:Atom
                                            :value x
                                            :type (Emil:Type:Existential :name a)
                                            :environment
@@ -167,7 +167,7 @@
                                   :returns (Emil:Type:Existential :name b)
                                   :min-arity 1)
                            :environment (Emil:Env:Alist :variables nil :functions nil :macros nil :parent nil))
-                :arguments ((Emil:TypedForm:Basic
+                :arguments ((Emil:TypedForm:Atom
                              :value 0
                              :type (Emil:Type:Existential :name a)
                              :environment (Emil:Env:Alist :variables nil :functions nil :macros nil :parent nil)))
@@ -179,7 +179,7 @@
       (expect (Emil:transform* '(and 0))
               :to-equal
               '(Emil:TypedForm:And
-                :conditions ((Emil:TypedForm:Basic
+                :conditions ((Emil:TypedForm:Atom
                               :value 0
                               :type (Emil:Type:Basic :name integer)
                               :environment (Emil:Env:Alist :variables nil :functions nil :macros nil :parent nil)))
@@ -195,7 +195,7 @@
                       :value tag
                       :type (Emil:Type:Any)
                       :environment (Emil:Env:Alist :variables nil :functions nil :macros nil :parent nil))
-                :body ((Emil:TypedForm:Basic
+                :body ((Emil:TypedForm:Atom
                         :value 0
                         :type (Emil:Type:Basic :name integer)
                         :environment (Emil:Env:Alist :variables nil :functions nil :macros nil :parent nil)))
@@ -208,12 +208,12 @@
               :to-equal
               '(Emil:TypedForm:Cond
                 :clauses ((Emil:TypedForm:Clause
-                           :condition (Emil:TypedForm:Basic
+                           :condition (Emil:TypedForm:Atom
                                        :value nil
                                        :type (Emil:Type:Null)
                                        :environment
                                        (Emil:Env:Alist :variables nil :functions nil :macros nil :parent nil))
-                           :body ((Emil:TypedForm:Basic
+                           :body ((Emil:TypedForm:Atom
                                    :value 0
                                    :type (Emil:Type:Basic :name integer)
                                    :environment
@@ -227,7 +227,7 @@
               :to-equal
               '(Emil:TypedForm:DefConst
                 :symbol a
-                :init-value (Emil:TypedForm:Basic
+                :init-value (Emil:TypedForm:Atom
                              :value 0
                              :type (Emil:Type:Basic :name integer)
                              :environment
@@ -244,7 +244,7 @@
               :to-equal
               '(Emil:TypedForm:DefVar
                 :symbol a
-                :init-value (Emil:TypedForm:Basic
+                :init-value (Emil:TypedForm:Atom
                              :value 0
                              :type (Emil:Type:Basic :name integer)
                              :environment
@@ -260,15 +260,15 @@
       (expect (Emil:transform* '(if 0 1 2))
               :to-equal
               '(Emil:TypedForm:If
-                :condition (Emil:TypedForm:Basic
+                :condition (Emil:TypedForm:Atom
                             :value 0
                             :type (Emil:Type:Basic :name integer)
                             :environment (Emil:Env:Alist :variables nil :functions nil :macros nil :parent nil))
-                :then (Emil:TypedForm:Basic
+                :then (Emil:TypedForm:Atom
                        :value 1
                        :type (Emil:Type:Basic :name integer)
                        :environment (Emil:Env:Alist :variables nil :functions nil :macros nil :parent nil))
-                :else ((Emil:TypedForm:Basic
+                :else ((Emil:TypedForm:Atom
                         :value 2
                         :type (Emil:Type:Basic :name integer)
                         :environment (Emil:Env:Alist :variables nil :functions nil :macros nil :parent nil)))
@@ -289,7 +289,7 @@
       (expect (Emil:transform* '(or 0))
               :to-equal
               '(Emil:TypedForm:Or
-                :conditions ((Emil:TypedForm:Basic
+                :conditions ((Emil:TypedForm:Atom
                               :value 0
                               :type (Emil:Type:Basic :name integer)
                               :environment (Emil:Env:Alist :variables nil :functions nil :macros nil :parent nil)))
@@ -301,11 +301,11 @@
       (expect (Emil:transform* '(prog1 0 1))
               :to-equal
               '(Emil:TypedForm:Prog1
-                :first (Emil:TypedForm:Basic
+                :first (Emil:TypedForm:Atom
                         :value 0
                         :type (Emil:Type:Basic :name integer)
                         :environment (Emil:Env:Alist :variables nil :functions nil :macros nil :parent nil))
-                :body ((Emil:TypedForm:Basic
+                :body ((Emil:TypedForm:Atom
                         :value 1
                         :type (Emil:Type:Basic :name integer)
                         :environment (Emil:Env:Alist :variables nil :functions nil :macros nil :parent nil)))
@@ -318,11 +318,11 @@
               :to-equal
               '(Emil:TypedForm:PrognLike
                 :kind progn
-                :body ((Emil:TypedForm:Basic
+                :body ((Emil:TypedForm:Atom
                         :value 0
                         :type (Emil:Type:Basic :name integer)
                         :environment (Emil:Env:Alist :variables nil :functions nil :macros nil :parent nil))
-                       (Emil:TypedForm:Basic
+                       (Emil:TypedForm:Atom
                         :value 1
                         :type (Emil:Type:Basic :name integer)
                         :environment (Emil:Env:Alist :variables nil :functions nil :macros nil :parent nil)))
@@ -345,11 +345,11 @@
               :to-equal
               '(Emil:TypedForm:PrognLike
                 :kind save-current-buffer
-                :body ((Emil:TypedForm:Basic
+                :body ((Emil:TypedForm:Atom
                         :value 0
                         :type (Emil:Type:Basic :name integer)
                         :environment (Emil:Env:Alist :variables nil :functions nil :macros nil :parent nil))
-                       (Emil:TypedForm:Basic
+                       (Emil:TypedForm:Atom
                         :value 1
                         :type (Emil:Type:Basic :name integer)
                         :environment (Emil:Env:Alist :variables nil :functions nil :macros nil :parent nil)))
@@ -362,11 +362,11 @@
               :to-equal
               '(Emil:TypedForm:PrognLike
                 :kind save-excursion
-                :body ((Emil:TypedForm:Basic
+                :body ((Emil:TypedForm:Atom
                         :value 0
                         :type (Emil:Type:Basic :name integer)
                         :environment (Emil:Env:Alist :variables nil :functions nil :macros nil :parent nil))
-                       (Emil:TypedForm:Basic
+                       (Emil:TypedForm:Atom
                         :value 1
                         :type (Emil:Type:Basic :name integer)
                         :environment (Emil:Env:Alist :variables nil :functions nil :macros nil :parent nil)))
@@ -379,11 +379,11 @@
               :to-equal
               '(Emil:TypedForm:PrognLike
                 :kind save-restriction
-                :body ((Emil:TypedForm:Basic
+                :body ((Emil:TypedForm:Atom
                         :value 0
                         :type (Emil:Type:Basic :name integer)
                         :environment (Emil:Env:Alist :variables nil :functions nil :macros nil :parent nil))
-                       (Emil:TypedForm:Basic
+                       (Emil:TypedForm:Atom
                         :value 1
                         :type (Emil:Type:Basic :name integer)
                         :environment (Emil:Env:Alist :variables nil :functions nil :macros nil :parent nil)))
@@ -397,13 +397,13 @@
               '(Emil:TypedForm:Setq
                 :bindings ((Emil:TypedForm:Binding
                             :name a
-                            :value (Emil:TypedForm:Basic
+                            :value (Emil:TypedForm:Atom
                                     :value 0
                                     :type (Emil:Type:Basic :name integer)
                                     :environment (Emil:Env:Alist :variables nil :functions nil :macros nil :parent nil)))
                            (Emil:TypedForm:Binding
                             :name b
-                            :value (Emil:TypedForm:Basic
+                            :value (Emil:TypedForm:Atom
                                     :value 1
                                     :type (Emil:Type:Basic :name integer)
                                     :environment (Emil:Env:Alist :variables nil :functions nil :macros nil :parent nil))))
@@ -415,11 +415,11 @@
       (expect (Emil:transform* '(unwind-protect 0 1))
               :to-equal
               '(Emil:TypedForm:UnwindProtect
-                :body-form (Emil:TypedForm:Basic
+                :body-form (Emil:TypedForm:Atom
                             :value 0
                             :type (Emil:Type:Basic :name integer)
                             :environment (Emil:Env:Alist :variables nil :functions nil :macros nil :parent nil))
-                :unwind-forms ((Emil:TypedForm:Basic
+                :unwind-forms ((Emil:TypedForm:Atom
                                 :value 1
                                 :type (Emil:Type:Basic :name integer)
                                 :environment (Emil:Env:Alist :variables nil :functions nil :macros nil :parent nil)))
@@ -431,11 +431,11 @@
       (expect (Emil:transform* '(while 0 1))
               :to-equal
               '(Emil:TypedForm:While
-                :condition (Emil:TypedForm:Basic
+                :condition (Emil:TypedForm:Atom
                             :value 0
                             :type (Emil:Type:Basic :name integer)
                             :environment (Emil:Env:Alist :variables nil :functions nil :macros nil :parent nil))
-                :body ((Emil:TypedForm:Basic
+                :body ((Emil:TypedForm:Atom
                         :value 1
                         :type (Emil:Type:Basic :name integer)
                         :environment (Emil:Env:Alist :variables nil :functions nil :macros nil :parent nil)))

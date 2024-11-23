@@ -8,6 +8,7 @@
 (require 'Emil/Context)
 
 (Trait:define Emil:Env ()
+  :disable-syntax t
   (fn Emil:Env:lookup-variable (self (variable symbol)
                                      &optional (context Emil:Context))
     "Looks up VARIABLE in this environment and returns its type.
@@ -53,6 +54,7 @@ environment."
    :type (or null (Trait Emil:Env))))
 
 (Trait:implement Emil:Env Emil:Env:Alist
+  :disable-syntax t
   (fn Emil:Env:lookup-variable (self variable &optional context)
     (or (cdr (assq variable (Struct:get self :variables)))
         (and (Struct:get self :parent)
@@ -71,6 +73,7 @@ environment."
               (Emil:Env:macro-environment parent context)))))
 
 (Struct:implement Emil:Env:Alist
+  :disable-syntax t
   (fn Emil:Env:Alist:update-variable (self variable (type (Trait Emil:Type))
                                            &optional require-exists?)
     "Update VARIABLE's type to TYPE.
@@ -151,6 +154,7 @@ ones until some environment returns a non-`nil' value."
    :type list))
 
 (Trait:implement Emil:Env Emil:Env:Hierarchy
+  :disable-syntax t
   (fn Emil:Env:lookup-variable (self variable &optional context)
     (--some (Emil:Env:lookup-variable it variable context)
             (Struct:get self :environments)))
@@ -164,6 +168,7 @@ ones until some environment returns a non-`nil' value."
   (Emil:Env:Alist))
 
 (Trait:implement Emil:Env Emil:Context
+  :disable-syntax t
   (fn Emil:Env:lookup-variable (self variable &optional _context)
     "Looks up VARIABLE in the current, local environment.
 
@@ -188,23 +193,18 @@ Returns `nil', if FUNCTION is not present in this environment."
 (Struct:define Emil:Env:Global)
 
 (Trait:implement Emil:Env Emil:Env:Global
+  :disable-syntax t
   (fn Emil:Env:lookup-variable (_self variable &optional _context)
     (when-let (type (get variable Emil:Env:variable-type))
-      (unless (Trait:implements? (Trait:type-of type) 'Emil:Type)
-        (error "Symbol value of property %s of variable %s is not a type: %s"
-               Emil:Env:variable-type
-               variable
-               type))
-      type))
+      (if (Trait:implements? (Trait:type-of type) 'Emil:Type)
+          type
+        (Emil:Type:read type))))
 
   (fn Emil:Env:lookup-function (_self function &optional _context)
     (when-let (type (get function Emil:Env:function-type))
-      (unless (Trait:implements? (Trait:type-of type) 'Emil:Type)
-        (error "Symbol value of property %s of function %s is not a type: %s"
-               Emil:Env:function-type
-               function
-               type))
-      type)))
+      (if (Trait:implements? (Trait:type-of type) 'Emil:Type)
+          type
+        (Emil:Type:read-function type)))))
 
 (defun Emil:Env:declare-function (symbol type)
   (put symbol Emil:Env:function-type

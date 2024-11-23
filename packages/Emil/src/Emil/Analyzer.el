@@ -15,6 +15,7 @@
   (messages :type list :mutable t))
 
 (Struct:implement Emil:Analyzer
+  :disable-syntax t
   (fn Emil:Analyzer:infer (self form (context Emil:Context)
                                 (environment (Trait Emil:Env)))
     (condition-case type-error
@@ -25,7 +26,7 @@
               :type :error
               :content (error-message-string type-error)
               :form form))
-       (cons context (Emil:TypedForm:AnyForm
+       (cons context (Emil:TypedForm:Invalid
                       :form form
                       :type (Emil:Type:Any)
                       :environment environment)))))
