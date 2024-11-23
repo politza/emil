@@ -267,7 +267,7 @@ keywords `&optional' and `&rest', in order to indicate optional- and
 rest-arguments. RETURN should likewise be a readable type. If either
 ARGUMENTS or RETURN contains resp. is a type-variable, the resulting
 type will be polymorphic."
-  (Emil:Type:-read form))
+  (Emil:Type:-read form nil t))
 
 (defun Emil:Type:read-function (form)
   "Like `Emil:Type:read', but reject non-function types with an error."
@@ -281,15 +281,18 @@ type will be polymorphic."
 (Commons:define-error Emil:invalid-type-form
   "Invalid type form")
 
-(defun Emil:Type:-read (form &optional allow-type-variables)
+(defun Emil:Type:-read (form &optional allow-type-variables? top-level?)
   (pcase form
     ('Null (Emil:Type:Null))
     ('Any (Emil:Type:Any))
     ('Never (Emil:Type:Never))
     ('Void (Emil:Type:Void))
-    ((pred symbolp) (Emil:Type:Basic :name form))
+    ((pred symbolp)
+     (when (eq form 'quote)
+       (Emil:invalid-type-form "quote can not be used as a type-name: %s" form))
+     (Emil:Type:Basic :name form))
     ((and `(quote ,name) (guard (symbolp name)))
-     (unless allow-type-variables
+     (unless allow-type-variables?
        (Emil:invalid-type-form "Type variables not allowed here: %s" form))
      (when (Commons:constant-symbol? name)
        (Emil:invalid-type-form
@@ -299,11 +302,12 @@ type will be polymorphic."
        (Emil:invalid-type-form
         "Type variables should start with a letter: %s in %s" name form))
      (Emil:Type:Variable :name name))
-    (`(-> ,arguments ,returns)
-     (Emil:Type:-read-fn arguments returns))
+    ((and `(-> ,arguments ,returns)
+          (guard (listp arguments)))
+     (Emil:Type:-read-fn arguments returns top-level?))
     (_ (Emil:invalid-type-form "Failed to read form as a type: %s" form))))
 
-(defun Emil:Type:-read-fn (arguments-form returns-form)
+(defun Emil:Type:-read-fn (arguments-form returns-form &optional top-level?)
   (let ((optional? nil)
         (rest? nil)
         (min-arity 0)
@@ -343,7 +347,7 @@ type will be polymorphic."
       (cl-pushnew returns parameters :test #'equal))
     (setq parameters (nreverse parameters))
     (let ((type (Emil:Type:Arrow* arguments rest? returns min-arity)))
-      (if parameters
+      (if (and parameters top-level?)
           (Emil:Type:Forall* parameters type)
         type))))
 
