@@ -68,7 +68,7 @@ Prefix each line of the result with PREFIX."
 (defun Emil:Trace:entry-message (function level arguments _context)
   "Replacement for `trace-entry-message'."
   (let ((print-escape-newlines t)
-        (arguments (--filter (not (or (Emil? it) (Emil:Context? it))) arguments))
+        (arguments (--filter (not (or (Emil? it) (Emil:Context? it) (Emil:Env:Alist? it))) arguments))
         (context (-find #'Emil:Context? arguments))
         (prefix (concat
                  (mapconcat #'char-to-string (make-string (max 0 (1- level)) ?|) " ")
@@ -83,20 +83,22 @@ Prefix each line of the result with PREFIX."
   "Replacement for `trace-exit-message'."
   (let ((print-escape-newlines t)
         (context (cond
-                  ((Emil:Context? value)
-                   (prog1 value
-                     (setq value nil)))
-                  ((Emil:Context? (cdr-safe value))
-                   (prog1 (cdr value)
-                     (setq value (car value))))))
+                  ((Emil:Context? value) value)
+                  ((Emil:Context? (car-safe value))
+                   (car value))))
+        (redact-value? (or (Emil:Context? value)
+                           (and (consp value)
+                                (Emil:Context? (car value))
+                                (or (Emil:TypedForm? (cadr value))
+                                    (Emil:TypedForm? (cdr value))))))
         (prefix (concat
                  (mapconcat 'char-to-string (make-string (1- level) ?|) " ")
                  (if (> level 1) " " ""))))
-    (format "%s%d <- %s: %S%s\n"
+    (format "%s%d <- %s: %s%s\n"
             prefix
             level
             function
-            value
+            (if redact-value? "" (format "%S" value))
             (Emil:Trace:pretty-print-context context prefix))))
 
 (provide 'Emil/Trace)
