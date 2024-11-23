@@ -52,18 +52,22 @@ environment."
                                        function context)))))
 
 (Struct:implement Emil:Env:Alist
-  (fn Emil:Env:Alist:update-variable (self variable (type (Trait Emil:Type)))
+  (fn Emil:Env:Alist:update-variable (self variable (type (Trait Emil:Type))
+                                           &optional require-exists?)
     "Update VARIABLE's type to TYPE.
 
 Adds VARIABLE to this environment, if it is currently not
 present."
     (let ((elt (assq variable (Struct:get self :variables))))
-      (if elt
-          (setcdr elt type)
-        (Struct:update
-          self :variables (-partial #'cons (cons variable type))))))
+      (cond
+       (elt (setcdr elt type))
+       (require-exists?
+        (error "Variable is not bound in this environment: %s" variable))
+       (t (Struct:update
+            self :variables (-partial #'cons (cons variable type)))))))
 
-  (fn Emil:Env:Alist:update-function (self function (type (Trait Emil:Type)))
+  (fn Emil:Env:Alist:update-function (self function (type (Trait Emil:Type))
+                                           &optional require-exists?)
     "Update FUNCTION's type to TYPE.
 
 Adds FUNCTION to this environment, if it is currently not
@@ -71,19 +75,22 @@ present."
     (unless (Emil:Type:function? type)
       (error "Argument should be a function type: %s" type))
     (let ((elt (assq function (Struct:get self :functions))))
-      (if elt
-          (setcdr elt type)
-        (Struct:update
-          self :functions (-partial #'cons (cons function type))))))
+      (cond
+       (elt (setcdr elt type))
+       (require-exists?
+        (error "Function is not bound in this environment: %s" function))
+       (t (Struct:update
+            self :functions (-partial #'cons (cons function type)))))))
 
   (fn Emil:Env:Alist:update-from (self (environment (Trait Emil:Env))
-                                       variables functions)
+                                       variables functions
+                                       &optional require-exists?)
     (--each variables
       (Emil:Env:Alist:update-variable
-       self it (Emil:Env:lookup-variable environment it)))
+       self it (Emil:Env:lookup-variable environment it) require-exists?))
     (--each functions
       (Emil:Env:Alist:update-function
-       self it (Emil:Env:lookup-function environment it)))))
+       self it (Emil:Env:lookup-function environment it) require-exists?))))
 
 (defun Emil:Env:Alist:read (variables functions &optional parent)
   "Reads an environment from VARIABLES and FUNCTIONS.

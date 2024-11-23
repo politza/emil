@@ -322,6 +322,28 @@ replaced with instances of `Emil:Type:Existential'."
                        (Emil:Type:Null))
                      environment))))
 
+  (fn Emil:let*-thread-bindings (self bindings context environment)
+    "Thread CONTEXT and ENVIRONMENT through bindings."
+    (Emil:Util:map-reduce
+     (-lambda ((variable-context . variable-environment) (variable binding))
+       (-let* (((binding-context . binding-form)
+                (Transformer:transform-form
+                 self binding variable-context variable-environment))
+               (type (Struct:get binding-form :type))
+               (next-variable-context
+                (Emil:Context:concat
+                 (Emil:Context:Binding* variable type)
+                 binding-context))
+               (next-variable-environment
+                (Emil:Env:Alist :variables (list (cons variable type))
+                                :parent variable-environment)))
+         (cons (cons next-variable-context
+                     next-variable-environment)
+               binding-form)))
+     (cons context
+           (Emil:Env:Alist :parent environment))
+     bindings))
+
   (fn Emil:type-of-body (body-forms)
     (if body-forms
         (Struct:get (-last-item body-forms) :type)
@@ -545,46 +567,32 @@ replaced with instances of `Emil:Type:Existential'."
                                   variables nil)
       (cons (Emil:Context:drop-until-after body-context marker)
             (Emil:TypedForm:new
-             (cons (car form) (cons (-zip-with #'list variables
-                                               binding-forms)
-                                    body-forms))
+             (cons (car form)
+                   (cons (-zip-with #'list variables binding-forms)
+                         body-forms))
              (Emil:Context:resolve body-context body-type)
              environment))))
 
   (fn Transformer:transform-let* (self form bindings body &optional
                                        context environment &rest _)
     (-let* ((marker (Emil:Context:Marker))
-            (variables (-map #'car bindings))
-            (((binding-context . binding-environment) . binding-forms)
-             (Emil:Util:map-reduce
-              (-lambda ((context . environment) (variable binding))
-                (-let* (((binding-context . binding-form)
-                         (Transformer:transform-form
-                          self binding context environment))
-                        (variable-context
-                         (Emil:Context:concat
-                          (Emil:Context:Binding
-                           :variable variable
-                           :type (Struct:get binding-form :type))
-                          binding-context)))
-                  (Emil:Env:Alist:update-from
-                   environment variable-context (list variable) nil)
-                  (cons (cons variable-context
-                              (Emil:Env:Alist :parent environment))
-                        binding-form)))
-              (cons (Emil:Context:concat marker context)
-                    environment)
-              bindings))
+            (variables (--map (Transformer:Form:value (car it)) bindings))
+            (((bindings-context . body-environment) . binding-forms)
+             (Emil:let*-thread-bindings
+              self bindings (Emil:Context:concat marker context) environment))
             ((body-context . body-forms)
-             (Emil:infer-do self body binding-context binding-environment))
+             (Emil:infer-do self body bindings-context body-environment))
             (body-type (Emil:type-of-body body-forms)))
-      (Emil:Env:Alist:update-from binding-environment body-context
-                                  variables nil)
+      (--each (nreverse (--iterate (Struct:get it :parent)
+                                   body-environment
+                                   (length variables)))
+        (Emil:Env:Alist:update-from
+         it body-context (list (nth it-index variables)) nil t))
       (cons (Emil:Context:drop-until-after body-context marker)
             (Emil:TypedForm:new
-             (cons (car form) (cons (-zip-with #'list variables
-                                               binding-forms)
-                                    body-forms))
+             (cons (car form)
+                   (cons (-zip-with #'list variables binding-forms)
+                         body-forms))
              (Emil:Context:resolve body-context body-type)
              environment))))
 
