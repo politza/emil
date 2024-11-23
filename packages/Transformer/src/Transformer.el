@@ -264,6 +264,7 @@
          transformer data))
 
 (Struct:define Transformer:Identity)
+(Trait:implement Transformer Transformer:Identity)
 
 (defun Transformer:transform (form &optional transformer &rest data)
   (apply #'Transformer:transform-form

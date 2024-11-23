@@ -219,12 +219,10 @@ idempotent."
       (error "Trait method not defined: %s, %s" trait method))
     (unless (setq impl (or (cdr (assq type (Struct:unsafe-get
                                             method-struct :implementations)))
-                           (Struct:unsafe-get
-                            method-struct :default-implementation)))
-      ;; FIXME: If type does not implement Trait, but Trait has no
-      ;; required methods, its default implementation is invoked
-      ;; anyway. But this unintended universality property is actually
-      ;; required by the Transformer package (see Transformer:Form).
+                           (and (memq type (Struct:unsafe-get trait-struct
+                                                              :implementing-types))
+                                (Struct:unsafe-get
+                                 method-struct :default-implementation))))
       (unless (memq type (Struct:unsafe-get trait-struct :implementing-types))
         (error "Type does not implement trait: %s, %s" type trait))
       (error "Required method not implemented by type: %s, %s" method type))

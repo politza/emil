@@ -269,8 +269,8 @@
                '(Emil:Type:Forall
                  :parameters (Emil:Type:Variable :name d)
                  :type (Emil:Type:Arrow
-                        :arguments (list (Emil:Type:Existential :name a)
-                                         (Emil:Type:Existential :name b))
+                        :arguments ((Emil:Type:Existential :name a)
+                                    (Emil:Type:Existential :name b))
                         :returns (Emil:Type:Existential :name c)
                         :rest? t
                         :min-arity 1)))
