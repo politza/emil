@@ -83,6 +83,22 @@ Returns DEFAULT if value is nil."
          :read-only t
          :type boolean)
         (Struct:Property
+         :name functions
+         :keyword :functions
+         :default-value nil
+         :documentation "This list of associated function-names of this struct-type."
+         :required nil
+         :read-only nil
+         :type list)
+        (Struct:Property
+         :name methods
+         :keyword :methods
+         :default-value nil
+         :documentation "The list of method-names of this struct-type."
+         :required nil
+         :read-only nil
+         :type list)
+        (Struct:Property
          :name disable-type-checks
          :keyword :disable-type-checks
          :default-value nil
@@ -311,6 +327,11 @@ name. And also spread-syntax via the `,@' operator, with other struct
 values as arguments.
 
 See also `%s*'.")
+
+(defun Struct:update-documentation (name)
+  "Updates the documentation of struct-type named NAME."
+  (put name 'function-documentation
+     (Struct::doc-constructor (Struct:Type:get name))))
 
 (defun Struct::doc-function-constructor (type)
   (with-output-to-string
