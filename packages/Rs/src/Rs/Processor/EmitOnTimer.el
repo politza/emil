@@ -79,6 +79,6 @@
             (Rs:Subscriber:on-complete subscriber)))
       (error
        (Rs:Processor:EmitOnTimer:-cancel-timer self))
-       (signal (car error) (cdr error)))))
+      (signal (with-no-warnings (car error)) (cdr error)))))
 
 (provide 'Rs/Processor/EmitOnTimer)
