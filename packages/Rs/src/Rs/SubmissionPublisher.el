@@ -6,14 +6,14 @@
 
 (Struct:define Rs:Sp:Subscription
   "Subscription handling a single subscriber."
-  (subscriber :type (Trait Rs:Subscriber) :required t)
-  (publisher :type Rs:SubmissionPublisher :required t)
+  (subscriber :type (Trait Rs:Subscriber))
+  (publisher :type Rs:SubmissionPublisher)
   (buffer-size :default-value Rs:default-buffer-size
-               :type number :required t)
+               :type number)
   (buffer :default-value (make-ring buffer-size)
-          :type ring :required t)
+          :type ring)
   (request-count :default-value 0
-                 :type (integer 0 *) :required t :mutable t)
+                 :type (integer 0 *) :mutable t)
   (closed? :type boolean :mutable t)
   (emitting? :type boolean :mutable t))
 
@@ -29,10 +29,10 @@
   (Rs:Sp:Subscription* publisher subscriber buffer-size))
 
 (Struct:defun Rs:Sp:Subscription:emit-some ((self Rs:Sp:Subscription))
-  
+
   (unless (Struct:get self :emitting?)
     (Struct:set self :emitting? t)
-    (unwind-protect 
+    (unwind-protect
         (while (and (not (Struct:get self :closed?))
                     (not (ring-empty-p (Struct:get self :buffer)))
                     (> (Struct:get self :request-count) 0))
@@ -81,7 +81,7 @@
     (unless (Struct:get self :closed?)
       (Struct:update self :request-count (-partial #'+ count))
       (Rs:Sp:Subscription:emit-some self)))
-  
+
   (defmethod Rs:Subscription:cancel (self)
     (Rs:Sp:Subscription:close self)))
 

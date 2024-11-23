@@ -12,16 +12,16 @@ The trait-definition is put on the symbol's property-list using this value.")
 (Struct:define Trait
   "Represents a trait-type."
   (name
-    "The name of this trait."
-   :required t :type symbol)
+   "The name of this trait."
+   :type symbol)
   (methods
-    "An association-list mapping method-names to their definitions."
+   "An association-list mapping method-names to their definitions."
    :type list)
   (implementing-types
-    "A list of types implementing this trait."
+   "A list of types implementing this trait."
    :type list :mutable t)
   (supertraits
-    "A list of required traits for implementing this trait."
+   "A list of required traits for implementing this trait."
    :type list))
 
 (defun Trait:get (name &optional ensure)
@@ -37,23 +37,23 @@ which case a `wrong-type-argument' is signaled."
   "Represents a trait-method."
   (name
    "The name of this method."
-   :required t :type symbol)
+   :type symbol)
   (arguments
    "The declared argument list of this method."
    :type list)
   (documentation
    "A string describing this method."
-   :type string)
+   :type (or null string))
   (default-implementation
    "An optional default implementation of this method. If not
 provided, this method is required for implementors to implement."
-   :type function)
+   :type (or null function))
   (implementations
    "An alist mapping types to their implementation of this method."
    :type list :mutable t)
   (dispatch-function
    "A function responsible for dispatching this method."
-   :required t :type function))
+   :type function))
 
 (Struct:defun Trait:Method:required? ((method Trait:Method))
   "Returns non-nil, if implementing METHOD is required.
@@ -71,11 +71,11 @@ The value is a pair `\(MIN . MAX\)'. See also `func-arity'."
   (defun Trait:-emit-method-declarations (methods)
     (when (-every? #'consp methods)
       (-map (-lambda ((_ name arguments))
-            (when (and name (symbolp name) (listp arguments))
-              `(declare-function
-                ,name nil ,(ignore-errors
-                             (Struct:lambda-normalize-arguments arguments)))))
-          methods))))
+              (when (and name (symbolp name) (listp arguments))
+                `(declare-function
+                  ,name nil ,(ignore-errors
+                               (Struct:lambda-normalize-arguments arguments)))))
+            methods))))
 
 (defmacro Trait:define (name supertraits &optional documentation &rest methods)
   "Defines a new trait named NAME.
@@ -222,7 +222,7 @@ idempotent."
                   (assq (car it) implementations))
         (let ((declared-arguments (Struct:get (cdr it) :arguments)))
           (unless (Trait:-compatible-arguments?
-                   declared-arguments       
+                   declared-arguments
                    arguments)
             (error "Signature incompatible with method declared by trait: %s, %s, %s"
                    (car it)

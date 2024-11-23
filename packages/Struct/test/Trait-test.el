@@ -214,73 +214,72 @@
                 :to-throw 'error
                 '("Signature incompatible with method declared by trait: TestTrait:required, (self &optional argument), (self argument)")))))
 
-  ;; (describe "with a supertrait"
-  ;;   (before-each
-  ;;     (Trait:define SuperTrait ()
-  ;;       (defmethod SuperTrait:optional (self argument)
-  ;;         (1+ argument)))
+  (describe "with a supertrait"
+    (before-each
+      (Trait:define SuperTrait ()
+        (defmethod SuperTrait:optional (self argument)
+          (1+ argument)))
 
-  ;;     (Trait:define TestTrait (SuperTrait))
+      (Trait:define TestTrait (SuperTrait))
 
-  ;;     (Trait:implement SuperTrait TestStruct)
-  ;;     (Trait:implement TestTrait TestStruct))
+      (Trait:implement SuperTrait TestStruct)
+      (Trait:implement TestTrait TestStruct))
 
-  ;;   (it "rejects unimplemented supertraits"
-  ;;     (expect (Trait:implement TestTrait OtherTestStruct)
-  ;;             :to-throw 'error
-  ;;             '("Required supertrait not implemented by type: SuperTrait")))
+    (it "rejects unimplemented supertraits"
+      (expect (Trait:implement TestTrait OtherTestStruct)
+              :to-throw 'error
+              '("Required supertrait not implemented by type: SuperTrait")))
 
-  ;;   (it "invokes a supertrait method"
-  ;;     (expect (SuperTrait:optional (TestStruct) 1) :to-be 2)))
+    (it "invokes a supertrait method"
+      (expect (SuperTrait:optional (TestStruct) 1) :to-be 2)))
 
-  ;; (describe "with Struct:lambda features"
-  ;;   (before-each
-  ;;     (Trait:define TestTrait ()
-  ;;       (defmethod TestTrait:with-number (self (arg number)))
-  ;;       (defmethod TestTrait:with-struct (self (arg TestStruct)))
-  ;;       (defmethod TestTrait:with-rest-struct (self &struct (arg TestStruct))))
+  (describe "with Struct:lambda features"
+    (before-each
+      (Trait:define TestTrait ()
+        (defmethod TestTrait:with-number (self (arg number)))
+        (defmethod TestTrait:with-struct (self (arg TestStruct)))
+        (defmethod TestTrait:with-rest-struct (self &struct (arg TestStruct))))
 
-  ;;     (Trait:implement TestTrait TestStruct
-  ;;       (defmethod TestTrait:with-number (self (arg number))
-  ;;         (+ (Struct:get self :property 0) arg))
-  ;;       (defmethod TestTrait:with-struct (self (arg TestStruct))
-  ;;         (+ (Struct:get self :property 0)
-  ;;            (Struct:get arg :property 0)))
-  ;;       (defmethod TestTrait:with-rest-struct (self &struct (arg TestStruct))
-  ;;         (+ (Struct:get self :property 0)
-  ;;            (Struct:get arg :property 0)))))
-    
-  ;;   (it "can use types in methods"
-  ;;     (expect (TestTrait:with-number (TestStruct) 1)
-  ;;             :to-be 1)
-  ;;     (expect (TestTrait:with-number (TestStruct :property 1) 2)
-  ;;             :to-be 3)
-  ;;     (expect (TestTrait:with-struct (TestStruct) (TestStruct))
-  ;;             :to-be 0)
-  ;;     (expect (TestTrait:with-struct (TestStruct :property 1)
-  ;;                                    (TestStruct :property 2))
-  ;;             :to-be 3)
-  ;;     (expect (TestTrait:with-rest-struct (TestStruct))
-  ;;             :to-be 0)
-  ;;     (expect (TestTrait:with-rest-struct
-  ;;              (TestStruct :property 1) :property 2)
-  ;;             :to-be 3)
-  ;;     (expect (TestTrait:with-rest-struct
-  ;;              (TestStruct :property 1)
-  ;;              (TestStruct :property 2))
-  ;;             :to-be 3))
+      (Trait:implement TestTrait TestStruct
+        (defmethod TestTrait:with-number (self (arg number))
+          (+ (Struct:get self :property 0) arg))
+        (defmethod TestTrait:with-struct (self (arg TestStruct))
+          (+ (Struct:get self :property 0)
+             (Struct:get arg :property 0)))
+        (defmethod TestTrait:with-rest-struct (self &struct (arg TestStruct))
+          (+ (Struct:get self :property 0)
+             (Struct:get arg :property 0)))))
 
-  ;;   (it "can use reject wrong types in methods"
-  ;;     (expect (TestTrait:with-number (TestStruct) "1")
-  ;;             :to-throw 'wrong-type-argument
-  ;;             '(number "1" arg))
-  ;;     (expect (TestTrait:with-number 1 2)
-  ;;             :to-throw 'error
-  ;;             '("Type does not implement trait: integer, TestTrait"))
-  ;;     (expect (TestTrait:with-struct (TestStruct) 1)
-  ;;             :to-throw 'wrong-type-argument
-  ;;             '(TestStruct 1 arg))
-  ;;     (expect (TestTrait:with-rest-struct (TestStruct) :no-such-property 1)
-  ;;             :to-throw 'error
-  ;;             '("Undeclared properties set: (:no-such-property 1)"))))
-  )
+    (it "can use types in methods"
+      (expect (TestTrait:with-number (TestStruct) 1)
+              :to-be 1)
+      (expect (TestTrait:with-number (TestStruct :property 1) 2)
+              :to-be 3)
+      (expect (TestTrait:with-struct (TestStruct) (TestStruct))
+              :to-be 0)
+      (expect (TestTrait:with-struct (TestStruct :property 1)
+                                     (TestStruct :property 2))
+              :to-be 3)
+      (expect (TestTrait:with-rest-struct (TestStruct))
+              :to-be 0)
+      (expect (TestTrait:with-rest-struct
+               (TestStruct :property 1) :property 2)
+              :to-be 3)
+      (expect (TestTrait:with-rest-struct
+               (TestStruct :property 1)
+               (TestStruct :property 2))
+              :to-be 3))
+
+    (it "can use reject wrong types in methods"
+      (expect (TestTrait:with-number (TestStruct) "1")
+              :to-throw 'wrong-type-argument
+              '(number "1" arg))
+      (expect (TestTrait:with-number 1 2)
+              :to-throw 'error
+              '("Type does not implement trait: integer, TestTrait"))
+      (expect (TestTrait:with-struct (TestStruct) 1)
+              :to-throw 'wrong-type-argument
+              '(TestStruct 1 arg))
+      (expect (TestTrait:with-rest-struct (TestStruct) :no-such-property 1)
+              :to-throw 'error
+              '("Undeclared properties set: (:no-such-property 1)")))))
