@@ -7,7 +7,12 @@
 (require 'Emil/Env)
 
 (Trait:define Emil:Form ()
-  :disable-syntax t)
+  :disable-syntax t
+  (fn Emil:Form:position (self -> integer)
+    nil)
+
+  (fn Emil:Form:each-child (self fn &optional env)
+    ))
 
 (defun Emil:Form:with-type (form type)
   (cl-check-type form (Trait Emil:Form))
@@ -21,14 +26,21 @@
   (type :type (Trait Emil:Type)))
 
 (Trait:implement Emil:Form Emil:Form:Invalid
-  :disable-syntax t)
+  :disable-syntax t
+  (fn Emil:Form:each-child (self _fn &optional _env) nil))
 
 (Struct:define Emil:Form:Atom
   (value)
   (type :type (Trait Emil:Type)))
 
 (Trait:implement Emil:Form Emil:Form:Atom
-  :disable-syntax t)
+  :disable-syntax t
+  (fn Emil:Form:position (self -> integer)
+    (let ((value (Struct:get self :value)))
+      (when (symbol-with-pos-p value)
+        (symbol-with-pos-pos value))))
+
+  (fn Emil:Form:each-child (self _fn &optional _env) nil))
 
 (Struct:define Emil:Form:Application
   (function :type Emil:Form:Function)
@@ -36,14 +48,21 @@
   (type :type (Trait Emil:Type)))
 
 (Trait:implement Emil:Form Emil:Form:Application
-  :disable-syntax t)
+  :disable-syntax t
+  (fn Emil:Form:each-child (self fn &optional env)
+    (or (funcall fn (Struct:get self :function) env)
+        (--some (funcall fn it env)
+                (Struct:get self :arguments)))))
 
 (Struct:define Emil:Form:And
   (conditions :type (List (Trait Emil:Form)))
   (type :type (Trait Emil:Type)))
 
 (Trait:implement Emil:Form Emil:Form:And
-  :disable-syntax t)
+  :disable-syntax t
+  (fn Emil:Form:each-child (self fn &optional env)
+    (--some (funcall fn it env)
+            (Struct:get self :conditions))))
 
 (Struct:define Emil:Form:Catch
   (tag :type (Trait Emil:Form))
@@ -51,14 +70,21 @@
   (type :type (Trait Emil:Type)))
 
 (Trait:implement Emil:Form Emil:Form:Catch
-  :disable-syntax t)
+  :disable-syntax t
+  (fn Emil:Form:each-child (self fn &optional env)
+    (or (funcall fn (Struct:get self :tag) env)
+        (--some (funcall fn it env)
+                (Struct:get self :body)))))
 
 (Struct:define Emil:Form:Cond
   (clauses :type (List (List (Trait Emil:Form))))
   (type :type (Trait Emil:Type)))
 
 (Trait:implement Emil:Form Emil:Form:Cond
-  :disable-syntax t)
+  :disable-syntax t
+  (fn Emil:Form:each-child (self fn &optional env)
+    (--some (--some (funcall fn it env) it)
+            (Struct:get self :clauses))))
 
 (Struct:define Emil:Form:ConditionCase
   (variable :type symbol)
@@ -67,7 +93,16 @@
   (type :type (Trait Emil:Type)))
 
 (Trait:implement Emil:Form Emil:Form:ConditionCase
-  :disable-syntax t)
+  :disable-syntax t
+  (fn Emil:Form:each-child (self fn &optional env)
+    (or (funcall fn (Struct:get self :body-form) env)
+        (let ((env (if-let (variable (Struct:get self :variable))
+                       (cons (cons variable (Emil:Type:Any))
+                             env)
+                     env)))
+          (--some (--some (funcall fn it env)
+                          (Struct:get it :body))
+                  (Struct:get self :handlers))))))
 
 (Struct:define Emil:Form:ConditionCaseHandler
   (condition :type (or symbol (List symbol)))
@@ -80,7 +115,9 @@
   (type :type (Trait Emil:Type)))
 
 (Trait:implement Emil:Form Emil:Form:DefConst
-  :disable-syntax t)
+  :disable-syntax t
+  (fn Emil:Form:each-child (self fn &optional env)
+    (funcall fn (Struct:get self :init-value) env)))
 
 (Struct:define Emil:Form:DefVar
   (symbol :type symbol)
@@ -89,14 +126,18 @@
   (type :type (Trait Emil:Type)))
 
 (Trait:implement Emil:Form Emil:Form:DefVar
-  :disable-syntax t)
+  :disable-syntax t
+  (fn Emil:Form:each-child (self fn &optional env)
+    (funcall fn (Struct:get self :init-value) env)))
 
 (Struct:define Emil:Form:Function
   (value :type (or Emil:Form:Atom Emil:Form:Lambda))
   (type :type (Trait Emil:Type)))
 
 (Trait:implement Emil:Form Emil:Form:Function
-  :disable-syntax t)
+  :disable-syntax t
+  (fn Emil:Form:each-child (self fn &optional env)
+    (funcall fn (Struct:get self :value) env)))
 
 (Struct:define Emil:Form:Lambda
   (arguments :type list)
@@ -104,7 +145,15 @@
   (type :type (Trait Emil:Type)))
 
 (Trait:implement Emil:Form Emil:Form:Lambda
-  :disable-syntax t)
+  :disable-syntax t
+  (fn Emil:Form:each-child (self fn &optional env)
+    (let* ((arguments (Emil:Util:lambda-variables (Struct:get self :arguments)))
+           (types (if (Emil:Type:Arrow? (Struct:get self :type))
+                      (Emil:Type:Arrow:arguments (Struct:get self :type))
+                    (-repeat (length arguments) (Emil:Type:Any))))
+           (env (append (-zip-pair arguments types) env)))
+      (--some (funcall fn it env)
+              (Struct:get self :body)))))
 
 (Struct:define Emil:Form:If
   (condition :type (Trait Emil:Form))
@@ -113,14 +162,20 @@
   (type :type (Trait Emil:Type)))
 
 (Trait:implement Emil:Form Emil:Form:If
-  :disable-syntax t)
+  :disable-syntax t
+  (fn Emil:Form:each-child (self fn &optional env)
+    (or (funcall fn (Struct:get self :condition) env)
+        (funcall fn (Struct:get self :then) env)
+        (--some (funcall fn it env)
+                (Struct:get self :else)))))
 
 (Struct:define Emil:Form:Interactive
   (forms)
   (type :type (Trait Emil:Type)))
 
 (Trait:implement Emil:Form Emil:Form:Interactive
-  :disable-syntax t)
+  :disable-syntax t
+  (fn Emil:Form:each-child (self _fn &optional _env) nil))
 
 (Struct:define Emil:Form:Let
   (kind :type (member let let*))
@@ -129,7 +184,21 @@
   (type :type (Trait Emil:Type)))
 
 (Trait:implement Emil:Form Emil:Form:Let
-  :disable-syntax t)
+  :disable-syntax t
+  (fn Emil:Form:each-child (self fn &optional env)
+    (let ((local-env (--map (cons (Struct:get it :name)
+                                  (Struct:get (Struct:get it :value) :type))
+                            (Struct:get self :bindings)))
+          (sequential? (eq 'let* (Struct:get self :kind)))
+          (index -1))
+      (or (--some
+           (funcall fn (Struct:get it :value)
+                    (append (when sequential?
+                              (reverse (-take (cl-incf index) local-env)))
+                            env))
+           (Struct:get self :bindings))
+          (--some (funcall fn it (append (reverse local-env) env))
+                  (Struct:get self :body))))))
 
 (Struct:define Emil:Form:Binding
   (name :type symbol)
@@ -140,7 +209,10 @@
   (type :type (Trait Emil:Type)))
 
 (Trait:implement Emil:Form Emil:Form:Or
-  :disable-syntax t)
+  :disable-syntax t
+  (fn Emil:Form:each-child (self fn &optional env)
+    (--some (funcall fn it env)
+            (Struct:get self :conditions))))
 
 (Struct:define Emil:Form:Prog1
   (first :type (Trait Emil:Form))
@@ -148,7 +220,11 @@
   (type :type (Trait Emil:Type)))
 
 (Trait:implement Emil:Form Emil:Form:Prog1
-  :disable-syntax t)
+  :disable-syntax t
+  (fn Emil:Form:each-child (self fn &optional env)
+    (or (funcall fn (Struct:get self :first) env)
+        (--some (funcall fn it env)
+                (Struct:get self :body)))))
 
 (Struct:define Emil:Form:PrognLike
   (kind :type (member progn save-current-buffer save-excursion save-restriction))
@@ -156,21 +232,29 @@
   (type :type (Trait Emil:Type)))
 
 (Trait:implement Emil:Form Emil:Form:PrognLike
-  :disable-syntax t)
+  :disable-syntax t
+  (fn Emil:Form:each-child (self fn &optional env)
+    (--some (funcall fn it env)
+            (Struct:get self :body))))
 
 (Struct:define Emil:Form:Quote
   (value)
   (type :type (Trait Emil:Type)))
 
 (Trait:implement Emil:Form Emil:Form:Quote
-  :disable-syntax t)
+  :disable-syntax t
+  (fn Emil:Form:each-child (self _fn &optional _env)
+    nil))
 
 (Struct:define Emil:Form:Setq
   (bindings :type (List Emil:Form:Binding))
   (type :type (Trait Emil:Type)))
 
 (Trait:implement Emil:Form Emil:Form:Setq
-  :disable-syntax t)
+  :disable-syntax t
+  (fn Emil:Form:each-child (self fn &optional env)
+    (--some (funcall fn (Struct:get it :value) env)
+            (Struct:get self :bindings))))
 
 (Struct:define Emil:Form:UnwindProtect
   (body-form :type (Trait Emil:Form))
@@ -178,7 +262,11 @@
   (type :type (Trait Emil:Type)))
 
 (Trait:implement Emil:Form Emil:Form:UnwindProtect
-  :disable-syntax t)
+  :disable-syntax t
+  (fn Emil:Form:each-child (self fn &optional env)
+    (or (funcall fn (Struct:get self :body-form) env)
+        (--some (funcall fn it env)
+                (Struct:get self :unwind-forms)))))
 
 (Struct:define Emil:Form:While
   (condition :type (Trait Emil:Form))
@@ -186,6 +274,10 @@
   (type :type (Trait Emil:Type)))
 
 (Trait:implement Emil:Form Emil:Form:While
-  :disable-syntax t)
+  :disable-syntax t
+  (fn Emil:Form:each-child (self fn &optional env)
+    (or (funcall fn (Struct:get self :condition) env)
+        (--some (funcall fn it env)
+                (Struct:get self :body)))))
 
 (provide 'Emil/Form)

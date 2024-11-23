@@ -72,9 +72,9 @@
          `(,kind ,(--map-indexed
                    (list (Struct:get it :name)
                          (recurse (Struct:get it :value)
-                                  (if (eq kind 'let*) (-take it-index env))))
+                                  (if (eq kind 'let*) (reverse (-take it-index env)))))
                    bindings)
-                 ,@(--map (recurse it env) body))))
+                 ,@(--map (recurse it (reverse env)) body))))
       ((Struct Emil:Form:Or conditions)
        `(or ,@(-map #'recurse conditions)))
       ((Struct Emil:Form:Prog1 first body)
