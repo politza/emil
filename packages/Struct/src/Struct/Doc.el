@@ -41,7 +41,7 @@ See also `%s'.")
     (terpri nil t)
     (terpri)
     (--each (Struct:unsafe-get type :properties)
-      (-let* (((&plist :name :documentation :default-value
+      (-let* (((&plist :name :documentation :default
                        :mutable :type)
                (Struct:unsafe-properties it)))
         (princ (format "- %s" name))
@@ -50,7 +50,7 @@ See also `%s'.")
         (princ "	(")
         (when mutable
           (princ "mutable, "))
-        (princ (format "default: %s)" default-value))
+        (princ (format "default: %s)" default))
         (terpri)
         (when documentation
           (princ (string-trim documentation))

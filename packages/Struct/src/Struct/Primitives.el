@@ -32,25 +32,25 @@ Returns DEFAULT if value is nil."
       (cons (Commons:symbol-to-keyword (Struct:unsafe-get it :name)) it)
       '((Struct:Property
          :name name
-         :default-value nil
+         :default nil
          :documentation "The name of this propertỵ."
          :mutable nil
          :type symbol)
         (Struct:Property
-         :name default-value
-         :default-value nil
+         :name default
+         :default nil
          :documentation "The default value of this propertỵ."
          :mutable nil
          :type nil)
         (Struct:Property
          :name documentation
-         :default-value nil
+         :default nil
          :documentation "The documentation of this propertỵ."
          :mutable nil
          :type (or null string))
         (Struct:Property
          :name mutable
-         :default-value nil
+         :default nil
          :documentation "Whether this property is mutable after its construction.
 
 Defaults to `nil'."
@@ -58,7 +58,7 @@ Defaults to `nil'."
          :type boolean)
         (Struct:Property
          :name type
-         :default-value nil
+         :default nil
          :documentation "The type of this property."
          :mutable nil
          :type nil)))))
@@ -71,33 +71,25 @@ Defaults to `nil'."
       (cons (Commons:symbol-to-keyword (Struct:unsafe-get it :name)) it)
       '((Struct:Property
          :name name
-         :default-value nil
+         :default nil
          :documentation "The name of this struct-type."
          :mutable nil
          :type symbol)
         (Struct:Property
          :name documentation
-         :default-value nil
+         :default nil
          :documentation "The documentation of this struct-type."
          :mutable nil
          :type (or null string))
         (Struct:Property
          :name properties
-         :default-value nil
+         :default nil
          :documentation "The properties of this struct-type.
 
 This is an association-list mapping the keyword-names to their
 corresponding property."
          :mutable nil
-         :type list)
-        (Struct:Property
-         :name mutable
-         :default-value t
-         :documentation "Whether this type is mutable after its
-construction.
-Defaults to `t'."
-         :mutable nil
-         :type boolean)))))
+         :type list)))))
 
 (defun Struct:Type (&rest property-list)
   "Constructs a new struct-type."
@@ -191,8 +183,8 @@ Returns nil, if PROPERTY does not name a property of struct."
       (let ((property (cdr (pop declared-properties)))
             (value (nth 1 properties-head)))
         (unless value
-          (when-let (default-value (Struct:unsafe-get property :default-value))
-            (setq value (eval default-value environment))))
+          (when-let (default (Struct:unsafe-get property :default))
+            (setq value (eval default environment))))
         (push (cons (Struct:unsafe-get property :name) value)
               environment)
         (setcar (cdr properties-head)
@@ -224,8 +216,7 @@ Throws an error if
          (property-type (Struct:Type:get-property struct-type property)))
     (unless property-type
       (error "Property is not a member of struct: %s" property))
-    (unless (and (Struct:unsafe-get struct-type :mutable)
-                 (Struct:unsafe-get property-type :mutable))
+    (unless (Struct:unsafe-get property-type :mutable)
       (error "Attempted to set immutable property: %s" property))
     (Struct:Property:check-type property-type value))
   (Struct:unsafe-set struct property value))
