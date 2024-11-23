@@ -6,6 +6,7 @@
 (require 'Struct)
 (require 'Trait)
 (require 'Emil/Util)
+(require 'Emil/Error)
 
 ;; Shut up cl-type-check's compiler warnings.
 (cl-deftype Emil:Type:Variable nil
@@ -307,7 +308,7 @@ Currently, only function types are supported."
 
 (Trait:implement Emil:Type Emil:Type:Existential
   (fn Emil:Type:print (self)
-    `(quote ,(Struct:get self :name)))
+    `(quote ,(intern (format "%s?" (Struct:get self :name)))))
 
   (fn Emil:Type:free-variables (self)
     (list (Struct:get self :name))))
@@ -362,9 +363,6 @@ type will be polymorphic."
       (error "Expected to read a function-type: %s" form))
     type))
 
-(Commons:define-error Emil:invalid-type-form
-  "Invalid type form")
-
 (defun Emil:Type:-read (form)
   "Reads a type from FORM.
 
@@ -383,9 +381,9 @@ The result may contain type-variables."
        (Emil:invalid-type-form
         "Constant symbol used as type variable: %s in %s"
         name form))
-     (unless (string-match-p "\\`[a-zA-Z]" (symbol-name name))
+     (unless (string-match-p "\\`[a-zA-Z0-9]+\\'" (symbol-name name))
        (Emil:invalid-type-form
-        "Type variables should start with a letter: %s in %s" name form))
+        "Variables should only contain letters and numbers: %s in %s" name form))
      (Emil:Type:Variable :name name))
     ((and `(-> ,arguments ,returns)
           (guard (listp arguments)))

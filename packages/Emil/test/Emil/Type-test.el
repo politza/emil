@@ -233,7 +233,7 @@
 
     (it "instance"
       (expect (Emil:Type:print (Emil:Type:Existential :name 'a))
-              :to-equal ''a))
+              :to-equal ''a?))
 
     (it "monomorph function"
       (expect (Emil:Type:print (Emil:Type:read '(-> () Void)))
@@ -251,7 +251,7 @@
                 :returns (Emil:Type:Existential :name 'c)
                 :rest? t
                 :min-arity 1))
-              :to-equal '(-> ('a &rest 'b) 'c)))
+              :to-equal '(-> ('a? &rest 'b?) 'c?)))
 
     (it "forAll"
       (expect (Emil:Type:print '(Emil:Type:Forall

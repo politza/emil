@@ -18,6 +18,7 @@
 (require 'Emil/Util)
 (require 'Emil/Env)
 (require 'Emil/TypedForm)
+(require 'Emil/Error)
 
 (Struct:define Emil:ExistentialGenerator
   "Generator for instances of type `Emil:Type:Existential'."
@@ -39,15 +40,23 @@ Apart from that, this just expands to FORM.
 (Struct:define Emil
   (generator
    :type Emil:ExistentialGenerator :default (Emil:ExistentialGenerator))
-  (messages :type list))
+  (messages :type list :mutable t))
 
 (Struct:implement Emil
   (fn Emil:infer (self form (context Emil:Context) (environment (Trait Emil:Env)))
-    (Transformer:transform-form self form context environment))
+    (condition-case type-error
+        (Transformer:transform-form self form context environment)
+      (Emil:type-error
+       (Emil:add-message
+        self (Emil:Message
+              :type :error
+              :content (error-message-string type-error)
+              :form form))
+       (cons context (Emil:TypedForm:new form (Emil:Type:Any) environment)))))
 
   (fn Emil:check (self form type (context Emil:Context)
                        (environment (Trait Emil:Env)))
-    (pcase type
+    (pcase-exhaustive type
       ((Struct Emil:Type:Forall parameters :type forall-type)
        (-let* ((marker (Emil:Context:Marker))
                (intermediate-context
@@ -61,7 +70,7 @@ Apart from that, this just expands to FORM.
             (let `(lambda ,arguments . ,body)
               (Transformer:Form:unwrap-n 2 lambda)))
        (unless (Emil:Type:Arrow:arity-assignable-from? type (func-arity form))
-         (error "Function is not arity compatible: %s, %s" form type))
+         (Emil:type-error "Function is not arity compatible: %s, %s" form type))
        (-let* ((argument-count
                 (max (length (Emil:Type:Arrow:lambda-variables arguments))
                      (Emil:Type:Arrow:arguments type)))
@@ -175,7 +184,10 @@ Apart from that, this just expands to FORM.
                       (Emil:Type:Forall:type type)
                       (-zip-pair parameters instances))
                      relation)))
-              (Emil:Context:drop-until-after intermediate-context marker))))))))
+              (Emil:Context:drop-until-after intermediate-context marker)))))
+        (_
+         (Emil:type-error "Unable to instantiate variable for type: %s, %s"
+                          variable type)))))
 
   (fn Emil:subtype (self (context Emil:Context)
                          (left (Trait Emil:Type))
@@ -196,7 +208,7 @@ Apart from that, this just expands to FORM.
                   :arguments right-arguments :returns right-returns
                   :rest? right-rest?))
        (unless (Emil:Type:Arrow:arity-assignable-to? left right)
-         (error "Function is not arity-compatible: %s, %s" left right))
+         (Emil:type-error "Function is not arity-compatible: %s, %s" left right))
 
        (let* ((argument-count (if right-rest?
                                   (max (length left-arguments)
@@ -266,9 +278,15 @@ Apart from that, this just expands to FORM.
                          (`(integer number) t)
                          (`(float number) t)
                          ((guard (equal left-name right-name)) t)))))
-       context)))
+       context)
+      (_
+       (Emil:type-error
+        "%s can not be assigned to %s"
+        (Emil:Type:print left)
+        (Emil:Type:print right)))))
 
-  (fn Emil:infer-application (self arrow-type arguments context environment)
+  (fn Emil:infer-application (self (arrow-type (Trait Emil:Type))
+                                   arguments context environment)
     (pcase-exhaustive arrow-type
       ((Struct Emil:Type:Forall parameters type)
        (let* ((instances (Emil:generate-existentials
@@ -311,7 +329,7 @@ Apart from that, this just expands to FORM.
        (let ((argument-count (length arguments)))
          (unless (Emil:Type:Arrow:arity-assignable-to?
                   arrow-type (cons argument-count argument-count))
-           (error "Application is not arity compatible: %d, %s"
+           (Emil:type-error "Application is not arity compatible: %d, %s"
                   argument-count arrow-type))
          (-let* ((adjusted-arguments
                   (append arguments (-repeat (- (length argument-types)
@@ -323,7 +341,11 @@ Apart from that, this just expands to FORM.
                      (Emil:check self argument instance context environment))
                    context
                    (-zip-pair adjusted-arguments argument-types))))
-           (cons result-context (cons returns argument-forms)))))))
+           (cons result-context (cons returns argument-forms)))))
+      (_
+       (Emil:type-error "Function can not be applied to arguments: %s, %s"
+                        (Emil:Type:print arrow-type)
+                        arguments))))
 
   (fn Emil:generate-existential (self)
     "Returns a new `Emil:Type:Existential'."
@@ -357,7 +379,7 @@ replaced with instances of `Emil:Type:Existential'."
   (fn Emil:infer-do (self forms (context Emil:Context) (environment (Trait Emil:Env)))
     (Emil:Util:map-reduce
      (-lambda (context form)
-       (Transformer:transform-form self form context environment))
+       (Emil:infer self form context environment))
      context
      forms))
 
@@ -382,7 +404,7 @@ replaced with instances of `Emil:Type:Existential'."
     (Emil:Util:map-reduce
      (-lambda ((variable-context . variable-environment) (variable binding))
        (-let* (((binding-context . binding-form)
-                (Transformer:transform-form
+                (Emil:infer
                  self binding variable-context variable-environment))
                (type (Struct:get binding-form :type)))
          (cons (cons (Emil:Context:concat (Emil:Context:Binding* variable type)
@@ -397,7 +419,14 @@ replaced with instances of `Emil:Type:Existential'."
   (fn Emil:type-of-body (body-forms)
     (if body-forms
         (Struct:get (-last-item body-forms) :type)
-      (Emil:Type:Null))))
+      (Emil:Type:Null)))
+
+  (fn Emil:add-message (self (message Emil:Message))
+    (Struct:update self :messages (-rpartial #'append (list message))))
+
+  (fn Emil:has-errors? (self)
+    (--some? (eq :error (Struct:get it :type))
+             (Struct:get self :messages))))
 
 (Trait:implement Transformer Emil
   (fn Transformer:transform-number (_self form number &optional context environment
@@ -430,7 +459,7 @@ replaced with instances of `Emil:Type:Existential'."
                   (Emil:Type:Basic :name 'symbol))
                  (t
                   (or (Emil:lookup-variable symbol context environment)
-                      (error "Unbound variable: %s" symbol))))))
+                      (Emil:type-error "Unbound variable: %s" symbol))))))
       (cons context (Emil:TypedForm:new form type environment))))
 
   (fn Transformer:transform-and (self form _conditions &optional context environment
@@ -462,7 +491,7 @@ replaced with instances of `Emil:Type:Existential'."
                                            _doc-string context environment
                                            &rest _)
     (-let (((context . init-form)
-            (Transformer:transform-form self init-value context environment)))
+            (Emil:infer self init-value context environment)))
       (cons context (Emil:TypedForm:new
                      (append (-take 2 form)
                              (list init-form)
@@ -474,7 +503,7 @@ replaced with instances of `Emil:Type:Existential'."
                                          _doc-string context environment
                                          &rest _)
     (-let (((context . init-form)
-            (Transformer:transform-form self init-value context environment)))
+            (Emil:infer self init-value context environment)))
       (cons context (Emil:TypedForm:new
                      (append (-take 2 form)
                              (list init-form)
@@ -517,9 +546,11 @@ replaced with instances of `Emil:Type:Existential'."
                 type environment))))
       ((pred symbolp)
        (let ((type (or (Emil:lookup-function argument context environment)
-                       (error "Unbound function: %s" argument))))
+                       (Emil:type-error "Unbound function: %s" argument))))
          (cons context
-               (Emil:TypedForm:new form type environment))))))
+               (Emil:TypedForm:new form type environment))))
+      (value
+       (Emil:type-error "Not a function: %s" value))))
 
   (fn Transformer:transform-if (self form condition then else
                                      &optional context environment
@@ -541,7 +572,7 @@ replaced with instances of `Emil:Type:Existential'."
             ((bindings-context . binding-forms)
              (Emil:Util:map-reduce
               (-lambda (context (_variable binding))
-                (Transformer:transform-form self binding context environment))
+                (Emil:infer self binding context environment))
               context
               bindings))
             (context-bindings
@@ -671,25 +702,31 @@ replaced with instances of `Emil:Type:Existential'."
     (cond
      ((eq (Transformer:Form:value macro) 'Emil:is)
       (unless (= 2 (length arguments))
-        (error "Syntax error: Emil:is: %s" arguments))
+        (Emil:type-error "Syntax error: Emil:is: %s" arguments))
       (-let* ((type (Emil:Type:read
                      (Transformer:Form:value (nth 0 arguments)))))
         (Emil:check self (nth 1 arguments) type context environment)))
      (t
-      (Transformer:transform-form
+      (Emil:infer
        self (macroexpand (Transformer:Form:unwrap form)) context environment)))))
 
-(defun Emil:infer-form (form &optional environment)
-  (-let* (((context . typed-form)
-           (Emil:infer (Emil) form (Emil:Context)
+(defun Emil:infer-type (form &optional environment)
+  (-let* ((emil (Emil))
+          ((context . typed-form)
+           (Emil:infer emil form (Emil:Context)
                        (Emil:Env:Alist :parent environment))))
+    (when (Emil:has-errors? emil)
+      (signal 'Emil:error (Struct:get emil :messages)))
     (Emil:Type:print-normalized
      (Emil:Context:resolve context (Struct:get typed-form :type)))))
 
-(defun Emil:infer-form* (form &optional environment)
-  (-let* (((context . typed-form)
-           (Emil:infer (Emil) form (Emil:Context)
+(defun Emil:transform (form &optional environment)
+  (-let* ((emil (Emil))
+          ((context . typed-form)
+           (Emil:infer emil form (Emil:Context)
                        (Emil:Env:Alist :parent environment))))
+    (when (Emil:has-errors? emil)
+      (signal 'Emil:error (Struct:get emil :messages)))
     (Emil:TypedForm*
      ,@typed-form
      :type (Emil:Context:resolve context (Struct:get typed-form :type)))))
