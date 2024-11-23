@@ -10,7 +10,7 @@
 (defconst Struct:Function:namespace-separator ':)
 
 (defmacro fn (&rest args)
-  (declare (indent defun) (doc-string 3)))
+  (declare (indent defun) (doc-string 3) (no-font-lock-keyword nil)))
 
 (cl-deftype List (type)
   `(and list
