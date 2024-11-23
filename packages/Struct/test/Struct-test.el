@@ -55,7 +55,7 @@
                   :to-equal nil)
           (expect (Struct:get required :documentation)
                   :to-equal "A required property.")
-          (expect (Struct:get required :type)
+          (expect (Struct:get required (intern ":type"))
                   :to-equal '(not null))
           (expect (Struct:get required :mutable)
                   :to-equal t)
