@@ -108,15 +108,18 @@
                                 (split-string (symbol-name expression) "[.]"))))
               (type (-reduce-from
                      (lambda (type name)
-                       (when-let* ((struct (and (Emil:Type:Basic? type)
-                                                (Struct:Type:get (Struct:get type :name))))
-                                   (property (Struct:Type:get-property
-                                              struct (Commons:symbol-to-keyword name)))
-                                   (type (Struct:get property :type)))
-                         (Emil:Type:read type)))
+                       (if-let* ((struct (and (Emil:Type:Basic? type)
+                                              (Struct:Type:get (Struct:get type :name))))
+                                 (property (Struct:Type:get-property
+                                            struct (Commons:symbol-to-keyword name)))
+                                 (type (Struct:get property :type)))
+                           (Emil:Type:read type)
+                         (Emil:type-error "Property %s does not exist in type %s"
+                                          name (Emil:Type:print type))))
                      (or (and env (Emil:Env:lookup-variable env (car components)))
                          (Emil:Env:lookup-variable (Struct:get self :env)
-                                                   (car components) env))
+                                                   (car components) env)
+                         (Emil:type-error "Variable %s not bound" (car components)))
                      (cdr (butlast components)))))
     (cons (car (last components)) type)))
 
@@ -129,9 +132,13 @@
 (defun Emil:Syntax:resolve-variable (self expression &optional env)
   (-when-let* (((property . type)
                 (Emil:Syntax:resolve-expression self expression env))
-               (struct (and (Emil:Type:Basic? type)
-                            (Struct:Type:get (Struct:get type :name)))))
-    (Struct:Type:get-property struct (Commons:symbol-to-keyword property))))
+               (struct (or (and (Emil:Type:Basic? type)
+                                (Struct:Type:get (Struct:get type :name)))
+                           (Emil:type-error "Property %s does not exist in type %s"
+                                            property (Emil:Type:print type)))))
+    (or (Struct:Type:get-property struct (Commons:symbol-to-keyword property))
+        (Emil:type-error "Property %s does not exist in type %s"
+                         property (Emil:Type:print type)))))
 
 (defun Emil:Syntax:resolve-function (self expression &optional env)
   (-when-let* (((function . type)
@@ -140,14 +147,17 @@
           (struct (and (Emil:Type:Basic? type)
                        (Struct:Type:get (Struct:get type :name))))
           (trait (and (Emil:Type:trait? type)
-                      (Trait:get (Struct:get (car (Struct:get type :arguments)) :name)))))
+                      (Trait:get (Struct:get
+                                  (car (Struct:get type :arguments)) :name)))))
       (cond
        (struct
         (setq functions
               (append (-map #'cdr (Struct:get struct :functions))
-                      (-flatten-n 1 (--map (--map (Struct:get (cdr it) :function)
-                                                  (Struct:get (Trait:get it :ensure) :functions))
-                                           (Trait:implemented (Struct:get struct :name)))))))
+                      (-flatten-n
+                       1 (--map
+                          (--map (Struct:get (cdr it) :function)
+                                 (Struct:get (Trait:get it :ensure) :functions))
+                          (Trait:implemented (Struct:get struct :name)))))))
        (trait
         (setq functions (--mapcat (--map
                                    (Struct:get (cdr it) :function)
@@ -157,8 +167,14 @@
       (let ((candidates
              (--filter (eq function (Struct:get it :name))
                        functions)))
-        (when (= 1 (length candidates))
-          (car candidates))))))
+        (pcase (length candidates)
+          (0 (Emil:type-error "Method %s does not exist on type %s"
+                              function (Emil:Type:print type)))
+          (1 (car candidates))
+          (_ (Emil:type-error
+              "Multiple methods named %s exist for type %s: %s"
+              function (Emil:Type:print type)
+              (-map #'Struct:Function:type functions))))))))
 
 (defun Emil:Syntax:transform (function)
   (let ((env (Emil:Syntax
