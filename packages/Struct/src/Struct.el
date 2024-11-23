@@ -329,6 +329,12 @@ values as arguments.
 
 See also `%s*'.")
 
+(defconst Struct::doc-constructor-functions-info
+  "The following functions are associated with this struct:")
+
+(defconst Struct::doc-constructor-methods-info
+  "The following methods can be used with this struct:")
+
 (defun Struct:update-documentation (name)
   "Updates the documentation of struct-type named NAME."
   (put name 'function-documentation
@@ -380,7 +386,25 @@ See also `%s*'.")
                      (Struct:unsafe-get type :name))))
     (terpri nil t)
     (terpri)
+    (Struct::doc-constructor-definitions type :functions)
+    (Struct::doc-constructor-definitions type :methods)
+    (terpri)
     (princ (Struct::doc-constructor-signature type))))
+
+(defun Struct::doc-constructor-definitions (type definition-property)
+  (when-let (definitions (Struct:unsafe-get type definition-property))
+    (princ (cl-ecase definition-property
+             (:functions Struct::doc-constructor-functions-info)
+             (:methods Struct::doc-constructor-methods-info)))
+    (terpri nil t)
+    (terpri)
+    (--each definitions
+      (princ (format "`%s'" it))
+      (terpri)
+      (when-let (documentation (documentation it))
+        (princ (format "  %s" (elisp--docstring-first-line documentation)))
+        (terpri nil t))
+      (terpri))))
 
 (defun Struct::doc-constructor-signature (type)
   (--> (--map
