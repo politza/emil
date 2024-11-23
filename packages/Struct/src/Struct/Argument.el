@@ -37,41 +37,4 @@ specifies the kind of the read argument."
    :default (pop form)
    :kind kind))
 
-(defun Struct:Argument:read-list (form)
-  "Reads a complete argument-list from FORM."
-  (let ((kind nil)
-        (kinds nil)
-        (arguments nil))
-    (while form
-      (let ((argument (pop form)))
-        (pcase argument
-          ((guard (memq argument kinds))
-           (error "Invalid arguments: %s provided multiple times" argument))
-          ((or `&optional `&rest `&struct)
-           (when (and kind (eq argument '&optional))
-             (error "Invalid arguments: &optional may not succeed %s" kind))
-           (when (memq kind '(&rest &struct))
-             (error "Invalid arguments: &rest and &struct are mutually exclusive"))
-           (unless (and arguments
-                        (not (memq (car arguments)
-                                   '(&optional &rest &struct))))
-             (error "Specifier is missing an argument: %s" argument))
-           (setq kind argument)
-           (push kind kinds))
-          (argument
-           (push (Struct:Argument:read argument kind) arguments)))))
-    (nreverse arguments)))
-
-(defun Struct:Argument:normalform (arguments)
-  (let ((previous-kind nil)
-        (result nil))
-    (while arguments
-      (-let (((&plist :name :kind)
-              (Struct:properties (pop arguments))))
-        (when (and kind (not (eq kind previous-kind)))
-          (push kind result)
-          (setq previous-kind kind))
-        (push name result)))
-    (nreverse result)))
-
 (provide 'Struct/Argument)
