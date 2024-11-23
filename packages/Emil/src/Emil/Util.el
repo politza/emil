@@ -1,5 +1,7 @@
 ;; -*- lexical-binding: t -*-
 
+(require 'dash)
+
 (Struct:define Emil:Util:NameGenerator
   "Generator for displayable (variable) names.
 
