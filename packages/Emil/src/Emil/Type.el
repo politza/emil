@@ -8,8 +8,10 @@
 (require 'Emil/Util)
 
 ;; Shut up cl-type-check's compiler warnings.
-(cl-deftype Emil:Type:Variable ())
-(cl-deftype Emil:Type:Existential ())
+(cl-deftype Emil:Type:Variable nil
+    (list 'satisfies #'Emil:Type:Variable?))
+(cl-deftype Emil:Type:Existential nil
+    (list 'satisfies #'Emil:Type:Existential?))
 
 (Trait:define Emil:Type ()
   (fn Emil:Type:monomorph? (self)
