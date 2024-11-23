@@ -127,7 +127,7 @@ The value is a pair `\(MIN . MAX\)'. See also `func-arity'."
             :documentation ,documentation
             :default-implementation
             ,(and body
-                  `(Struct:lambda ,arguments ,@body))
+                  `(Struct:lambda ,name ,arguments ,@body))
             :arguments (copy-sequence ',arguments)
             :dispatch-function
             (lambda (&rest arguments)
@@ -185,9 +185,9 @@ idempotent."
 
   `(Trait:implement*
     ',trait ',type
-    (list ,@(-map #'Trait:-construct-implementation methods))))
+    (list ,@(--map (Trait:-construct-implementation trait it) methods))))
 
-(defun Trait:-construct-implementation (method)
+(defun Trait:-construct-implementation (trait method)
   (unless (consp method)
     (error "Expected a non-empty list: %s" method))
   (-let (((head name arguments . body) method))
@@ -200,7 +200,7 @@ idempotent."
     (when (eq 'declare (car-safe (car body)))
       (error "Declare not supported for methods"))
 
-    `(list ',name ',arguments (Struct:lambda ,arguments ,@body))))
+    `(list ',name ',arguments (Struct:lambda ,trait ,arguments ,@body))))
 
 (defun Trait:implement* (trait type implementations)
   "Defines an implementation of TRAIT for TYPE."
