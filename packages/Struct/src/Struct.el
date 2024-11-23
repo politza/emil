@@ -83,18 +83,10 @@ Returns DEFAULT if value is nil."
          :read-only t
          :type boolean)
         (Struct:Property
-         :name functions
-         :keyword :functions
-         :default-value nil
-         :documentation "This list of associated function-names of this struct-type."
-         :required nil
-         :read-only nil
-         :type list)
-        (Struct:Property
          :name methods
          :keyword :methods
          :default-value nil
-         :documentation "The list of method-names of this struct-type."
+         :documentation "A list of method-names associated with this struct-type."
          :required nil
          :read-only nil
          :type list)
@@ -335,11 +327,6 @@ See also `%s*'.")
 (defconst Struct::doc-constructor-methods-info
   "The following methods can be used with this struct:")
 
-(defun Struct:update-documentation (name)
-  "Updates the documentation of struct-type named NAME."
-  (put name 'function-documentation
-     (Struct::doc-constructor (Struct:Type:get name))))
-
 (defun Struct::doc-function-constructor (type)
   (with-output-to-string
     (princ (format Struct::doc-function-constructor
@@ -386,25 +373,7 @@ See also `%s*'.")
                      (Struct:unsafe-get type :name))))
     (terpri nil t)
     (terpri)
-    (Struct::doc-constructor-definitions type :functions)
-    (Struct::doc-constructor-definitions type :methods)
-    (terpri)
     (princ (Struct::doc-constructor-signature type))))
-
-(defun Struct::doc-constructor-definitions (type definition-property)
-  (when-let (definitions (Struct:unsafe-get type definition-property))
-    (princ (cl-ecase definition-property
-             (:functions Struct::doc-constructor-functions-info)
-             (:methods Struct::doc-constructor-methods-info)))
-    (terpri nil t)
-    (terpri)
-    (--each definitions
-      (princ (format "`%s'" it))
-      (terpri)
-      (when-let (documentation (documentation it))
-        (princ (format "  %s" (elisp--docstring-first-line documentation)))
-        (terpri nil t))
-      (terpri))))
 
 (defun Struct::doc-constructor-signature (type)
   (--> (--map
@@ -546,6 +515,41 @@ This function returns a new property-list everytime its called."
 
 (put 'Struct:Property 'function-documentation
      (Struct::doc-constructor (Struct:Type:get 'Struct:Property)))
+
+(defmacro Struct:defmethod (name arguments &rest body)
+  "Defines a method NAME for a struct-type.
+
+A method always accepts at least one argument, which must be
+non-nil and of type STRUCT-NAME.  This condition is asserted by
+adding a corresponding test to the beginning of BODY.
+
+This adds NAME to the method property of the type-definition of
+the struct and updates the documentation of its type-constructor,
+such that it will contain a reference to this method.
+
+Otherwise this behaves like `defun', which see."
+  (declare (indent defun))
+  (let* ((struct-type (make-symbol "struct-type"))
+         (documentation (if (stringp (car-safe body)) (pop body)))
+         (declare (if (eq 'declare (car-safe (car-safe body))) (pop body)))
+         (self-argument (car-safe arguments))
+         (struct-name (car-safe (cdr-safe self-argument)))
+         (type-predicate (intern (format "%s?" struct-name)))
+         (type-predicate-form
+          `(or (,type-predicate ,self-argument)
+               (signal 'wrong-type-argument (list ',struct-name ,self-argument))))
+         (body (cons type-predicate-form body)))
+    (unless (and self-argument
+                 (symbolp self-argument)
+                 (not (memq self-argument '(&optional &rest))))
+      (error "A method must have at least one non-optional self-argument"))
+    (unless (and struct-name
+                 (symbolp struct-name))
+      (error "First argument must have the form (self Type)"))
+    `(let ((,struct-type (Struct:Type:get ',struct-name)))
+       (defun ,name ,arguments ,documentation ,declare ,@body)
+       (unless (memq ',name (Struct:get ,struct-type :methods))
+         (Struct:update- ,struct-type :methods (push ',name it))))))
 
 (provide 'Struct)
 ;;; Struct.el ends here
