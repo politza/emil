@@ -58,117 +58,116 @@
     symbol)
   
   (defmethod Transformer:transform-cons (self cons &optional data)
-    (let ((form (car cons))
-          (forms (cdr cons)))
-      (pcase form
-        (`and (Transformer:transform-and self forms data))
+    (let ((head (car cons))
+          (rest (cdr cons)))
+      (pcase head
+        (`and (Transformer:transform-and self rest data))
         (`catch
-            (unless (symbolp (car forms))
+            (unless (symbolp (car rest))
               (Transformer:syntax-error "catch tag should be a symbol: %s"
-                (car forms) (cons 'catch forms)))
-          (Transformer:transform-catch self (car forms) (cdr forms) data))
+                (car rest) (cons 'catch rest)))
+          (Transformer:transform-catch self (car rest) (cdr rest) data))
         (`cond
-         (Transformer:transform-cond self forms data))
+         (Transformer:transform-cond self rest data))
         (`defconst
-          (unless (symbolp (car forms))
+          (unless (symbolp (car rest))
             (Transformer:syntax-error "defconst name should be a symbol: %s"
-              (car forms) (cons 'defconst forms)))
-          (unless (and (<= 3 (length forms))
-                       (>= (length forms) 2))
+              (car rest) (cons 'defconst rest)))
+          (unless (and (<= 3 (length rest))
+                       (>= (length rest) 2))
             (Transformer:syntax-error
                 "defconst should have either 2 or 3 arguments: %s"
-              (car forms) (cons 'defconst forms)))
+              (car rest) (cons 'defconst rest)))
           (Transformer:transform-defconst
-           self (car forms) (cadr forms) (caddr forms) data))
+           self (car rest) (cadr rest) (caddr rest) data))
         (`defvar
-          (unless (symbolp (car forms))
+          (unless (symbolp (car rest))
             (Transformer:syntax-error "defvar name should be a symbol: %s"
-              (car forms) (cons 'defvar forms)))
+              (car rest) (cons 'defvar rest)))
           (Transformer:transform-defvar
-           self (car forms) (cadr forms) (caddr forms) data))
+           self (car rest) (cadr rest) (caddr rest) data))
         (`function
-         (unless (= 1 (length forms))
+         (unless (= 1 (length rest))
            (Transformer:syntax-error "function should have exactly one argument: %s"
-             forms (cons 'function forms)))
-         (Transformer:transform-function self (car forms) data))
-        (`if (when (< (length forms) 2)
+             rest (cons 'function rest)))
+         (Transformer:transform-function self (car rest) data))
+        (`if (when (< (length rest) 2)
                (Transformer:syntax-error
                    "if should have a condition and then form: %s"
-                 forms (cons 'if forms)))
+                 rest (cons 'if rest)))
             (Transformer:transform-if
-             self (car forms) (cadr forms) (cddr forms) data))
+             self (car rest) (cadr rest) (cddr rest) data))
         (`interactive
-         (Transformer:transform-interactive self (car forms) (cdr forms) data))
+         (Transformer:transform-interactive self (car rest) (cdr rest) data))
         (`lambda
-          (unless (and (listp (car forms))
-                       (-every? #'symbolp (car forms)))
+          (unless (and (listp (car rest))
+                       (-every? #'symbolp (car rest)))
             (Transformer:syntax-error
                 "lambda arguments should be a list of symbols: %s"
-              (car forms) (cons 'lambda forms)))
-          (let ((arguments (pop forms))
-                (documentation (and (stringp (car forms)) (pop forms)))
-                (interactive (and (eq 'interactive (car-safe (car forms)))
-                                  (pop forms))))
+              (car rest) (cons 'lambda rest)))
+          (let ((arguments (pop rest))
+                (documentation (and (stringp (car rest)) (pop rest)))
+                (interactive (and (eq 'interactive (car-safe (car rest)))
+                                  (pop rest))))
             (Transformer:transform-lambda
-             self arguments documentation interactive forms data)))
+             self arguments documentation interactive rest data)))
         ((or `let `let*)
-         (unless (and (listp (car forms))
+         (unless (and (listp (car rest))
                       (--every? (or (symbolp it)
                                     (and (consp it)
                                          (symbolp (car it))))
-                                (car forms)))
+                                (car rest)))
            (Transformer:syntax-error
                "let bindings should be a list of symbols or start with one: %s"
-             (car forms) (cons form forms)))
-         (if (eq form 'let)
-             (Transformer:transform-let self (car forms) (cdr forms) data)
-           (Transformer:transform-let* self (car forms) (cdr forms) data)))
-        (`or (Transformer:transform-or self forms data))
+             (car rest) (cons head rest)))
+         (if (eq head 'let)
+             (Transformer:transform-let self (car rest) (cdr rest) data)
+           (Transformer:transform-let* self (car rest) (cdr rest) data)))
+        (`or (Transformer:transform-or self rest data))
         (`prog1
-            (unless (>= (length forms) 1)
+            (unless (>= (length rest) 1)
               (Transformer:syntax-error "prog1 should contain a first form: %s"
-                forms (cons 'prog1 forms)))
-          (Transformer:transform-prog1 self (car forms) (cdr forms) data))
+                rest (cons 'prog1 rest)))
+          (Transformer:transform-prog1 self (car rest) (cdr rest) data))
         (`prog2
-            (unless (>= (length forms) 2)
+            (unless (>= (length rest) 2)
               (Transformer:syntax-error
                   "prog2 should contain a first and second form: %s"
-                forms (cons 'prog2 forms)))
+                rest (cons 'prog2 rest)))
             (Transformer:transform-prog2
-             self (car forms) (cadr forms) (cdr forms) data))
-        (`progn (Transformer:transform-progn self forms data))
+             self (car rest) (cadr rest) (cdr rest) data))
+        (`progn (Transformer:transform-progn self rest data))
         (`quote
-         (unless (= 1 (length forms))
+         (unless (= 1 (length rest))
            (Transformer:syntax-error "quote should have exactly one argument: %s"
-             forms (cons 'function forms)))
-         (Transformer:transform-quote self (car forms) data))
+             rest (cons 'function rest)))
+         (Transformer:transform-quote self (car rest) data))
         (`save-current-buffer
-          (Transformer:transform-save-current-buffer self forms data))
+          (Transformer:transform-save-current-buffer self rest data))
         (`save-excursion
-          (Transformer:transform-save-excursion self forms data))
+          (Transformer:transform-save-excursion self rest data))
         (`save-restriction
-          (Transformer:transform-save-restriction self forms data))
+          (Transformer:transform-save-restriction self rest data))
         ((or `setq `setq-default)
-         (unless (= 0 (% (length forms) 2))
+         (unless (= 0 (% (length rest) 2))
            (Transformer:syntax-error "%s should have an even number of arguments: %s"
-             form forms (cons form forms)))
-         (--each forms
+             head rest (cons head rest)))
+         (--each rest
            (unless (or (= 1 (% it-index 2))
                        (symbolp it))
              (Transformer:syntax-error "%s place should be a symbol: %s"
-               form it (cons form forms))))
-         (if (eq form 'setq)
-             (Transformer:transform-setq self forms data)
-           (Transformer:transform-setq-default self forms data)))
+               head it (cons head rest))))
+         (if (eq head 'setq)
+             (Transformer:transform-setq self rest data)
+           (Transformer:transform-setq-default self rest data)))
         ((or `unwind-protect `while)
-         (unless (>= (length forms) 1)
+         (unless (>= (length rest) 1)
            (Transformer:syntax-error "%s should have at least one argument: %s"
-             form forms (cons 'unwind-protect forms)))
-         (if (eq form 'unwind-protect)
-             (Transformer:transform-unwind-protect self (car forms) (cdr forms) data)
-           (Transformer:transform-while self (car forms) (cdr forms) data)))
-        ((pred macrop) (Transformer:transform-macro self form forms data))
-        (_ (Transformer:transform-application self form forms data)))))  
+             head rest (cons 'unwind-protect rest)))
+         (if (eq head 'unwind-protect)
+             (Transformer:transform-unwind-protect self (car rest) (cdr rest) data)
+           (Transformer:transform-while self (car rest) (cdr rest) data)))
+        (_ (Transformer:transform-application self head rest data)))))  
   
   (defmethod Transformer:transform-and (self conditions &optional data)
     `(and ,@(Transformer:map-transform self conditions data)))
@@ -263,14 +262,13 @@
   (defmethod Transformer:transform-while (self condition body &optional data)
     `(while (Transformer:transform-form self condition data)
        ,@(Transformer:map-transform self body data)))
-
-  (defmethod Transformer:transform-macro (self macro arguments &optional data)
-    (Transformer:transform-form self (macroexpand (cons macro arguments)) data))
-
+  
   (defmethod Transformer:transform-application (self function arguments
                                                      &optional data)
-    `(,(Transformer:transform-form self function)
-      ,@(Transformer:map-transform self arguments data))))
+    (if (macrop function)
+        (Transformer:transform-form self (macroexpand (cons function arguments)) data)
+      `(,(Transformer:transform-form self function)
+        ,@(Transformer:map-transform self arguments data)))))
 
 (Struct:define Transformer:Identity)
 
