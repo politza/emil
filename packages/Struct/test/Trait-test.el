@@ -355,4 +355,32 @@
               :to-throw 'wrong-type-argument
               '(TestStruct 1 arg))
       (expect (TestTrait:with-rest-struct (TestStruct) :no-such-property 1)
-              :to-throw 'error))))
+              :to-throw 'error)))
+
+  (describe "Trait:extends?"
+    (before-each
+      (eval '(progn
+               (Trait:define SuperTrait ())
+               (Trait:define SubTrait (SuperTrait))
+               (Trait:define OtherTrait ()))))
+
+    (after-each
+      (Trait:undefine 'SuperTrait)
+      (Trait:undefine 'SubTrait)
+      (Trait:undefine 'OtherTrait))
+
+    (it "a trait does not extend itself"
+      (expect (Trait:extends? 'OtherTrait 'OtherTrait)
+              :to-be nil))
+
+    (it "a non-trait does not extend anything"
+      (expect (Trait:extends? 'NoSuchTrait 'OtherTrait)
+              :to-be nil))
+
+    (it "a sub-trait does extend a super-trait"
+      (expect (Trait:extends? 'SubTrait 'SuperTrait)
+              :to-be t))
+
+    (it "a super-trait does extend a sub-trait"
+      (expect (Trait:extends? 'SuperTrait 'SubTrait)
+              :to-be nil))))

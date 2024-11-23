@@ -13,6 +13,7 @@
 (defconst Struct:Function:self-symbol 'self
   "The name of the dispatch argument of methods.")
 
+;; FIXME: Do not define this.
 (defmacro fn (&rest _)
   (declare (indent defun) (doc-string 3) (no-font-lock-keyword nil)))
 

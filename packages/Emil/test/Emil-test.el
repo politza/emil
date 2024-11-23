@@ -629,4 +629,76 @@
                (list 0 1))
               :to-equal
               '(((Emil:Type:Existential :name a) . 0)
-                ((Emil:Type:Existential :name a) . 1))))))
+                ((Emil:Type:Existential :name a) . 1)))))
+
+  (describe "Structs and Traits"
+    (before-each
+      (eval '(progn
+               (Struct:define SomeStruct)
+               (Struct:define OtherStruct)
+               (Trait:define SuperTrait ())
+               (Trait:define SomeTrait (SuperTrait))
+               (Trait:implement SuperTrait SomeStruct)
+               (Trait:implement SomeTrait SomeStruct))))
+
+    (after-each
+      (Struct:undefine 'SomeStruct)
+      (Struct:undefine 'OtherStruct)
+      (Trait:undefine 'SuperTrait)
+      (Trait:undefine 'SomeTrait))
+
+    (it "can assign a struct to itself"
+      (expect (Emil:infer-type
+               '(f a)
+               (Emil:Env:Alist:read
+                '((a . SomeStruct))
+                '((f . (-> (SomeStruct) SomeStruct)))))
+              :to-equal 'SomeStruct))
+
+    (it "can not assign a struct to a different one"
+      (expect (Emil:infer-type
+               '(f a)
+               (Emil:Env:Alist:read
+                '((a . OtherStruct))
+                '((f . (-> (SomeStruct) SomeStruct)))))
+              :to-throw 'Emil:type-error))
+
+    (it "can assign a trait to itself"
+      (expect (Emil:infer-type
+               '(f a)
+               (Emil:Env:Alist:read
+                '((a . (Trait SomeTrait)))
+                '((f . (-> ((Trait SomeTrait)) (Trait SomeTrait))))))
+              :to-equal '(Trait SomeTrait)))
+
+    (it "can assign a sub-trait to a super-trait"
+      (expect (Emil:infer-type
+               '(f a)
+               (Emil:Env:Alist:read
+                '((a . (Trait SomeTrait)))
+                '((f . (-> ((Trait SuperTrait)) (Trait SuperTrait))))))
+              :to-equal '(Trait SuperTrait)))
+
+    (it "can not assign a super-trait to a sub-trait"
+      (expect (Emil:infer-type
+               '(f a)
+               (Emil:Env:Alist:read
+                '((a . (Trait SuperTrait)))
+                '((f . (-> ((Trait SomeTrait)) (Trait SomeTrait))))))
+              :to-throw 'Emil:type-error))
+
+    (it "can assign a struct to an implemented trait"
+      (expect (Emil:infer-type
+               '(f a)
+               (Emil:Env:Alist:read
+                '((a . SomeStruct))
+                '((f . (-> ((Trait SomeTrait)) (Trait SomeTrait))))))
+              :to-equal '(Trait SomeTrait)))
+
+    (it "can not assign a struct to an unimplemented trait"
+      (expect (Emil:infer-type
+               '(f a)
+               (Emil:Env:Alist:read
+                '((a . OtherStruct))
+                '((f . (-> ((Trait SomeTrait)) (Trait SomeTrait))))))
+              :to-throw 'Emil:type-error))))

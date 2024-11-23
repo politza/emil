@@ -316,11 +316,9 @@ Signals a `wrong-type-argument', if TYPE is not a symbol."
 (defun Trait:extends? (trait other)
   "Return `t', if trait TRAIT extends trait OTHER.
 
-TRAIT and OTHER should both be symbols.
-
-Signals a `wrong-type-argument', if OTHER is not a defined trait."
-  (not (null (memq trait (Struct:get (Trait:get other :ensure)
-                                    :supertraits)))))
+TRAIT and OTHER should both be symbols."
+  (when-let (trait-struct (Trait:get trait))
+    (not (null (memq other (Struct:get trait-struct :supertraits))))))
 
 (cl-deftype Trait (&rest traits)
   `(satisfies ,(lambda (value)
