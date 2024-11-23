@@ -60,7 +60,7 @@
                 (Struct:Support:-keyword-region
                  nil (eq constructor-type 'macro)))
                (completions
-                (--map (symbol-name (Struct:get it :keyword))
+                (--map (symbol-name (car it))
                        (Struct:unsafe-get type :properties))))
     (list start end completions)))
 

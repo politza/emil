@@ -65,7 +65,7 @@ See also `%s'.")
 
 (defun Struct:-doc-constructor-signature (type)
   (--> (--map
-        (format "%s" (Struct:unsafe-get type :keyword))
+        (format "%s" (car it))
         (Struct:unsafe-get type :properties))
        (mapconcat #'identity it " ")
        (format "\(fn (&plist %s))" it)))
