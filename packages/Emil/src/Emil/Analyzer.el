@@ -7,6 +7,7 @@
 (require 'Emil/Context)
 (require 'Emil/Type)
 (require 'Emil/Message)
+(require 'Emil/Form)
 (require 'Transformer)
 
 (Struct:define Emil:Analyzer
@@ -26,10 +27,9 @@
               :type :error
               :content (error-message-string type-error)
               :form form))
-       (cons context (Emil:TypedForm:Invalid
+       (cons context (Emil:Form:Invalid
                       :form form
-                      :type (Emil:Type:Any)
-                      :environment environment)))))
+                      :type (Emil:Type:Any))))))
 
   (fn Emil:Analyzer:check (self form type (context Emil:Context)
                                 (environment (Trait Emil:Env)))
@@ -85,12 +85,11 @@
                  (Emil:Context:concat (reverse bindings) marker context)
                  environment)))
          (cons (Emil:Context:drop-until-after body-context marker)
-               (Emil:TypedForm:Function
-                :value (Emil:TypedForm:Lambda
+               (Emil:Form:Function
+                :value (Emil:Form:Lambda
                         :arguments arguments
                         :body body-forms)
-                :type returns
-                :environment environment))))))
+                :type returns))))))
 
   (fn Emil:Analyzer:lambda-bindings ((type Emil:Type:Arrow) lambda)
     (let* ((lambda-arguments (nth 1 lambda))

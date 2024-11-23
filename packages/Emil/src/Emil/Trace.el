@@ -97,9 +97,7 @@ Prefix each line of the result with PREFIX."
                    (car value))))
         (redact-value? (or (Emil:Context? value)
                            (and (consp value)
-                                (Emil:Context? (car value))
-                                (or (Emil:TypedForm? (cadr value))
-                                    (Emil:TypedForm? (cdr value))))))
+                                (Emil:Context? (car value)))))
         (prefix (concat
                  (mapconcat 'char-to-string (make-string (1- level) ?|) " ")
                  (if (> level 1) " " ""))))

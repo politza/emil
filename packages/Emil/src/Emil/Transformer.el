@@ -4,6 +4,7 @@
 (require 'Transformer)
 (require 'Emil/Analyzer)
 (require 'Emil/Annotation)
+(require 'Emil/Form)
 
 (Struct:implement Emil:Analyzer
   :disable-syntax t
@@ -20,11 +21,10 @@
     (-let* ((body (cdr form))
             ((context . body-forms)
              (Emil:Analyzer:infer-do self body context environment)))
-      (cons context (Emil:TypedForm:PrognLike
+      (cons context (Emil:Form:PrognLike
                      :kind (car form)
                      :body body-forms
-                     :type (Emil:Analyzer:type-of-body body-forms)
-                     :environment environment))))
+                     :type (Emil:Analyzer:type-of-body body-forms)))))
 
   (fn Emil:Analyzer:thread-let*-bindings (self bindings context environment)
     "Thread CONTEXT and ENVIRONMENT through let* BINDINGS."
@@ -60,7 +60,7 @@
         ('Emil:as
             (-let (((context . typed-form)
                     (Emil:Analyzer:infer self (nth 0 arguments) context environment)))
-              (cons context (Emil:TypedForm:with-type typed-form type)))))))
+              (cons context (Emil:Form:with-type typed-form type)))))))
 
   (fn Emil:Analyzer:macroexpand-maybe (form environment)
     (if (and (macrop (car-safe form))
@@ -71,26 +71,23 @@
 
 (Trait:implement Transformer Emil:Analyzer
   :disable-syntax t
-  (fn Transformer:transform-number (_self form &optional context environment
+  (fn Transformer:transform-number (_self form &optional context _environment
                                           &rest _)
-    (cons context (Emil:TypedForm:Atom
+    (cons context (Emil:Form:Atom
                    :value form
-                   :type (Emil:Type:Basic :name (type-of form))
-                   :environment environment)))
+                   :type (Emil:Type:Basic :name (type-of form)))))
 
-  (fn Transformer:transform-string (_self form &optional context environment
+  (fn Transformer:transform-string (_self form &optional context _environment
                                           &rest _)
-    (cons context (Emil:TypedForm:Atom
+    (cons context (Emil:Form:Atom
                    :value form
-                   :type (Emil:Type:Basic :name 'string)
-                   :environment environment)))
+                   :type (Emil:Type:Basic :name 'string))))
 
-  (fn Transformer:transform-vector (_self form &optional context environment
+  (fn Transformer:transform-vector (_self form &optional context _environment
                                           &rest _)
-    (cons context (Emil:TypedForm:Atom
+    (cons context (Emil:Form:Atom
                    :value form
-                   :type (Emil:Type:Basic :name (type-of form))
-                   :environment environment)))
+                   :type (Emil:Type:Basic :name (type-of form)))))
 
   (fn Transformer:transform-symbol (_self form &optional context environment
                                           &rest _)
@@ -102,29 +99,26 @@
                  (t
                   (or (Emil:Analyzer:lookup-variable form context environment)
                       (Emil:type-error "Unbound variable: %s" form))))))
-      (cons context (Emil:TypedForm:Atom
+      (cons context (Emil:Form:Atom
                      :value form
-                     :type type
-                     :environment environment))))
+                     :type type))))
 
   (fn Transformer:transform-and (self _form conditions &optional context environment
                                       &rest _)
     (-let (((context . condition-forms)
             (Emil:Analyzer:infer-do self conditions context environment)))
-      (cons context (Emil:TypedForm:And
+      (cons context (Emil:Form:And
                      :conditions condition-forms
-                     :type (Emil:Type:Any)
-                     :environment environment))))
+                     :type (Emil:Type:Any)))))
 
   (fn Transformer:transform-catch (self _form tag body &optional context environment
                                         &rest _)
     (-let (((context . catch-forms)
             (Emil:Analyzer:infer-do self (cons tag body) context environment)))
-      (cons context (Emil:TypedForm:Catch
+      (cons context (Emil:Form:Catch
                      :tag (car catch-forms)
                      :body (cdr catch-forms)
-                     :type (Emil:Type:Any)
-                     :environment environment))))
+                     :type (Emil:Type:Any)))))
 
   (fn Transformer:transform-cond (self _form clauses &optional context environment
                                        &rest _)
@@ -134,37 +128,34 @@
                (Emil:Analyzer:infer-do self clause context environment))
              context
              clauses)))
-      (cons context (Emil:TypedForm:Cond
-                     :clauses (--map (Emil:TypedForm:Clause
+      (cons context (Emil:Form:Cond
+                     :clauses (--map (Emil:Form:Clause
                                       :condition (car it)
                                       :body (cdr it))
                                      forms)
-                     :type (Emil:Type:Any)
-                     :environment environment))))
+                     :type (Emil:Type:Any)))))
 
   (fn Transformer:transform-defconst (self _form symbol init-value &optional
                                            documentation context environment
                                            &rest _)
     (-let (((context . init-form)
             (Emil:Analyzer:infer self init-value context environment)))
-      (cons context (Emil:TypedForm:DefConst
+      (cons context (Emil:Form:DefConst
                      :symbol symbol
                      :init-value init-form
                      :documentation documentation
-                     :type (Emil:Type:Basic :name 'symbol)
-                     :environment environment))))
+                     :type (Emil:Type:Basic :name 'symbol)))))
 
   (fn Transformer:transform-defvar (self _form symbol &optional init-value
                                          documentation context environment
                                          &rest _)
     (-let (((context . init-form)
             (Emil:Analyzer:infer self init-value context environment)))
-      (cons context (Emil:TypedForm:DefVar
+      (cons context (Emil:Form:DefVar
                      :symbol symbol
                      :init-value init-form
                      :documentation documentation
-                     :type (Emil:Type:Basic :name 'symbol)
-                     :environment environment))))
+                     :type (Emil:Type:Basic :name 'symbol)))))
 
   (fn Transformer:transform-function (self _form argument
                                            &optional context environment &rest _)
@@ -201,20 +192,18 @@
          (Emil:Env:Alist:update-from body-environment body-context
                                      variables nil)
          (cons (Emil:Context:drop-until-after body-context marker)
-               (Emil:TypedForm:Function
-                :value (Emil:TypedForm:Lambda
+               (Emil:Form:Function
+                :value (Emil:Form:Lambda
                         :arguments argument-list
                         :body body-forms)
-                :type type
-                :environment environment))))
+                :type type))))
       ((pred symbolp)
        (let ((type (or (Emil:Analyzer:lookup-function argument context environment)
                        (Emil:type-error "Unbound function: %s" argument))))
          (cons context
-               (Emil:TypedForm:Function
+               (Emil:Form:Function
                 :value argument
-                :type type
-                :environment environment))))
+                :type type))))
       (value
        (Emil:type-error "Not a function: %s" value))))
 
@@ -224,20 +213,18 @@
     (-let (((context . forms)
             (Emil:Analyzer:infer-do self `(,condition ,then ,@else) context environment)))
       (cons context
-            (Emil:TypedForm:If
+            (Emil:Form:If
              :condition (nth 0 forms)
              :then (nth 1 forms)
              :else (nthcdr 2 forms)
-             :type (Emil:Type:Any)
-             :environment environment))))
+             :type (Emil:Type:Any)))))
 
   (fn Transformer:transform-interactive (_self form _descriptor _modes
-                                               &optional context environment
+                                               &optional context _environment
                                                &rest _)
-    (cons context (Emil:TypedForm:Interactive
+    (cons context (Emil:Form:Interactive
                    :forms (cdr form)
-                   :type (Emil:Type:Any)
-                   :environment environment)))
+                   :type (Emil:Type:Any))))
 
   (fn Transformer:transform-let (self _form bindings body &optional
                                       context environment &rest _)
@@ -264,13 +251,12 @@
       (Emil:Env:Alist:update-from body-environment body-context
                                   variables nil)
       (cons (Emil:Context:drop-until-after body-context marker)
-            (Emil:TypedForm:Let
+            (Emil:Form:Let
              :kind 'let
-             :bindings (--map (Emil:TypedForm:Binding :name (car it) :value (cdr it))
+             :bindings (--map (Emil:Form:Binding :name (car it) :value (cdr it))
                               (-zip-pair variables binding-forms))
              :body body-forms
-             :type (Emil:Context:resolve body-context body-type)
-             :environment environment))))
+             :type (Emil:Context:resolve body-context body-type)))))
 
   (fn Transformer:transform-let* (self _form bindings body &optional
                                        context environment &rest _)
@@ -288,22 +274,20 @@
         (Emil:Env:Alist:update-from
          it body-context (list (nth it-index variables)) nil t))
       (cons (Emil:Context:drop-until-after body-context marker)
-            (Emil:TypedForm:Let
+            (Emil:Form:Let
              :kind 'let*
-             :bindings (--map (Emil:TypedForm:Binding :name (car it) :value (cdr it))
+             :bindings (--map (Emil:Form:Binding :name (car it) :value (cdr it))
                               (-zip-pair variables binding-forms))
              :body body-forms
-             :type (Emil:Context:resolve body-context body-type)
-             :environment environment))))
+             :type (Emil:Context:resolve body-context body-type)))))
 
   (fn Transformer:transform-or (self _form conditions &optional context environment
                                      &rest _)
     (-let (((context . condition-forms)
             (Emil:Analyzer:infer-do self conditions context environment)))
-      (cons context (Emil:TypedForm:Or
+      (cons context (Emil:Form:Or
                      :conditions condition-forms
-                     :type (Emil:Type:Any)
-                     :environment environment))))
+                     :type (Emil:Type:Any)))))
 
   (fn Transformer:transform-prog1 (self _form first body
                                         &optional context environment
@@ -311,22 +295,20 @@
     (-let* (((context . prog1-forms)
              (Emil:Analyzer:infer-do self (cons first body) context environment))
             (type (Struct:get (car  prog1-forms) :type)))
-      (cons context (Emil:TypedForm:Prog1
+      (cons context (Emil:Form:Prog1
                      :first (car prog1-forms)
                      :body (cdr prog1-forms)
-                     :type type
-                     :environment environment))))
+                     :type type))))
 
   (fn Transformer:transform-progn (self form _body &optional context environment
                                         &rest _)
     (Emil:Analyzer:infer-progn-like self form context environment))
 
   (fn Transformer:transform-quote (_self _form argument
-                                         &optional context environment &rest _)
-    (cons context (Emil:TypedForm:Quote
+                                         &optional context _environment &rest _)
+    (cons context (Emil:Form:Quote
                    :value argument
-                   :type (Emil:Type:Any)
-                   :environment environment)))
+                   :type (Emil:Type:Any))))
 
   (fn Transformer:transform-save-current-buffer (self form _body
                                                       &optional context environment
@@ -350,11 +332,10 @@
             (values (--filter (= 1 (% it-index 2)) definitions))
             ((context . value-forms)
              (Emil:Analyzer:infer-do self values context environment)))
-      (cons context (Emil:TypedForm:Setq
-                     :bindings (--map (Emil:TypedForm:Binding :name (pop names) :value it)
+      (cons context (Emil:Form:Setq
+                     :bindings (--map (Emil:Form:Binding :name (pop names) :value it)
                                       value-forms)
-                     :type (Emil:Type:Any)
-                     :environment environment))))
+                     :type (Emil:Type:Any)))))
 
   (fn Transformer:transform-unwind-protect (self _form body-form unwind-forms
                                                  &optional context environment
@@ -362,21 +343,19 @@
     (-let* (((context . unwind-protect-forms)
              (Emil:Analyzer:infer-do self (cons body-form unwind-forms) context environment))
             (type (Struct:get (car unwind-protect-forms) :type)))
-      (cons context (Emil:TypedForm:UnwindProtect
+      (cons context (Emil:Form:UnwindProtect
                      :body-form (car unwind-protect-forms)
                      :unwind-forms (cdr unwind-protect-forms)
-                     :type type
-                     :environment environment))))
+                     :type type))))
 
   (fn Transformer:transform-while (self _form condition body
                                         &optional context environment &rest _)
     (-let* (((context . while-forms)
              (Emil:Analyzer:infer-do self (cons condition body) context environment)))
-      (cons context (Emil:TypedForm:While
+      (cons context (Emil:Form:While
                      :condition (car while-forms)
                      :body (cdr while-forms)
-                     :type (Emil:Type:Null)
-                     :environment environment))))
+                     :type (Emil:Type:Null)))))
 
   (fn Transformer:transform-application (self _form function arguments
                                               &optional context environment
@@ -393,11 +372,12 @@
                      arguments)
               function-context environment)))
       (cons context
-            (Emil:TypedForm:Application
-             :function function-form
+            (Emil:Form:Application
+             :function (Emil:Form:ApplicationFn
+                        :value (Struct:get function-form :value)
+                        :type (Struct:get function-form :type))
              :arguments argument-forms
-             :type return-type
-             :environment environment))))
+             :type return-type))))
 
   (fn Transformer:transform-macro (self form macro arguments
                                         &optional context environment &rest _)

@@ -13,7 +13,7 @@
 (require 'Emil/Error)
 (require 'Emil/Type)
 (require 'Emil/Env)
-(require 'Emil/TypedForm)
+(require 'Emil/Form)
 (require 'Emil/Analyzer)
 (require 'Emil/Transformer)
 (require 'Emil/Annotation)
@@ -45,7 +45,7 @@
             (Emil:Env:Alist :parent environment))))
     (when (Emil:Analyzer:has-errors? analyzer)
       (signal 'Emil:type-error (list (Struct:get analyzer :messages))))
-    (Emil:TypedForm:with-type
+    (Emil:Form:with-type
      typed-form
      (Emil:Context:resolve context (Struct:get typed-form :type)))))
 
