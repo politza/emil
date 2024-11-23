@@ -523,6 +523,17 @@ Throws an error if
 This function returns a new property-list everytime its called."
   (copy-sequence (Struct:unsafe-properties struct)))
 
+
+(defmacro Struct:lambda (arguments &rest body)
+  "Defines a function with some struct related features."
+  (declare (indent 1))
+  (Struct:lambda-check-arguments arguments)
+
+  `(lambda ,(Struct:-lambda-normalize-arguments arguments)
+     ,@(Struct:-lambda-emit-type-checks arguments)
+     ,(Struct:-lambda-emit-handle-struct-rest arguments)
+     ,@body))
+
 (defmacro Struct:defun (name arguments
                              &optional documentation declare
                              &rest body)
@@ -536,16 +547,19 @@ This function returns a new property-list everytime its called."
               (null declare))
     (push declare body)
     (setq declare nil))
-  (Struct:-defun-check-arguments arguments)
+  (Struct:lambda-check-arguments arguments)
 
-  `(defun ,name ,(Struct:-defun-normalize-arguments arguments)
+  `(defun ,name ,(Struct:-lambda-normalize-arguments arguments)
      ,(format "%s\n\n%s" (or documentation "") (cons 'fn arguments))
      ,declare
-     ,@(Struct:-defun-emit-type-checks arguments)
-     ,(Struct:-defun-emit-ensure-struct-form arguments)
+     ,@(Struct:-lambda-emit-type-checks arguments)
+     ,(Struct:-lambda-emit-handle-struct-rest arguments)
      ,@body))
 
-(defun Struct:-defun-check-arguments (arguments)
+(defun Struct:lambda-check-arguments (arguments)
+  "Check that arguments can be used with `Struct:lambda'.
+
+Throws an error, if ARGUMENTS are incompatible with that macro."
   (when (and (memq '&rest arguments)
              (memq '&struct arguments))
     (error "&rest and &struct are mutually exclusive: %s" arguments))
@@ -576,14 +590,14 @@ This function returns a new property-list everytime its called."
       (error "Argument should be a symbol or have the form (argument type): %s"
              arguments))))
 
-(defun Struct:-defun-normalize-arguments (arguments)
+(defun Struct:-lambda-normalize-arguments (arguments)
   (--map (cond
           ((eq it '&struct) '&rest)
           ((symbolp it) it)
           (t (car it)))
          arguments))
 
-(defun Struct:-defun-emit-type-checks (arguments)
+(defun Struct:-lambda-emit-type-checks (arguments)
   (when (or (memq '&struct arguments)
             (memq '&rest arguments))
     (setq arguments (butlast arguments 2)))
@@ -595,12 +609,12 @@ This function returns a new property-list everytime its called."
      (--map `(cl-check-type ,(car it) (or null ,(cadr it)))
             (-filter #'consp optional)))))
 
-(defun Struct:-defun-emit-ensure-struct-form (arguments)
+(defun Struct:-lambda-emit-handle-struct-rest (arguments)
   (-when-let ((struct type)
               (cadr (memq '&struct arguments)))
-    `(setq ,struct (Struct:-defun-handle-struct-rest ',type ,struct))))
+    `(setq ,struct (Struct:-lambda-handle-struct-rest ',type ,struct))))
 
-(defun Struct:-defun-handle-struct-rest(type rest)
+(defun Struct:-lambda-handle-struct-rest(type rest)
   (if (and (consp rest)
            (= 1 (length rest))
            (eq type (car-safe (car rest))))

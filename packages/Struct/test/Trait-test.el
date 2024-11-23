@@ -125,34 +125,32 @@
       (it "rejects illegal method-forms"
         (expect (macroexpand-all '(Trait:define TestTrait nil
                                     foo))
-                :to-throw
-                'error
+                :to-throw 'error
                 '("Method definition should be a non-empty list: foo"))
         (expect (macroexpand-all '(Trait:define TestTrait nil
                                     (cl-defmethod foo (self))))
-                :to-throw
-                'error
+                :to-throw 'error
                 '("Method declaration should start with defmethod: cl-defmethod"))
         (expect (macroexpand-all '(Trait:define TestTrait nil
                                     (defmethod 42)))
-                :to-throw
-                'error
+                :to-throw 'error
                 '("Method name should be a symbol: 42"))
         (expect (macroexpand-all '(Trait:define TestTrait nil
                                     (defmethod foo [])))
-                :to-throw
-                'error
-                '("Invalid method arguments declaration: []"))
+                :to-throw 'wrong-type-argument
+                '(listp []))
         (expect (macroexpand-all '(Trait:define TestTrait nil
                                     (defmethod foo nil)))
-                :to-throw
-                'error
+                :to-throw 'error
                 '("Trait method must accept at least one argument: foo"))
         (expect (macroexpand-all '(Trait:define TestTrait nil
                                     (defmethod foo (self) (declare (indent 1)))))
-                :to-throw
-                'error
-                '("Declare not supported for methods"))))
+                :to-throw 'error
+                '("Declare not supported for methods"))
+        (expect (macroexpand-all '(Trait:define TestTrait nil
+                                    (defmethod foo ((self TestTrait)))))
+                :to-throw 'error
+                '("First argument can not be typed: (self TestTrait)"))))
 
     (describe "recognizes runtime-errors"
       (it "rejects undefined supertraits"
@@ -175,28 +173,23 @@
 
       (it "rejects illegal method-forms"
         (expect (macroexpand-all '(Trait:implement TestTrait TestStruct 42))
-                :to-throw
-                'error
+                :to-throw 'error
                 '("Expected a non-empty list: 42"))
         (expect (macroexpand-all '(Trait:implement TestTrait TestStruct
                                     (cl-defmethod foo ())))
-                :to-throw
-                'error
+                :to-throw 'error
                 '("Method implementation should start with defmethod: cl-defmethod"))
         (expect (macroexpand-all '(Trait:implement TestTrait TestStruct
                                     (defmethod 42)))
-                :to-throw
-                'error
+                :to-throw 'error
                 '("Method name should be a symbol: 42"))
         (expect (macroexpand-all '(Trait:implement TestTrait TestStruct
                                     (defmethod foo [])))
-                :to-throw
-                'error
+                :to-throw 'error
                 '("Invalid method argument-list declaration: []"))
         (expect (macroexpand-all '(Trait:implement TestTrait TestStruct
                                     (defmethod foo () (declare (indent 1)))))
-                :to-throw
-                'error
+                :to-throw 'error
                 '("Declare not supported for methods"))))
 
     (describe "recognizes runtime-errors"
@@ -205,24 +198,21 @@
 
       (it "rejects if required methods are not implemented"
         (expect (Trait:implement TestTrait TestStruct)
-                :to-throw
-                'error
+                :to-throw 'error
                 '("Required method not implemented: TestTrait:required")))
 
       (it "rejects if non-trait methods are provided"
         (expect (Trait:implement TestTrait TestStruct
                   (defmethod TestTrait:required (self &optional argument))
                   (defmethod TestTrait:no-such-method (self)))
-                :to-throw
-                'error
+                :to-throw 'error
                 '("Method not declared by this trait: TestTrait:no-such-method")))
 
       (it "rejects if method signatures are incompatible"
         (expect (Trait:implement TestTrait TestStruct
                   (defmethod TestTrait:required (self argument)))
-                :to-throw
-                'error
-                '("Signature not compatible with method declared by trait: TestTrait:required, (1 . 2), (2 . 2)")))))
+                :to-throw 'error
+                '("Signature incompatible with method declared by trait: TestTrait:required, (self &optional argument), (self argument)")))))
 
   (describe "with a supertrait"
     (before-each
@@ -237,9 +227,59 @@
 
     (it "rejects unimplemented supertraits"
       (expect (Trait:implement TestTrait OtherTestStruct)
-              :to-throw
-              'error
+              :to-throw 'error
               '("Required supertrait not implemented by type: SuperTrait")))
 
     (it "invokes a supertrait method"
-      (expect (SuperTrait:optional (TestStruct) 1) :to-be 2))))
+      (expect (SuperTrait:optional (TestStruct) 1) :to-be 2)))
+
+  (describe "with Struct:lambda features"
+    (before-each
+      (Trait:define TestTrait ()
+        (defmethod TestTrait:with-number (self (arg number)))
+        (defmethod TestTrait:with-struct (self (arg TestStruct)))
+        (defmethod TestTrait:with-rest-struct (self &struct (arg TestStruct))))
+
+      (Trait:implement TestTrait TestStruct
+        (defmethod TestTrait:with-number (self (arg number))
+          (+ (Struct:get self :property 0) arg))
+        (defmethod TestTrait:with-struct (self (arg TestStruct))
+          (+ (Struct:get self :property 0)
+             (Struct:get arg :property 0)))
+        (defmethod TestTrait:with-rest-struct (self &struct (arg TestStruct))
+          (+ (Struct:get self :property 0)
+             (Struct:get arg :property 0)))))
+    
+    (it "can use types in methods"
+      (expect (TestTrait:with-number (TestStruct) 1)
+              :to-be 1)
+      (expect (TestTrait:with-number (TestStruct :property 1) 2)
+              :to-be 3)
+      (expect (TestTrait:with-struct (TestStruct) (TestStruct))
+              :to-be 0)
+      (expect (TestTrait:with-struct (TestStruct :property 1)
+                                     (TestStruct :property 2))
+              :to-be 3)
+      (expect (TestTrait:with-rest-struct (TestStruct))
+              :to-be 0)
+      (expect (TestTrait:with-rest-struct
+               (TestStruct :property 1) :property 2)
+              :to-be 3)
+      (expect (TestTrait:with-rest-struct
+               (TestStruct :property 1)
+               (TestStruct :property 2))
+              :to-be 3))
+
+    (it "can use reject wrong types in methods"
+      (expect (TestTrait:with-number (TestStruct) "1")
+              :to-throw 'wrong-type-argument
+              '(number "1" arg))
+      (expect (TestTrait:with-number 1 2)
+              :to-throw 'error
+              '("Type does not implement trait: integer, TestTrait"))
+      (expect (TestTrait:with-struct (TestStruct) 1)
+              :to-throw 'wrong-type-argument
+              '(TestStruct 1 arg))
+      (expect (TestTrait:with-rest-struct (TestStruct) :no-such-property 1)
+              :to-throw 'error
+              '("Undeclared properties set: (:no-such-property 1)")))))
