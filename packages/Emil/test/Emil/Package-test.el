@@ -249,12 +249,12 @@
                      :variables ((most-negative-fixnum . ,(Emil:Type:read 'integer)))))))
       (expect (Emil:Type:print
                (Emil:Env:lookup-variable
-                (Emil:Package:Env:for 'test "3.0")
+                (Emil:Package:Env:of 'test "3.0")
                 'most-negative-fixnum))
               :to-equal 'integer)
       (expect (Emil:Type:print
                (Emil:Env:lookup-variable
-                (Emil:Package:Env:for 'test "3.0")
+                (Emil:Package:Env:of 'test "3.0")
                 'most-positive-fixnum ))
               :to-equal 'integer))
 
@@ -274,11 +274,11 @@
                      :variables nil))))
       (expect (Emil:Type:print
                (Emil:Env:lookup-function
-                (Emil:Package:Env:for 'test "3.0")
+                (Emil:Package:Env:of 'test "3.0")
                 'car))
               :to-equal '(-> ((Cons 'a 'b)) 'a))
       (expect (Emil:Type:print
                (Emil:Env:lookup-function
-                (Emil:Package:Env:for 'test "3.0")
+                (Emil:Package:Env:of 'test "3.0")
                 'cdr))
               :to-equal '(-> ((Cons 'a 'b)) 'b)))))

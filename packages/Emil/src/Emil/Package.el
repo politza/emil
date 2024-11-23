@@ -185,7 +185,7 @@ readable by `Emil:Type:read'.
     (cdr (--some (assq function (Struct:get it :functions))
                  (Struct:get self :declarations)))))
 
-(defun Emil:Package:Env:for (package &optional version)
+(defun Emil:Package:Env:of (package &optional version)
   (Emil:Package:Env
    :name package
    :version version
