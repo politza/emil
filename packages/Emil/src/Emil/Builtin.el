@@ -1,6 +1,6 @@
 ;; -*- lexical-binding: t -*-
 
-(require 'Emil/Package)
+(require 'Emil/Env)
 
 (defvar-local Emil:Package:author-mode-timer nil)
 
@@ -29,7 +29,7 @@
         (let ((help-window-select nil))
           (describe-function symbol))))))
 
-(Emil:Package:declare-functions emacs
+(Emil:Env:declare-functions
   (% . (-> (number-or-marker number-or-marker) integer))
   (* . (-> (&rest number-or-marker) number))
   (+ . (-> (&rest number-or-marker) number))
@@ -1692,4 +1692,4 @@
   (zlib-available-p . (-> (&rest Any) Any))
   (zlib-decompress-region . (-> (&rest Any) Any)))
 
-(Emil:Package:declare-variables emacs)
+(Emil:Env:declare-variables)

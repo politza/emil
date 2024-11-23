@@ -215,4 +215,61 @@ Argument CONTEXT is ignored.
 Returns `nil', if FUNCTION is not present in this environment."
     nil))
 
+(defconst Emil:Env:function-type 'Emil:Env:function-type)
+
+(defconst Emil:Env:variable-type 'Emil:Env:variable-type)
+
+(Struct:define Emil:Env:Global)
+
+(Trait:implement Emil:Env Emil:Env:Global
+  (fn Emil:Env:lookup-variable (_self variable &optional _context)
+    (when-let (type (get variable Emil:Env:variable-type))
+      (unless (Trait:implements? (Trait:type-of type) 'Emil:Type)
+        (error "Symbol value of property %s of variable %s is not a type: %s"
+               Emil:Env:variable-type
+               variable
+               type))
+      type))
+
+  (fn Emil:Env:lookup-function (_self function &optional _context)
+    (when-let (type (get function Emil:Env:function-type))
+      (unless (Trait:implements? (Trait:type-of type) 'Emil:Type)
+        (error "Symbol value of property %s of function %s is not a type: %s"
+               Emil:Env:function-type
+               function
+               type))
+      type)))
+
+(defun Emil:Env:declare-function (symbol type)
+  (put symbol Emil:Env:function-type
+       (if type (Emil:Type:read-function type))))
+
+(defun Emil:Env:declare-variable (symbol type)
+  (put symbol Emil:Env:variable-type
+       (if type (Emil:Type:read type))))
+
+(defmacro Emil:Env:declare-functions (&rest declarations)
+  "Declare function types given via DECLARATIONS.
+
+DECLARATIONS should be a list of pairs \(FUNCTION . TYPE\), where
+FUNCTION is a symbol naming the function and TYPE its type in a form
+readable by `Emil:Type:read-function'."
+  (declare (indent 0))
+  `(progn
+     ,@(-map (-lambda ((symbol . type))
+               `(Emil:Env:declare-function ',symbol ',type))
+             declarations)))
+
+(defmacro Emil:Env:declare-variables (&rest declarations)
+  "Declare variable types given via DECLARATIONS.
+
+DECLARATIONS should be a list of pairs \(VARIABLE . TYPE\), where
+VARIABLE is a symbol naming the variable and TYPE its type in a form
+readable by `Emil:Type:read'."
+  (declare (indent 0))
+  `(progn
+     ,@(-map (-lambda ((symbol . type))
+               `(Emil:Env:declare-variable ',symbol ',type))
+             declarations)))
+
 (provide 'Emil/Env)

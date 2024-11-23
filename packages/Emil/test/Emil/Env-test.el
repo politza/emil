@@ -132,4 +132,36 @@
                                       '((a . string)) '((a . (-> () string))))))
 
                 'a nil))
-              :to-equal '(-> () string)))))
+              :to-equal '(-> () string))))
+
+  (describe "Emil:Env:Global"
+      (it "Emil:Env:declare-function"
+        (Emil:Env:declare-function 'Emil:Env:Global:test-symbol '(-> () Void))
+        (expect (Emil:Env:lookup-function
+                 (Emil:Env:Global)
+                 'Emil:Env:Global:test-symbol)
+                :to-equal
+                (Emil:Type:Arrow :arguments nil :rest? nil
+                                 :returns (Emil:Type:Void) :min-arity 0))
+
+        (Emil:Env:declare-function 'Emil:Env:Global:test-symbol nil)
+        (expect (Emil:Env:lookup-function
+                 (Emil:Env:Global)
+                 'Emil:Env:Global:test-symbol)
+                :to-equal
+                nil))
+
+      (it "Emil:Env:declare-variable"
+        (Emil:Env:declare-variable 'Emil:Env:Global:test-symbol 'integer)
+        (expect (Emil:Env:lookup-variable
+                 (Emil:Env:Global)
+                 'Emil:Env:Global:test-symbol)
+                :to-equal
+                (Emil:Type:Basic :name 'integer))
+
+        (Emil:Env:declare-variable 'Emil:Env:Global:test-symbol nil)
+        (expect (Emil:Env:lookup-variable
+                 (Emil:Env:Global)
+                 'Emil:Env:Global:test-symbol)
+                :to-equal
+                nil))))
