@@ -67,6 +67,16 @@ This is the case, if METHOD does not define a default implementation."
 The value is a pair `\(MIN . MAX\)'. See also `func-arity'."
   (func-arity `(lambda ,(Struct:get method :arguments))))
 
+(eval-and-compile
+  (defun Trait:-emit-method-declarations (methods)
+    (when (-every? #'consp methods)
+      (-map (-lambda ((_ name arguments))
+            (when (and name (symbolp name) (listp arguments))
+              `(declare-function
+                ,name nil ,(ignore-errors
+                             (Struct:lambda-normalize-arguments arguments)))))
+          methods))))
+
 (defmacro Trait:define (name supertraits &optional documentation &rest methods)
   "Defines a new trait named NAME.
 
@@ -82,21 +92,14 @@ The value is a pair `\(MIN . MAX\)'. See also `func-arity'."
     (push documentation methods)
     (setq documentation nil))
 
-  `(eval-and-compile
-     ,@(Trait:-emit-method-declarations methods)
+  `(progn
+     (eval-and-compile
+       ,@(Trait:-emit-method-declarations methods))
      (Trait:define*
       (Trait :name ',name
              :supertraits (copy-sequence ',supertraits)
              :methods
              (list ,@(--map (Trait:-construct-method name it) methods))))))
-
-(defun Trait:-emit-method-declarations (methods)
-  (-map (-lambda ((_ name arguments))
-          (when (and name (symbolp name))
-            `(declare-function
-              ,name nil ,(ignore-errors
-                           (Struct:lambda-normalize-arguments arguments)))))
-        methods))
 
 (defun Trait:-construct-method (trait method)
   (unless (consp method)
