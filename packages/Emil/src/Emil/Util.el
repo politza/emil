@@ -46,4 +46,8 @@ bbb ...\)."
            list)))
     (cons acc (nreverse results))))
 
+(defun Emil:Util:lambda-variables (arguments)
+  "Return ARGUMENTS excluding &optional and &rest keywords."
+  (--filter (not (memq it '(&optional &rest))) arguments))
+
 (provide 'Emil/Util)

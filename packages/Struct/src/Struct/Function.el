@@ -10,6 +10,9 @@
 
 (defconst Struct:Function:namespace-separator ':)
 
+(defconst Struct:Function:self-symbol 'self
+  "The name of the dispatch argument of methods.")
+
 (defmacro fn (&rest _)
   (declare (indent defun) (doc-string 3) (no-font-lock-keyword nil)))
 
@@ -226,7 +229,7 @@ Returns a cons of (ARGUMENTS . RETURN_TYPE)."
       (car rest)
     (apply type rest)))
 
-(defun Struct:Function:type (fn)
+(defun Struct:Function:type (fn &optional as-method?)
   (let* ((argument-types (--map
                           (or (Struct:get it :type) 'Any)
                           (Struct:get fn :arguments)))
@@ -237,6 +240,13 @@ Returns a cons of (ARGUMENTS . RETURN_TYPE)."
                       (t (error "internal error")))
                      (Struct:Function:emit-arguments fn)))
          (return-type (or (Struct:get fn :return-type) 'Any)))
-    `(-> ,arguments ,return-type)))
+    (when (and as-method? (not (Struct:Function:method? fn)))
+      (error "Function is not a method: %s" fn))
+    `(-> ,(if as-method? (cdr arguments) arguments) ,return-type)))
+
+(defun Struct:Function:method? (fn)
+  (-some-> (car (Struct:get fn :arguments))
+    (Struct:get :name)
+    (eq Struct:Function:self-symbol)))
 
 (provide 'Struct/Function)

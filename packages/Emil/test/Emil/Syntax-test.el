@@ -1,20 +1,228 @@
 ;; -*- lexical-binding: t -*-
 
 (require 'Emil)
+(require 'Struct/Function)
+(require 'buttercup)
 
-(describe "Struct tests"
-  (describe "Emil:Syntax:Function:type"
-    (it "basic"
-      (expect (Emil:Type:print
-               (Emil:Syntax:Function:type
-                (Struct:Function:read '(fn a ((a number) -> string)))))
+(describe "Emil:Syntax"
+  (describe "Emil:Syntax:transform"
+    :var ((function (Struct:Function
+                     :name 'method
+                     :qualified-name 'TestStruct:method
+                     :arguments (list (Struct:Argument:read '(self TestStruct)))
+                     :return-type 'number
+                     :body nil)))
+    
+    (before-each
+      (eval '(Struct:define TestStruct property))
+      (eval '(Struct:implement TestStruct (fn method (self)))))
+    
+    (after-each
+      (Struct:undefine 'TestStruct))
+    
+    (it "property access"
+      (expect (Emil:Syntax:transform
+               (Struct:Function*
+                ,@function
+                :body '(self.property)))
               :to-equal
-              '(-> (number) string))))
+              '((Struct:unsafe-get self :property))))
 
-  (describe "Emil:Syntax:Function:bindings"
-    (it "basic"
-      (expect (Emil:Syntax:Function:bindings
-               (Struct:Function:read '(fn a ((a number) (b string)) -> string)))
+    (it "method call"
+      (expect (Emil:Syntax:transform
+               (Struct:Function*
+                ,@function
+                :body '((self.method))))
               :to-equal
-              '((a . (Emil:Type:Basic :name number))
-                (b . (Emil:Type:Basic :name string)))))))
+              '((TestStruct:method self))))
+
+    (it "method reference"
+      (expect (Emil:Syntax:transform
+               (Struct:Function*
+                ,@function
+                :body '((funcall #'self.method))))
+              :to-equal
+              '((funcall #'(lambda nil (TestStruct:method self))))))
+
+    (xit "property assignment"
+      (expect (Emil:Syntax:transform
+               (Struct:Function*
+                ,@function
+                :body '((setf self.property 1))))
+              :to-equal
+              nil))
+
+    (it "string"
+      (expect (Emil:Syntax:transform
+               (Struct:Function*
+                ,@function
+                :body '("a string")))
+              :to-equal
+              '("a string")))
+
+    (it "number"
+      (expect (Emil:Syntax:transform
+               (Struct:Function*
+                ,@function
+                :body '(1)))
+              :to-equal
+              '(1)))
+    
+    (it "vector"
+      (expect (Emil:Syntax:transform
+               (Struct:Function*
+                ,@function
+                :body '([a vector])))
+              :to-equal
+              '([a vector])))
+
+    (it "symbol"
+      (expect (Emil:Syntax:transform
+               (Struct:Function*
+                ,@function
+                :body '(self)))
+              :to-equal
+              '(self)))
+    
+    (it "application"
+      (expect (Emil:Syntax:transform
+               (Struct:Function*
+                ,@function
+                :body '((+ 1 self.property))))
+              :to-equal
+              '((+ 1 (Struct:unsafe-get self :property)))))
+    
+    (it "and"
+      (expect (Emil:Syntax:transform
+               (Struct:Function*
+                ,@function
+                :body '((and t self.property))))
+              :to-equal
+              '((and t (Struct:unsafe-get self :property)))))
+    
+    (it "catch"
+      (expect (Emil:Syntax:transform
+               (Struct:Function*
+                ,@function
+                :body '((catch 'tag (throw 'tag self.property)))))
+              :to-equal
+              '((catch 'tag (throw 'tag (Struct:unsafe-get self :property))))))
+    
+    (it "cond"
+      (expect (Emil:Syntax:transform
+               (Struct:Function*
+                ,@function
+                :body '((cond (self.property self.property)))))
+              :to-equal
+              '((cond ((Struct:unsafe-get self :property) (Struct:unsafe-get self :property))))) )
+    
+    (it "defconst"
+      (expect (Emil:Syntax:transform
+               (Struct:Function*
+                ,@function
+                :body '((defconst symbol self.property "documentation"))))
+              :to-equal
+              '((defconst symbol (Struct:unsafe-get self :property) "documentation"))))
+    
+    (it "defvar"
+      (expect (Emil:Syntax:transform
+               (Struct:Function*
+                ,@function
+                :body '((defvar symbol self.property "documentation"))))
+              :to-equal
+              '((defvar symbol (Struct:unsafe-get self :property) "documentation"))))
+    
+    (it "function"
+      (expect (Emil:Syntax:transform
+               (Struct:Function*
+                ,@function
+                :body '((function self.method))))
+              :to-equal
+              '((function (lambda nil (TestStruct:method self))))))
+    
+    (it "if"
+      (expect (Emil:Syntax:transform
+               (Struct:Function*
+                ,@function
+                :body '((if self.property self.property self.property))))
+              :to-equal
+              '((if (Struct:unsafe-get self :property)
+                   (Struct:unsafe-get self :property)
+                 (Struct:unsafe-get self :property)))))
+    
+    (xit "interactive"
+      ;; FIXME: interactive not properly implemented.
+      (expect (Emil:Syntax:transform
+               (Struct:Function*
+                ,@function
+                :body '((interactive self.property))))
+              :to-equal
+              '((interactive (Struct:unsafe-get self :property)))))
+    
+    (it "let"
+      (expect (Emil:Syntax:transform
+               (Struct:Function*
+                ,@function
+                :body '((let ((variable self.property))))))
+               :to-equal
+               '((let ((variable (Struct:unsafe-get self :property)))))))
+    
+    (it "or"
+      (expect (Emil:Syntax:transform
+               (Struct:Function*
+                ,@function
+                :body '((or t self.property))))
+              :to-equal
+              '((or t (Struct:unsafe-get self :property)))))
+    
+    (it "prog1"
+      (expect (Emil:Syntax:transform
+               (Struct:Function*
+                ,@function
+                :body '((prog1 self.property self.property))))
+              :to-equal
+              '((prog1 (Struct:unsafe-get self :property)
+                 (Struct:unsafe-get self :property)))))
+    
+    (it "progn like"
+      (expect (Emil:Syntax:transform
+               (Struct:Function*
+                ,@function
+                :body '((progn self.property self.property))))
+              :to-equal
+              '((progn (Struct:unsafe-get self :property)
+                      (Struct:unsafe-get self :property)))))
+    
+    (it "quote"
+      (expect (Emil:Syntax:transform
+               (Struct:Function*
+                ,@function
+                :body '((quote self.property))))
+              :to-equal
+              '((quote self.property))))
+    
+    (it "setq"
+      (expect (Emil:Syntax:transform
+               (Struct:Function*
+                ,@function
+                :body '((setq variable self.property))))
+              :to-equal
+              '((setq variable (Struct:unsafe-get self :property)))))
+    
+    (it "unwind-protect"
+      (expect (Emil:Syntax:transform
+               (Struct:Function*
+                ,@function
+                :body '((unwind-protect self.property self.property))))
+              :to-equal
+              '((unwind-protect (Struct:unsafe-get self :property)
+                  (Struct:unsafe-get self :property)))))
+    
+    (it "while"
+      (expect (Emil:Syntax:transform
+               (Struct:Function*
+                ,@function
+                :body '((while self.property self.property))))
+              :to-equal
+              '((while (Struct:unsafe-get self :property)
+                  (Struct:unsafe-get self :property)))))))

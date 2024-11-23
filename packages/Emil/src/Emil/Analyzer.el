@@ -93,7 +93,7 @@
 
   (fn Emil:Analyzer:lambda-bindings ((type Emil:Type:Arrow) lambda)
     (let* ((lambda-arguments (nth 1 lambda))
-           (variables (Emil:Analyzer:lambda-variables lambda-arguments))
+           (variables (Emil:Util:lambda-variables lambda-arguments))
            (variable-count (length variables))
            (variable-rest? (memq '&rest lambda-arguments))
            (arguments (Emil:Type:Arrow:arguments type))
@@ -556,10 +556,6 @@
 
   (fn Emil:Analyzer:has-errors? (self)
     (--some? (eq :error (Struct:get it :type))
-             (Struct:get self :messages)))
-
-  (fn Emil:Analyzer:lambda-variables (arguments)
-    "Return ARGUMENTS excluding &optional and &rest keywords."
-    (--filter (not (memq it '(&optional &rest))) arguments)))
+             (Struct:get self :messages))))
 
 (provide 'Emil/Analyzer)

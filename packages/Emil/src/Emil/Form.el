@@ -68,9 +68,6 @@
   (condition :type (Trait Emil:Form))
   (body :type (List (Trait Emil:Form))))
 
-(Trait:implement Emil:Form Emil:Form:Clause
-  :disable-syntax t)
-
 (Struct:define Emil:Form:DefConst
   (symbol :type symbol)
   (init-value :type (Trait Emil:Form))
@@ -128,9 +125,6 @@
 (Struct:define Emil:Form:Binding
   (name :type symbol)
   (value :type (Trait Emil:Form)))
-
-(Trait:implement Emil:Form Emil:Form:Binding
-  :disable-syntax t)
 
 (Struct:define Emil:Form:Or
   (conditions :type (List (Trait Emil:Form)))

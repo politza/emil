@@ -57,11 +57,11 @@
           (unless (symbolp (car rest))
             (Transformer:syntax-error "defconst name should be a symbol: %s"
                                       (car rest) (cons 'defconst rest)))
-          (unless (and (<= 3 (length rest))
+          (unless (and (<= (length rest) 3)
                        (>= (length rest) 2))
             (Transformer:syntax-error
-             "defconst should have either 2 or 3 arguments: %s"
-             (car rest) (cons 'defconst rest)))
+             "defconst should have either 2 or 3 arguments: %s, %s"
+             (length rest) (cons 'defconst rest)))
           (apply #'Transformer:transform-defconst
                  self form (car rest) (cadr rest) (caddr rest) data))
         (`defvar

@@ -528,12 +528,17 @@ This renames all type-variables with standard ones."
     (Vector Array Sequence)
     (Array Sequence)))
 
+(defconst Emil:Type:basic-type-hierarchy
+  (append cl--typeof-types
+          `((number number-or-marker atom)
+            (symbol atom))))
+
 (defun Emil:Type:basic-subtype? (type other)
   "Returns non-nil, if builtin TYPE is a subtype of OTHER.
 
 TYPE and OTHER should both be basic type-constructors, i.e. symbols."
   (or (eq type other)
-      (memq other (cdr (assq type cl--typeof-types)))))
+      (memq other (cdr (assq type Emil:Type:basic-type-hierarchy)))))
 
 (defun Emil:Type:compound-subtype? (type other)
   "Returns non-nil, if compound TYPE is a subtype of OTHER.

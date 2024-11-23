@@ -4,10 +4,7 @@
 (require 'Commons)
 (eval-when-compile (require 'cl-macs))
 
-(defconst Struct:self-argument-name 'self
-  "The name of the dispatch argument of struct-functions.")
-
-(declare-function Emil:Syntax:create-transformer "Emil/Syntax" ())
+(declare-function Emil:Syntax:transform "Emil/Syntax" ())
 
 (defmacro Struct:implement (name &rest properties-and-body)
   (declare (indent 1) (no-font-lock-keyword t))
@@ -19,7 +16,7 @@
           (functions (Struct:-read-body name body (unless disable-syntax name)))
           (transformer (unless (or disable-syntax
                                    (not (require 'Emil nil t)))
-                         (Emil:Syntax:create-transformer))))
+                         #'Emil:Syntax:transform)))
     `(progn
        (eval-and-compile
          (Struct:-merge-functions
@@ -47,12 +44,12 @@
     (--each functions
       (let ((arguments (Struct:get it :arguments))
             (name (Struct:get it :name)))
-        (when (--find (eq Struct:self-argument-name (Struct:get it :name))
+        (when (--find (eq Struct:Function:self-symbol (Struct:get it :name))
                       (cdr arguments))
           (error "Dispatch argument-name %s may only appear in first position: %s"
-                 Struct:self-argument-name name))
+                 Struct:Function:self-symbol name))
         (when (and arguments
-                   (eq Struct:self-argument-name
+                   (eq Struct:Function:self-symbol
                        (Struct:get (car arguments) :name)))
           (unless (Struct:get (car arguments) :type)
             (Struct:unsafe-set (car arguments) :type struct-name))

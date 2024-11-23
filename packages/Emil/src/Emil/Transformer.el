@@ -5,6 +5,7 @@
 (require 'Emil/Analyzer)
 (require 'Emil/Annotation)
 (require 'Emil/Form)
+(require 'Emil/Util)
 
 (Struct:implement Emil:Analyzer
   :disable-syntax t
@@ -166,7 +167,7 @@
                (min-arity (car arity))
                (rest? (eq 'many (cdr arity)))
                (variables
-                (Emil:Analyzer:lambda-variables argument-list))
+                (Emil:Util:lambda-variables argument-list))
                (variables-count (length variables))
                (arguments (Emil:Analyzer:generate-existentials
                            self variables-count))
