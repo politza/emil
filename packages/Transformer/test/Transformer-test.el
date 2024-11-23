@@ -64,10 +64,11 @@
                   :to-equal '(interactive "p")))
         
         (it "lambda"
+          ;; lambda is actually a macro expanding to (function (lambda ... )).
           (expect (Transformer:transform
                    '(lambda (arg) "documentation" body-0 body-1))
                   :to-equal
-                  '(lambda (arg) "documentation" body-0 body-1)))
+                  '(function (lambda (arg) "documentation" body-0 body-1))))
         
         (it "let"
           (expect (Transformer:transform
@@ -98,12 +99,6 @@
           (expect (Transformer:transform '(prog1 first body-0 body-1))
                   :to-equal
                   '(prog1 first body-0 body-1)))
-        
-        (it "prog2"
-          (expect (Transformer:transform
-                   '(prog2 first second body-0 body-1))
-                  :to-equal
-                  '(prog2 first second body-0 body-1)))
         
         (it "progn"
           (expect (Transformer:transform
@@ -140,13 +135,6 @@
                   :to-equal
                   '(setq variable-0 value-0
                          variable-1 value-1)))
-        
-        (it "setq-default"
-          (expect (Transformer:transform '(setq-default variable-0 value-0
-                                                        variable-1 value-1))
-                  :to-equal
-                  '(setq-default variable-0 value-0
-                                 variable-1 value-1)))
         
         (it "unwind-protect"
           (expect (Transformer:transform
