@@ -411,19 +411,19 @@ The result may contain type-variables."
       (Emil:Type:Compound
        :name name
        :arguments (-map #'Emil:Type:-read arguments))))
-    (_ (Emil:invalid-type-form "Failed to read form as a type: %s" form))))
+    (_ (Emil:syntax-error "Failed to read form as a type: %s" form))))
 
 (defun Emil:Type:-assert-valid-name (name form)
   (unless (symbolp name)
-    (Emil:invalid-type-form "Expected a symbol: %s in %s" name form))
+    (Emil:syntax-error "Expected a symbol: %s in %s" name form))
   (when (eq 'quote name)
-    (Emil:invalid-type-form "quote can not be used as a name: %s in %s" name form))
+    (Emil:syntax-error "Quote can not be used as a name: %s in %s" name form))
   (when (string-suffix-p "?" (symbol-name name))
-    (Emil:invalid-type-form "Names may not end with a `?': %s in %s" name form))
+    (Emil:syntax-error "Names may not end with a `?': %s in %s" name form))
   (unless (string-match-p "\\`[a-zA-Z]" (symbol-name name))
-    (Emil:invalid-type-form "Names should start with a letter: %s in %s" name form))
+    (Emil:syntax-error "Names should start with a letter: %s in %s" name form))
   (when (Commons:constant-symbol? name)
-    (Emil:invalid-type-form "Names may not be constant symbols: %s in %s" name form)))
+    (Emil:syntax-error "Names may not be constant symbols: %s in %s" name form)))
 
 (defun Emil:Type:-read-fn (argument-forms returns-form)
   (let ((optional? nil)
@@ -437,14 +437,14 @@ The result may contain type-variables."
         (pcase argument-form
           ('&optional
            (when rest?
-             (Emil:invalid-type-form "&optional can not follow &rest: %s" form))
+             (Emil:syntax-error "&optional can not follow &rest: %s" form))
            (unless argument-forms
-             (Emil:invalid-type-form
+             (Emil:syntax-error
               "&optional should be followed by an argument: %s" form))
            (setq optional? t))
           ('&rest
            (unless (= 1 (length argument-forms))
-             (Emil:invalid-type-form
+             (Emil:syntax-error
               "&rest should be followed by one argument: %s" form))
            (push (Emil:Type:-read (pop argument-forms))
                    arguments)
@@ -506,7 +506,7 @@ This renames all type-variables with standard ones."
     ((Struct Emil:Type:Compound name arguments)
      (when-let (arity (cdr (assq name Emil:Type:builtin-compound-types)))
        (unless (= arity (length arguments))
-         (Emil:invalid-type-form
+         (Emil:syntax-error
           "Builtin constructor %s requires %d arguments: %s"
           name arity (Emil:Type:print type))))))
   type)

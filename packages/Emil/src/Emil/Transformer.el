@@ -48,11 +48,13 @@
         (Struct:get (-last-item body-forms) :type)
       (Emil:Type:Null)))
 
-  (fn Emil:Analyzer:transform-annotation (self _form macro arguments &optional context environment)
+  (fn Emil:Analyzer:transform-annotation (self _form macro arguments
+                                               &optional context environment)
     (unless (memq macro Emil:Annotation:macros)
       (error "Internal error: Expected Emil:is or Emil:as: %s" macro))
     (unless (= 2 (length arguments))
-      (Emil:type-error "Syntax error: %s: %s" macro arguments))
+      (Emil:syntax-error
+       "Invalid use of type-annotation `%s': %s" macro arguments))
     (-let ((type (Emil:Type:read (nth 1 arguments))))
       (pcase-exhaustive macro
         ('Emil:is
@@ -98,7 +100,7 @@
                   (Emil:Type:Basic :name 'symbol))
                  (t
                   (or (Emil:Analyzer:lookup-variable form context environment)
-                      (Emil:type-error "Unbound variable: %s" form))))))
+                      (Emil:type-error "Can not find variable `%s'" form))))))
       (cons context
             (Emil:Form:Atom :value form
                             :type (Emil:Context:resolve context type)))))
@@ -225,13 +227,13 @@
                 :type (Emil:Context:resolve body-context type)))))
       ((pred symbolp)
        (let ((type (or (Emil:Analyzer:lookup-function argument context environment)
-                       (Emil:type-error "Unbound function: %s" argument))))
+                       (Emil:type-error "Can not find function `%s'" argument))))
          (cons context
                (Emil:Form:Function
                 :value argument
                 :type (Emil:Context:resolve context type)))))
       (value
-       (Emil:type-error "Not a function: %s" value))))
+       (Emil:type-error "Value is not a function: %s" value))))
 
   (fn Transformer:transform-if (self _form condition then else
                                      &optional context environment

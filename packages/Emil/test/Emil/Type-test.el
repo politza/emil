@@ -59,21 +59,21 @@
 
     (it "names should start with a letter"
       (expect (Emil:Type:read '0-is-the-new-1)
-              :to-throw 'Emil:invalid-type-form))
+              :to-throw 'Emil:syntax-error))
 
     (it "names should not end with a question-mark"
       (expect (Emil:Type:read 'ready?)
-              :to-throw 'Emil:invalid-type-form))
+              :to-throw 'Emil:syntax-error))
 
     (it "quote may not be used as a name"
       (expect (Emil:Type:read 'quote)
-              :to-throw 'Emil:invalid-type-form))
+              :to-throw 'Emil:syntax-error))
 
     (it "constant symbols may not be used as a name"
       (expect (Emil:Type:read nil)
-              :to-throw 'Emil:invalid-type-form)
+              :to-throw 'Emil:syntax-error)
       (expect (Emil:Type:read :keyword)
-              :to-throw 'Emil:invalid-type-form))
+              :to-throw 'Emil:syntax-error))
 
     (describe "function"
       (it "basic"
@@ -138,7 +138,7 @@
 
       (it "invalid polymorph function"
         (expect (Emil:Type:read '(-> 'a 'b))
-                :to-throw 'Emil:invalid-type-form)))
+                :to-throw 'Emil:syntax-error)))
 
     (describe "compound types"
       (it "zero parameter"
@@ -174,13 +174,13 @@
 
       (it "constructor name may not end with a ?"
         (expect (Emil:Type:read '(list? 'a))
-                :to-throw 'Emil:invalid-type-form))
+                :to-throw 'Emil:syntax-error))
 
       (it "validation of builtins"
         (expect (Emil:Type:read '(List a b))
-                :to-throw 'Emil:invalid-type-form)
+                :to-throw 'Emil:syntax-error)
         (expect (Emil:Type:read '(Cons a))
-                :to-throw 'Emil:invalid-type-form))))
+                :to-throw 'Emil:syntax-error))))
 
   (describe "Emil:Type:monomorph?"
     (it "Null"

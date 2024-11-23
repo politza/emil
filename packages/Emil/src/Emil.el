@@ -9,6 +9,7 @@
 
 (require 'dash)
 (require 'pcase)
+(require 'bytecomp)
 (require 'Struct)
 (require 'Emil/Error)
 (require 'Emil/Type)
@@ -46,11 +47,18 @@
            (Emil:Analyzer:infer
             analyzer form (Emil:Context)
             (Emil:Env:Alist :parent environment))))
-    (when (Emil:Analyzer:has-errors? analyzer)
-      (signal 'Emil:type-error (list (Struct:get analyzer :messages))))
-    (Emil:Form:with-type
-     typed-form
-     (Emil:Context:resolve context (Struct:get typed-form :type)))))
+    (pcase (Commons:evaluation-context)
+      ('compile
+       (mapc #'Emil:Message:byte-compile-log
+             (Struct:get analyzer :messages))))
+    (if-let (error (Emil:Analyzer:first-error analyzer))
+        (pcase (Commons:evaluation-context)
+          ((or 'eval 'load)
+           (signal (Struct:get error :error-condition)
+                   (list (Struct:get error :content)))))
+      (Emil:Form:with-type
+       typed-form
+       (Emil:Context:resolve context (Struct:get typed-form :type))))))
 
 (provide 'Emil)
 ;;; Emil.el ends here

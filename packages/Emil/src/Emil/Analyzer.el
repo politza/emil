@@ -19,13 +19,17 @@
   :disable-syntax t
   (fn Emil:Analyzer:infer (self form (context Emil:Context)
                                 (environment (Trait Emil:Env)))
-    (condition-case type-error
+    (condition-case error
         (Transformer:transform-form self form context environment)
-      (Emil:type-error
+      (error
        (Emil:Analyzer:add-message
         self (Emil:Message
               :type :error
-              :content (error-message-string type-error)
+              :error-condition (car error)
+              :content (if (and (= 1 (length (cdr error)))
+                                (stringp (cadr error)))
+                           (cadr error)
+                         (error-message-string error))
               :form form))
        (cons context (Emil:Form:Invalid
                       :form form
@@ -102,7 +106,8 @@
            (argument-rest? (Struct:get type :rest?))
            (bindings nil))
       (unless (Emil:Type:Arrow:arity-assignable-from? type (func-arity lambda))
-        (Emil:type-error "Function is not assignable to %s: (lambda %s)" (Emil:Type:print type)
+        (Emil:type-error "Function is not assignable to `%s': (lambda %s)"
+                         (Emil:Type:print type)
                          lambda-arguments))
       (when (> variable-count 0)
         (dotimes (_ (min argument-count (1- variable-count)))
@@ -160,8 +165,9 @@
       ((Struct Emil:Type:Compound)
        (Emil:Analyzer:instantiate-compound self context variable type relation))
       (_
-       (Emil:type-error "Unable to instantiate variable for type: %s, %s"
-                        variable type))))
+       (Emil:type-error "Failed to instantiate variable `%s' for type `%s'"
+                        (Emil:Type:print variable)
+                        (Emil:Type:print type)))))
 
   (fn Emil:Analyzer:instantiate-arrow (self (context Emil:Context)
                                             (variable Emil:Type:Existential)
@@ -445,7 +451,7 @@
 
   (fn Emil:Analyzer:subtype-error (left right)
     (Emil:type-error
-     "%s is not assignable to %s"
+     "Type `%s' is not compatible with `%s'"
      (Emil:Type:print left)
      (Emil:Type:print right)))
 
@@ -550,10 +556,10 @@
      (-zip-pair left-types right-types)))
 
   (fn Emil:Analyzer:add-message (self (message Emil:Message))
-    (Struct:update self :messages (-rpartial #'append (list message))))
+    (Struct:update self :messages (-partial #'cons message)))
 
-  (fn Emil:Analyzer:has-errors? (self)
-    (--some? (eq :error (Struct:get it :type))
-             (Struct:get self :messages))))
+  (fn Emil:Analyzer:first-error (self)
+    (--find (eq :error (Struct:get it :type))
+            (Struct:get self :messages))))
 
 (provide 'Emil/Analyzer)

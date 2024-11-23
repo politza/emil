@@ -99,7 +99,7 @@
   (cond
    ((Emil:Form:Lambda? function)
     (unless (Emil:Type:Arrow? type)
-      (Emil:type-error "Unable to infer a type for lambda: %s"
+      (Emil:type-error "Failed to infer type of lambda: %s"
                        (and type (Emil:Type:print type))))
     (let ((local-env (-zip-pair (Emil:Util:lambda-variables
                                  (Struct:get function :arguments))
@@ -130,14 +130,24 @@
                                             struct (Commons:symbol-to-keyword name)))
                                  (type (Struct:get property :type)))
                            (Emil:Type:read type)
-                         (Emil:type-error "Property %s does not exist in type %s"
-                                          name (and type (Emil:Type:print type)))))
+                         (Emil:Syntax:invalid-property name type)))
                      (or (and env (Emil:Env:lookup-variable env (car components)))
                          (Emil:Env:lookup-variable (Struct:get self :env)
                                                    (car components) env)
-                         (Emil:type-error "Variable %s not bound" (car components)))
+                         (Emil:type-error
+                          "Can not find variable `%s'" (car components)))
                      (cdr (butlast components)))))
     (cons (car (last components)) type)))
+
+(defun Emil:Syntax:invalid-property (name type)
+  (Emil:type-error
+   "Can not find property `%s' in type `%s'"
+   name (and type (Emil:Type:print type))))
+
+(defun Emil:Syntax:invalid-method (name type)
+  (Emil:type-error
+   "Can not find method `%s' in type `%s'"
+   name (and type (Emil:Type:print type))))
 
 (defun Emil:Syntax:dot-expression? (expression)
   (with-syntax-table emacs-lisp-mode-syntax-table
@@ -150,11 +160,9 @@
                 (Emil:Syntax:resolve-expression self expression env))
                (struct (or (and (Emil:Type:Basic? type)
                                 (Struct:Type:get (Struct:get type :name)))
-                           (Emil:type-error "Property %s does not exist in type %s"
-                                            property (Emil:Type:print type)))))
+                           (Emil:Syntax:invalid-property property type))))
     (or (Struct:Type:get-property struct (Commons:symbol-to-keyword property))
-        (Emil:type-error "Property %s does not exist in type %s"
-                         property (Emil:Type:print type)))))
+        (Emil:Syntax:invalid-property property type))))
 
 (defun Emil:Syntax:resolve-function (self expression &optional env)
   (-when-let* (((name . type)
@@ -163,11 +171,10 @@
            (candidates
             (--filter (eq name (Struct:get it :name)) functions)))
       (pcase (length candidates)
-        (0 (Emil:type-error "Method %s does not exist on type %s"
-                            name (Emil:Type:print type)))
+        (0 (Emil:Syntax:invalid-method name type))
         (1 (car candidates))
         (_ (Emil:type-error
-            "Multiple methods named %s exist for type %s: %s"
+            "Ambiguous call of method `%s' on type `%s'"
             name (Emil:Type:print type)
             (-map #'Struct:Function:type functions)))))))
 
@@ -181,12 +188,12 @@
       (Struct:get (car (Struct:get type :arguments)) :name)))))
 
 (defun Emil:Syntax:transform (function)
-  (let ((env (Emil:Syntax
-              :env
-              (Emil:Env:Alist :variables (Emil:Syntax:Function:bindings function)))))
-    (cdr (Emil:Syntax:transform-form
-          env
-          (Emil:transform `(progn ,@(Struct:get function :body)) env)))))
+  (let* ((env (Emil:Syntax
+               :env
+               (Emil:Env:Alist :variables (Emil:Syntax:Function:bindings function))))
+         (form (Emil:transform `(progn ,@(Struct:get function :body)) env)))
+    (when form
+      (cdr (Emil:Syntax:transform-form env form)))))
 
 (defun Emil:Syntax:Function:bindings (fn)
   (let ((names (--map (Struct:get it :name) (Struct:get fn :arguments)))
@@ -204,7 +211,7 @@
                                   ,acc ,(Commons:symbol-to-keyword it))
                                 (butlast components))))
         (unless (Struct:get property :mutable)
-          (Emil:type-error "Attempting to modify read-only property `%s'"
+          (Emil:type-error "Property `%s' is read-only"
                            (Struct:get property :name)))
         `(Struct:unsafe-set ,accesor ,(Commons:symbol-to-keyword
                                        (car (last components)))
