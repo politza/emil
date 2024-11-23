@@ -61,11 +61,11 @@
                     (Emil:Analyzer:infer self (nth 0 arguments) context environment)))
               (cons context (Emil:TypedForm:with-type typed-form type)))))))
 
-  (fn Emil:Analyzer:macroexpand-maybe (_self form)
+  (fn Emil:Analyzer:macroexpand-maybe (form environment)
     (if (and (macrop (car-safe form))
              (not (memq (car-safe form)
                         Emil:Annotation:macros)))
-        (macroexpand form)
+        (macroexpand form (Emil:Env:macro-environment environment))
       form)))
 
 (Trait:implement Transformer Emil:Analyzer
@@ -145,6 +145,8 @@
                                            &rest _)
     (-let (((context . init-form)
             (Emil:Analyzer:infer self init-value context environment)))
+      (Emil:Env:add-variable
+       environment symbol (Struct:get init-form :type) context)
       (cons context (Emil:TypedForm:DefConst
                      :symbol symbol
                      :init-value init-form
@@ -157,6 +159,8 @@
                                          &rest _)
     (-let (((context . init-form)
             (Emil:Analyzer:infer self init-value context environment)))
+      (Emil:Env:add-variable
+       environment symbol (Struct:get init-form :type) context)
       (cons context (Emil:TypedForm:DefVar
                      :symbol symbol
                      :init-value init-form
@@ -387,8 +391,19 @@
              (Emil:Analyzer:infer-application
               self (Emil:Context:resolve
                     function-context (Struct:get function-form :type))
-              (--map (Emil:Analyzer:macroexpand-maybe self it) arguments)
+              (--map (Emil:Analyzer:macroexpand-maybe it environment)
+                     arguments)
               function-context environment)))
+      (when (eq function 'defalias)
+        (pcase arguments
+          (`(,name ,definition . ,_)
+           (pcase definition
+             ((or `(cons 'macro ,lambda)
+                  `'(macro . ,lambda))
+              (Emil:Env:add-macro environment name lambda context))
+             (_
+              (Emil:Env:add-function
+               environment name (Struct:get function-form :type) context))))))
       (cons context
             (Emil:TypedForm:Application
              :function function-form
@@ -399,8 +414,10 @@
   (fn Transformer:transform-macro (self form macro arguments
                                         &optional context environment &rest _)
     (if (memq macro Emil:Annotation:macros)
-        (Emil:Analyzer:transform-annotation self form macro arguments context environment)
+        (Emil:Analyzer:transform-annotation
+         self form macro arguments context environment)
       (Emil:Analyzer:infer
-       self (macroexpand form) context environment))))
+       self (macroexpand form (Emil:Env:macro-environment environment))
+       context environment))))
 
 (provide 'Emil/Transformer)

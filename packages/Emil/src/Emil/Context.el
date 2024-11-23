@@ -6,7 +6,6 @@
 (require 'Struct)
 (require 'Struct/Pcase)
 (require 'Trait)
-(require 'Emil/Env)
 
 (Struct:define Emil:Context
   "Provides a context for type-inference.
@@ -201,23 +200,5 @@ concatenated."
 
   (fn Emil:Context:member? (self entry)
     (member entry (Struct:get self :entries))))
-
-(Trait:implement Emil:Env Emil:Context
-  (fn Emil:Env:lookup-variable (self variable &optional _context)
-    "Looks up VARIABLE in the current, local environment.
-
-Argument CONTEXT is ignored.
-
-Returns `nil', if VARIABLE is not present in this environment."
-    (-some->> (Emil:Context:lookup-variable self variable)
-      (Emil:Context:resolve self)))
-
-  (fn Emil:Env:lookup-function (_self _function &optional _context)
-    "Looks up FUNCTION in the current, local environment.
-
-Argument CONTEXT is ignored.
-
-Returns `nil', if FUNCTION is not present in this environment."
-    nil))
 
 (provide 'Emil/Context)
