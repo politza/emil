@@ -22,7 +22,7 @@ Returns `nil', if VARIABLE is not bound in this environment.")
                                      &optional (locals (Trait Emil:Env)))
     "Looks up FUNCTION in this environment and returns its type.
 
-See `Emil:Env:lookup-variable' for the CONTEXT argument.
+See `Emil:Env:lookup-variable' for the LOCALS argument.
 
 Returns `nil', if FUNCTION is not bound in this environment.")
 
@@ -103,7 +103,7 @@ malformed."
 (Struct:define Emil:Env:Hierarchy
   "Defines a hierarchy of environments via an ordered list.
 
-Lookups start with the first environment and proceed with the other
+Lookups start with the first environment and proceeds with the other
 ones until some environment returns a non-`nil' value."
 
   (environments

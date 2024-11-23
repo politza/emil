@@ -262,8 +262,8 @@
 
   (fn Transformer:transform-let (self _form bindings body &optional
                                       context environment &rest _)
-    (setq bindings (--map (if (consp it) it (list it nil)) bindings))
-    (-let* ((variables (--map (car it) bindings))
+    (-let* ((bindings (--map (if (consp it) it (list it nil)) bindings))
+            (variables (--map (car it) bindings))
             ((bindings-context . binding-forms)
              (Emil:Util:map-reduce
               (-lambda (context (_variable value))
@@ -292,8 +292,8 @@
 
   (fn Transformer:transform-let* (self _form bindings body &optional
                                        context environment &rest _)
-    (setq bindings (--map (if (consp it) it (list it nil)) bindings))
-    (-let* ((marker (Emil:Context:Marker))
+    (-let* ((bindings (--map (if (consp it) it (list it nil)) bindings))
+            (marker (Emil:Context:Marker))
             (variables (--map (car it) bindings))
             ((bindings-context . binding-forms)
              (Emil:Analyzer:thread-let*-bindings

@@ -52,7 +52,7 @@ assignments."
 
 Returns a cons of 2 new contexts \(TOP . BOTTOM\) representing the
 entries above resp. below VARIABLE, which itself is not included in
-neither.
+either.
 
 Returns `nil', if VARIABLE is not a member of this context."
     (when-let (tail (member variable (Struct:get self :entries)))

@@ -239,7 +239,6 @@ Currently, only function types are supported."
   (fn Emil:Type:Forall:type (self)
     "Returns the parameterized type."
     (Struct:get self :type)))
-:disable-syntax t
 
 (Trait:implement Emil:Type Emil:Type:Forall
   :disable-syntax t
@@ -425,13 +424,13 @@ The result may contain type-variables."
   (when (Commons:constant-symbol? name)
     (Emil:syntax-error "Names may not be constant symbols: %s in %s" name form)))
 
-(defun Emil:Type:-read-fn (argument-forms returns-form)
+(defun Emil:Type:-read-fn (argument-forms return-form)
   (let ((optional? nil)
         (rest? nil)
         (min-arity 0)
         (arguments nil)
-        (returns (Emil:Type:-read returns-form))
-        (form (list argument-forms returns-form)))
+        (returns (Emil:Type:-read return-form))
+        (form (list argument-forms return-form)))
     (while argument-forms
       (let ((argument-form (pop argument-forms)))
         (pcase argument-form
@@ -454,8 +453,7 @@ The result may contain type-variables."
            (unless optional?
              (cl-incf min-arity))))))
 
-    (setq arguments (nreverse arguments))
-    (Emil:Type:Arrow* arguments rest? returns min-arity)))
+    (Emil:Type:Arrow* :arguments (nreverse arguments) rest? returns min-arity)))
 
 (defun Emil:Type:normalize (type)
   "Return a normalized representation of TYPE.
