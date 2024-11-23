@@ -1,6 +1,0 @@
-; -*- mode: emacs-lisp; lexical-binding: t -*-
-
-(eldev-use-package-archive 'gnu-elpa)
-
-(setf eldev-project-source-dirs "src")
-(setf eldev-files-to-package '("src/**/*.el"))

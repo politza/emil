@@ -16,14 +16,14 @@
 
 ;; See https://github.com/reactive-streams/reactive-streams-jvm/blob/v1.0.4/README.md#specification
 (Trait:define Rs:Subscriber ()
-  (fn on-subscribe (self (subscription (Trait Rs:Subscription))))
-  (fn on-next (self value))
-  (fn on-error (self error))
-  (fn on-complete (self)))
+  (fn on-subscribe (self (subscription (Trait Rs:Subscription)) -> Void))
+  (fn on-next (self value -> Void))
+  (fn on-error (self error -> Void))
+  (fn on-complete (self -> Void)))
 
 (Trait:define Rs:Subscription ()
-  (fn request (self (count (integer 0 *))))
-  (fn cancel (self)))
+  (fn request (self (count (integer 0 *)) -> Void))
+  (fn cancel (self -> Void)))
 
 (Struct:define Rs:PartialSubscriber
   "A subscriber which is only interested in some events."
@@ -66,11 +66,10 @@
         (funcall self.on-complete)))))
 
 (Trait:define Rs:Publisher ()
-  (fn subscribe (self (subscriber (Trait Rs:Subscriber))))
+  (fn subscribe (self (subscriber (Trait Rs:Subscriber)) -> Void))
 
-  (fn subscribe* (self &rest partial-subscriber-properties)
-    (let ((subscriber (Rs:PartialSubscriber*
-                       ,@partial-subscriber-properties)))
+  (fn subscribe* (self &rest partial-subscriber-properties -> Rs:PartialSubscriber)
+    (let ((subscriber (apply #'Rs:PartialSubscriber partial-subscriber-properties)))
       (self.subscribe subscriber)
       subscriber)))
 

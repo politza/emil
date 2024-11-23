@@ -43,5 +43,3 @@
     (dotimes (n 10)
       (Rs:Publisher:Submission:next publisher (format "%s%%" (* 10 (1+ n)))))
     (Rs:Publisher:Submission:complete publisher)))
-
-(Rs:Demo:EmitOnTimer)
