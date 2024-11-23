@@ -121,41 +121,106 @@ type, excluding `Never' and itself.")
     "Returns the list of argument."
     (Struct:get self :arguments))
 
-  (fn Emil:Type:Arrow:butrest-arguments (self)
-    "Returns the list of arguments, excluding the &rest one."
-    (if (Struct:get self :rest?)
-        (-butlast (Struct:get self :arguments))
-      (Struct:get self :arguments)))
-
-  (fn Emil:Type:Arrow:rest-argument (self)
-    "Returns the &rest argument, if present."
-    (if (Struct:get self :rest?)
-        (-last-item (Struct:get self :arguments))))
-
   (fn Emil:Type:Arrow:returns (self)
     "Returns the return type."
     (Struct:get self :returns))
 
-  (fn Emil:Type:Arrow:arity (self)
+  (fn Emil:Type:Arrow:arity (self &optional numeric?)
     "Returns the minimal and maximal accepted number of arguments.
 
-Returns a cons \(MIN . MAX\), where MAX may be `most-positive-fixnum',
-if the function uses a &rest argument."
+Returns a cons \(MIN . MAX\), where MAX may be the symbol `many', if
+the function uses a &rest argument. If NUMERIC? is non-nil, use
+`most-positive-fixnum' instead.
+
+See also `func-arity'."
     (let ((min (Struct:get self :min-arity))
           (max (if (Struct:get self :rest?)
-                   most-positive-fixnum
+                   (if numeric? most-positive-fixnum 'many)
                  (length (Struct:get self :arguments)))))
-      (cons min max))))
+      (cons min max)))
+
+  (fn Emil:Type:Arrow:normalize-arity (arity)
+    (cond
+     ((Emil:Type:Arrow? arity)
+      (Emil:Type:Arrow:arity arity t))
+     ((eq 'many (cdr arity))
+      (cons (car arity) most-positive-fixnum))
+     (t arity)))
+
+  (fn Emil:Type:Arrow:arity-assignable-to? (self other)
+    "Return `t', if function is arity-wise assignable to OTHER.
+
+Argument OTHER should be either another `Emil:Type:Arrow' type; or a
+cons \(MIN . MAX\), with MIN and MAX being integers. MAX may also be
+the symbol `many' for an unlimited number of arguments.
+
+Returns `t', if this function can accept any number of arguments that
+are also accepted by OTHER; else `nil'."
+    (-let (((other-min . other-max)
+            (Emil:Type:Arrow:normalize-arity other))
+           ((min . max) (Emil:Type:Arrow:arity self t)))
+      (and (<= min other-min)
+           (>= max other-max))))
+
+  (fn Emil:Type:Arrow:arity-assignable-from? (self other)
+    "Return `t', if OTHER is arity-wise assignable to this function.
+
+This is the inverse to `Emil:Type:Arrow:arity-assignable-to?', which
+see."
+    (-let (((other-min . other-max)
+            (Emil:Type:Arrow:normalize-arity other))
+           ((min . max) (Emil:Type:Arrow:arity self t)))
+      (and (<= other-min min)
+           (>= other-max max))))
+
+  (fn Emil:Type:Arrow:adjusted-arguments (self count)
+    "Returns an argument-list with COUNT nominal arguments.
+
+Signals an error if COUNT is less than the minimal accepted number of
+arguments of this function; or if COUNT is larger then the maximal
+accepted ones."
+    (let ((rest? (Struct:get self :rest?))
+          (min-arity (Struct:get self :min-arity))
+          (arguments (Emil:Type:Arrow:arguments self)))
+      (Emil:Type:Arrow:-adjusted-arguments arguments count min-arity rest?)))
+
+  (fn Emil:Type:Arrow:lambda-adjusted-arguments (argument-list count)
+    "Like `Emil:Type:Arrow:adjusted-arguments', but for lambda arguments."
+    (let ((rest? (memq '&rest argument-list))
+          (min-arity (car (func-arity `(lambda ,argument-list))))
+          (arguments (Emil:Type:Arrow:lambda-filter-arguments argument-list)))
+      (Emil:Type:Arrow:-adjusted-arguments arguments count min-arity rest?)))
+
+  (fn Emil:Type:Arrow:-adjusted-arguments (arguments count min-arity rest?)
+    (cond
+     ((= (length arguments) count)
+      arguments)
+     ((< count min-arity)
+      (error "Attempted to adjust arguments below min-arity: %d, %s"
+             count arguments))
+     ((and (> count (length arguments))
+           (not rest?))
+      (error "Attempted to enlarge arguments of a non-rest function: %s" arguments))
+     (t
+      (append (-take count arguments)
+              (-repeat (- count (length arguments))
+                       (car (last arguments)))))))
+
+  (fn Emil:Type:Arrow:lambda-filter-arguments (arguments)
+    "Return ARGUMENTS excluding &optional and &rest keywords."
+    (--filter (not (memq it '(&optional &rest))) arguments)))
 
 (Trait:implement Emil:Type Emil:Type:Arrow
   (fn Emil:Type:print (self)
-    (let ((fixed (-take (Struct:get self :min-arity)
-                        (Struct:get self :arguments)))
-          (optional (-drop (Struct:get self :min-arity)
-                           (Emil:Type:Arrow:butrest-arguments self)))
-          (rest (Emil:Type:Arrow:rest-argument self)))
+    (let* ((arguments (Struct:get self :arguments))
+           (rest? (Struct:get self :rest?))
+           (fixed (-take (Struct:get self :min-arity)
+                         arguments))
+           (optional (-drop (Struct:get self :min-arity)
+                            (if rest? (butlast arguments) arguments)))
+           (rest (if rest? (car (last arguments)))))
       `(-> (,@(-map #'Emil:Type:print fixed)
-            ,@(if optional '(&optional))
+            ,@(if optional (list '&optional))
             ,@(-map #'Emil:Type:print optional)
             ,@(if rest (list '&rest (Emil:Type:print rest))))
            ,(Emil:Type:print (Struct:get self :returns)))))
@@ -269,7 +334,21 @@ keywords `&optional' and `&rest', in order to indicate optional- and
 rest-arguments. RETURN should likewise be a readable type. If either
 ARGUMENTS or RETURN contains resp. is a type-variable, the resulting
 type will be polymorphic."
-  (Emil:Type:-read form nil t))
+  (cl-labels ((variables (type)
+                (pcase-exhaustive type
+                  ((Struct Emil:Type:Arrow arguments returns)
+                   (append (variables returns)
+                           (-mapcat #'variables arguments)))
+                  ((Struct Emil:Type:Variable name)
+                   (list name))
+                  (_ nil))))
+    (let* ((type (Emil:Type:-read form))
+           (parameters (sort (-uniq (variables type)) #'string-lessp)))
+      (if parameters
+          (Emil:Type:Forall
+           :parameters (--map (Emil:Type:Variable :name it) parameters)
+           :type type)
+        type))))
 
 (defun Emil:Type:read-function (form)
   "Like `Emil:Type:read', but reject non-function types with an error."
@@ -283,7 +362,10 @@ type will be polymorphic."
 (Commons:define-error Emil:invalid-type-form
   "Invalid type form")
 
-(defun Emil:Type:-read (form &optional allow-type-variables? top-level?)
+(defun Emil:Type:-read (form)
+  "Reads a type from FORM.
+
+The result may contain type-variables."
   (pcase form
     ('Null (Emil:Type:Null))
     ('Any (Emil:Type:Any))
@@ -294,8 +376,6 @@ type will be polymorphic."
        (Emil:invalid-type-form "quote can not be used as a type-name: %s" form))
      (Emil:Type:Basic :name form))
     ((and `(quote ,name) (guard (symbolp name)))
-     (unless allow-type-variables?
-       (Emil:invalid-type-form "Type variables not allowed here: %s" form))
      (when (Commons:constant-symbol? name)
        (Emil:invalid-type-form
         "Constant symbol used as type variable: %s in %s"
@@ -306,16 +386,15 @@ type will be polymorphic."
      (Emil:Type:Variable :name name))
     ((and `(-> ,arguments ,returns)
           (guard (listp arguments)))
-     (Emil:Type:-read-fn arguments returns top-level?))
+     (Emil:Type:-read-fn arguments returns))
     (_ (Emil:invalid-type-form "Failed to read form as a type: %s" form))))
 
-(defun Emil:Type:-read-fn (arguments-form returns-form &optional top-level?)
+(defun Emil:Type:-read-fn (arguments-form returns-form)
   (let ((optional? nil)
         (rest? nil)
         (min-arity 0)
         (arguments nil)
-        (returns (Emil:Type:-read returns-form t))
-        (parameters nil)
+        (returns (Emil:Type:-read returns-form))
         (form (list arguments-form returns-form)))
     (while arguments-form
       (let ((argument-form (pop arguments-form)))
@@ -331,27 +410,16 @@ type will be polymorphic."
            (unless (= 1 (length arguments-form))
              (Emil:invalid-type-form
               "&rest should be followed by one argument: %s" form))
-           (let ((type (Emil:Type:-read (pop arguments-form) t)))
-             (push type arguments)
-             (when (Emil:Type:Variable? type)
-               (cl-pushnew type parameters :test #'equal)))
+           (push (Emil:Type:-read (pop arguments-form))
+                   arguments)
            (setq rest? t))
           (_
-           (let ((type (Emil:Type:-read argument-form t)))
-             (push type arguments)
-             (when (Emil:Type:Variable? type)
-               (cl-pushnew type parameters :test #'equal))
-             (unless optional?
-               (cl-incf min-arity)))))))
+           (push (Emil:Type:-read argument-form) arguments)
+           (unless optional?
+             (cl-incf min-arity))))))
 
     (setq arguments (nreverse arguments))
-    (when (Emil:Type:Variable? returns)
-      (cl-pushnew returns parameters :test #'equal))
-    (setq parameters (nreverse parameters))
-    (let ((type (Emil:Type:Arrow* arguments rest? returns min-arity)))
-      (if (and parameters top-level?)
-          (Emil:Type:Forall* parameters type)
-        type))))
+    (Emil:Type:Arrow* arguments rest? returns min-arity)))
 
 (defun Emil:Type:print-normalized (type)
   "Return a normalized, readable representation of TYPE.

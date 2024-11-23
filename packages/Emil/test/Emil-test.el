@@ -72,8 +72,8 @@
                 :to-equal 'integer))
 
       (it "lambda binding"
-        (expect (Emil:infer-form '(let ((fn (lambda (a) 0)))
-                                    fn))
+        (expect (Emil:infer-form '(let ((f (lambda (a) 0)))
+                                    f))
                 :to-equal '(-> ('a) integer))))
 
     (describe "let*"
@@ -103,8 +103,8 @@
                 :to-equal 'vector))
 
       (it "lambda binding"
-        (expect (Emil:infer-form '(let* ((fn (lambda (a) 0)))
-                                    fn))
+        (expect (Emil:infer-form '(let* ((f (lambda (a) 0)))
+                                    f))
                 :to-equal '(-> ('a) integer))))
 
     (describe "application"
@@ -215,15 +215,15 @@
 
       (it "basic function"
         (expect (Emil:infer-form
-                 '#'fn
-                 (Emil:Env:Alist:read nil '((fn . (-> (integer) string)))))
+                 '#'f
+                 (Emil:Env:Alist:read nil '((f . (-> (integer) string)))))
                 :to-equal '(-> (integer) string)))
 
       (it "funcall let-bound function"
         (expect
          (Emil:infer-form
-          '(let ((fn (lambda (x) (length x))))
-             (funcall fn "string"))
+          '(let ((f (lambda (x) (length x))))
+             (funcall f "string"))
           (Emil:Env:Alist:read
            nil
            '((funcall . (-> ((-> ('a) 'b) 'a) 'b))
@@ -233,8 +233,8 @@
       (it "funcall let*-bound function"
         (expect
          (Emil:infer-form
-          '(let* ((fn (lambda (x) (length x))))
-             (funcall fn "string"))
+          '(let* ((f (lambda (x) (length x))))
+             (funcall f "string"))
           (Emil:Env:Alist:read
            nil
            '((funcall . (-> ((-> ('a) 'b) 'a) 'b))
@@ -250,7 +250,7 @@
            '((fill-column . integer))
            nil))
          :to-equal 'string))
-      
+
       (it "let* shadows environment"
         (expect
          (Emil:infer-form
@@ -269,5 +269,139 @@
 
       (it "lambda"
         (expect (Emil:infer-form '(Emil:is (-> (string) string)
-                                           (lambda (x) x)))
-                :to-equal '(-> (string) string))))))
+                                    (lambda (x) x)))
+                :to-equal '(-> (string) string))))
+
+    (describe "variable arguments"
+      (describe "application"
+        (it "&optional"
+          (expect (Emil:infer-form '((lambda (a &optional b) a) 0))
+                  :to-equal 'integer))
+
+        (it "&optional / non provided"
+          (expect (Emil:infer-form '((lambda (&optional a b) 0)))
+                  :to-equal 'integer))
+
+        (it "&rest"
+          (expect (Emil:infer-form '((lambda (a &rest b) a) 0 "1" "2"))
+                  :to-equal 'integer))
+
+        (it "&rest / non provided"
+          (expect (Emil:infer-form '((lambda (&rest a b) 0)))
+                  :to-equal 'integer))
+
+        (it "&optional and &rest"
+          (expect (Emil:infer-form '((lambda (&optional a &rest b) a) 0))
+                  :to-equal 'integer))
+
+        (it "to many arguments"
+          (expect (Emil:infer-form '((lambda (a &optional b) a) 0 1 2))
+                  :to-throw))
+
+        (it "to few arguments"
+          (expect (Emil:infer-form '((lambda (a b &optional) a)))
+                  :to-throw)))
+
+      (describe "subtype"
+        (it "&optional in source"
+          (expect (Emil:infer-form
+                   '(f (lambda (a &optional b) a))
+                   (Emil:Env:Alist:read
+                    nil
+                    '((f . (-> ((-> ('a) 'b)) Null)))))
+                  :to-equal 'Null))
+
+        (it "&optional in target"
+          (expect (Emil:infer-form
+                   '(f (lambda (a &optional b) a))
+                   (Emil:Env:Alist:read
+                    nil
+                    '((f . (-> ((-> ('a &optional 'a) 'b)) Null)))))
+                  :to-equal 'Null))
+
+        (it "to few arguments"
+          (expect (Emil:infer-form
+                   '(f (lambda () a))
+                   (Emil:Env:Alist:read
+                    nil
+                    '((f . (-> ((-> ('a) 'b)) Null)))))
+                  :to-throw))
+
+        (it "&optional / to many"
+          (expect (Emil:infer-form
+                   '(f (lambda (a b &optional c) a))
+                   (Emil:Env:Alist:read
+                    nil
+                    '((f . (-> ((-> ('a) 'b)) Null)))))
+                  :to-throw))
+
+        (it "&rest in source"
+          (expect (Emil:infer-form
+                   '(f (lambda (a &rest b) a))
+                   (Emil:Env:Alist:read
+                    nil
+                    '((f . (-> ((-> ('a 'b 'c) 'd)) Null)))))
+                  :to-equal 'Null))
+
+        (it "&rest in target"
+          (expect (Emil:infer-form
+                   '(f (lambda (&rest a)))
+                   (Emil:Env:Alist:read
+                    nil
+                    '((f . (-> ((-> ('a 'b &rest 'c) 'd)) Null)))))
+                  :to-equal 'Null))
+
+        (it "&rest / to many"
+          (expect (Emil:infer-form
+                   '(f (lambda (a b c d &rest e) a))
+                   (Emil:Env:Alist:read
+                    nil
+                    '((f . (-> ((-> ('a 'b 'c) 'd)) Null)))))
+                  :to-throw))
+
+        (it "&optional and &rest in source"
+          (expect (Emil:infer-form
+                   '(f (lambda (a &optional b &rest c) a))
+                   (Emil:Env:Alist:read
+                    nil
+                    '((f . (-> ((-> ('a 'b 'c 'd) 'e)) Null)))))
+                  :to-equal 'Null))
+
+        (it "&optional and &rest in target"
+          (expect (Emil:infer-form
+                   '(f (lambda (&optional a &rest b) a))
+                   (Emil:Env:Alist:read
+                    nil
+                    '((f . (-> ((-> ('a &optional 'b &rest 'c) 'e)) Null)))))
+                  :to-equal 'Null)))
+
+      (describe "check"
+        (it "&optional in source"
+          (expect (Emil:infer-form '(Emil:is (-> ('a) 'a)
+                                      (lambda (a &optional b) a)))
+                  :to-equal '(-> ('a) 'a)))
+
+        (it "&optional in target"
+          (expect (Emil:infer-form '(Emil:is (-> (&optional 'a) 'a)
+                                      (lambda (&optional a b) a)))
+                  :to-equal '(-> (&optional 'a) 'a)))
+
+        (it "&optional / to few"
+          (expect (Emil:infer-form '(Emil:is (-> ('a 'b 'c) 'a)
+                                      (lambda (a &optional b) a)))
+                  :to-throw))
+
+        (it "&optional / to many"
+          (expect (Emil:infer-form '(Emil:is (-> () 'a)
+                                      (lambda (a &optional b) a)))
+                  :to-throw))
+
+        (it "&rest in source"
+          (expect (Emil:infer-form '(Emil:is (-> ('a 'b 'b) 'a)
+                                      (lambda (a &rest b) a)))
+                  :to-equal '(-> ('a 'b 'b) 'a)))
+
+        (it "&rest in target"
+          (expect (Emil:infer-form '(Emil:is (-> ('a &rest 'b) 'a)
+                                      (lambda (a &rest b) a)))
+                  :to-equal '(-> ('a &rest 'b) 'a)))))))

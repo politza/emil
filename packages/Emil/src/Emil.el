@@ -56,13 +56,21 @@ Apart from that, this just expands to FORM.
               (result-context
                (Emil:check self form forall-type intermediate-context)))
          (Emil:Context:drop-until-after result-context marker)))
-      ((and (Struct Emil:Type:Arrow :arguments argument-types returns)
+      ((and (Struct Emil:Type:Arrow returns)
             (let `(function (lambda ,arguments . ,body)) form))
-       ;; FIXME: &optional and &rest not handled.
-       (let* ((bindings
+       (unless (Emil:Type:Arrow:arity-assignable-from? type (func-arity form))
+         (error "Function is not arity compatible: %s, %s" form type))
+       (let* ((argument-count
+               (max (--count (not (memq it '(&optional &rest))) arguments)
+                    (Emil:Type:Arrow:arguments type)))
+              (arguments-adjusted
+               (Emil:Type:Arrow:lambda-adjusted-arguments arguments argument-count))
+              (argument-types-adjusted
+               (Emil:Type:Arrow:adjusted-arguments type argument-count))
+              (bindings
                (--map (Emil:Context:Binding
                        :variable (car it) :type (cdr it))
-                      (-zip-pair arguments argument-types)))
+                      (-zip-pair arguments-adjusted argument-types-adjusted)))
               (marker (Emil:Context:Marker))
               (intermediate-context
                (Emil:Context:concat (reverse bindings) marker context))
@@ -205,21 +213,30 @@ replaced with instances of `Emil:Type:Existential'."
       (`(,(Struct Emil:Type:Arrow
                   :arguments left-arguments :returns left-returns)
          ,(Struct Emil:Type:Arrow
-                  :arguments right-arguments :returns right-returns))
-       (-let (((left-min . left-max) (Emil:Type:Arrow:arity left))
-              ((right-min . right-max) (Emil:Type:Arrow:arity right)))
-         (unless (and (<= left-min right-min)
-                      (>= left-max right-max))
-           (error "Function is not arity-compatible"))
-         (let ((intermediate-context
-                (--reduce-from
-                 (Emil:subtype self acc (car it) (cdr it))
-                 context
-                 (-zip-pair right-arguments left-arguments))))
-           (Emil:subtype
-            self intermediate-context
-            (Emil:Context:resolve intermediate-context left-returns)
-            (Emil:Context:resolve intermediate-context right-returns)))))
+                  :arguments right-arguments :returns right-returns :rest? right-rest?))
+       (unless (Emil:Type:Arrow:arity-assignable-to? left right)
+         (error "Function is not arity-compatible: %s, %s" left right))
+
+       (let* ((argument-count (if right-rest?
+                                  (max (length left-arguments)
+                                       (length right-arguments))
+                                (length right-arguments)))
+              (left-arguments-adjusted (Emil:Type:Arrow:adjusted-arguments
+                                        left argument-count))
+              (right-arguments-adjusted (Emil:Type:Arrow:adjusted-arguments
+                                         right argument-count))
+              (intermediate-context
+               (--reduce-from
+                (Emil:subtype self acc
+                              (Emil:Context:resolve acc (car it))
+                              (Emil:Context:resolve acc (cdr it)))
+                context
+                (-zip-pair right-arguments-adjusted
+                           left-arguments-adjusted))))
+         (Emil:subtype
+          self intermediate-context
+          (Emil:Context:resolve intermediate-context left-returns)
+          (Emil:Context:resolve intermediate-context right-returns))))
       ;; Forall L
       (`(,(Struct Emil:Type:Forall parameters type) ,_)
        (let* ((instances (Emil:generate-existentials
@@ -312,11 +329,20 @@ replaced with instances of `Emil:Type:Existential'."
                 result-context
                 (-zip-pair arguments instantiated-arguments)))))
       ((Struct Emil:Type:Arrow :arguments argument-types returns)
-       (cons returns
-             (--reduce-from
-              (Emil:check self (car it) (cdr it) acc)
-              context
-              (-zip-pair arguments argument-types)))))))
+       (let ((argument-count (length arguments)))
+         (unless (Emil:Type:Arrow:arity-assignable-to?
+                  arrow-type (cons argument-count argument-count))
+           (error "Application is not arity compatible: %d, %s"
+                  argument-count arrow-type))
+         (let ((adjusted-arguments
+                (append arguments (-repeat (- (length argument-types)
+                                              (length arguments))
+                                           nil))))
+           (cons returns
+                 (--reduce-from
+                  (Emil:check self (car it) (cdr it) acc)
+                  context
+                  (-zip-pair adjusted-arguments argument-types)))))))))
 
 (Trait:implement Transformer Emil
   (fn Transformer:transform-number (_self _form number &optional context &rest _)
@@ -370,12 +396,18 @@ replaced with instances of `Emil:Type:Existential'."
     (pcase-exhaustive argument
       ((and `(lambda ,argument-list . ,body)
             (guard (listp argument-list)))
-       (let* ((arguments (Emil:generate-existentials
-                          self (length argument-list)))
+       (let* ((arity (func-arity argument))
+              (min-arity (car arity))
+              (rest? (eq 'many (cdr arity)))
+              (filtered-argument-list
+               (--filter (not (memq it '(&optional &rest)))
+                         argument-list))
+              (arguments (Emil:generate-existentials
+                          self (length filtered-argument-list)))
               (returns (Emil:generate-existential self))
               (bindings (--map (Emil:Context:Binding
                                 :variable (car it) :type (cdr it))
-                               (-zip-pair argument-list arguments)))
+                               (-zip-pair filtered-argument-list arguments)))
               (marker (Emil:Context:Marker))
               (initial-context
                (Emil:Context:concat
@@ -384,7 +416,7 @@ replaced with instances of `Emil:Type:Existential'."
               (intermediate-context
                (Emil:check self (cons 'progn body) returns initial-context)))
          (cons (Emil:Type:Arrow*
-                arguments returns :min-arity (length arguments))
+                arguments returns min-arity rest?)
                (Emil:Context:drop-until-after intermediate-context marker))))
       ((pred symbolp)
        (if-let (type (Emil:lookup-function self context argument))

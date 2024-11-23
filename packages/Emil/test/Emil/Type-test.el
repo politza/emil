@@ -52,8 +52,8 @@
                 :to-equal
                 '(Emil:Type:Arrow
                   :arguments ((Emil:Type:Basic :name string)
-                                   (Emil:Type:Any)
-                                   (Emil:Type:Never))
+                              (Emil:Type:Any)
+                              (Emil:Type:Never))
                   :rest? nil
                   :returns (Emil:Type:Void)
                   :min-arity 2)))
@@ -274,7 +274,7 @@
 
     (it "mixed function"
       (expect (Emil:Type:print-normalized (Emil:Type:read
-                                       '(-> (string 'y) 'y)))
+                                           '(-> (string 'y) 'y)))
               :to-equal '(-> (string 'a) 'a)))
 
     (it "nested function"
@@ -282,4 +282,201 @@
                (Emil:Type:read '(-> ((-> ('x) 'y) 'x 'y)
                                     (-> ('x 'y) 'z))))
               :to-equal '(-> ((-> ('a) 'b) 'a 'b)
-                                    (-> ('a 'b) 'c))))))
+                             (-> ('a 'b) 'c)))))
+
+  (describe "Emil:Type:Arrow"
+    (describe "Emil:Type:Arrow:arity"
+      (it "no arguments"
+        (expect (Emil:Type:Arrow:arity
+                 (Emil:Type:-read '(-> () Any)))
+                :to-equal (cons 0 0)))
+
+      (it "fixed arguments"
+        (expect (Emil:Type:Arrow:arity
+                 (Emil:Type:-read '(-> (Any Any) Any)))
+                :to-equal (cons 2 2)))
+
+      (it "optional arguments"
+        (expect (Emil:Type:Arrow:arity
+                 (Emil:Type:-read '(-> (Any &optional Any Any) Any)))
+                :to-equal (cons 1 3)))
+
+      (it "rest arguments"
+        (expect (Emil:Type:Arrow:arity
+                 (Emil:Type:-read '(-> (Any &rest Any) Any)))
+                :to-equal (cons 1 'many)))
+
+      (it "rest arguments (numeric)"
+        (expect (Emil:Type:Arrow:arity
+                 (Emil:Type:-read '(-> (Any &rest Any) Any))
+                 t)
+                :to-equal (cons 1 most-positive-fixnum)))
+
+      (it "mixed arguments"
+        (expect (Emil:Type:Arrow:arity
+                 (Emil:Type:-read '(-> (Any &optional Any &rest Any) Any)))
+                :to-equal (cons 1 'many))))
+
+    (describe "Emil:Type:Arrow:arity-assignable-to?"
+      (it "fixed arguments"
+        (expect (Emil:Type:Arrow:arity-assignable-to?
+                 (Emil:Type:-read '(-> (Any Any) Any))
+                 (Emil:Type:-read '(-> (Any Any) Any)))
+                :to-equal t)
+        (expect (Emil:Type:Arrow:arity-assignable-to?
+                 (Emil:Type:-read '(-> (Any Any) Any))
+                 (Emil:Type:-read '(-> (Any Any Any) Any)))
+                :to-equal nil))
+
+      (it "reflexiveness"
+        (expect (Emil:Type:Arrow:arity-assignable-to?
+                 (Emil:Type:-read '(-> (Any &optional Any &rest Any) Any))
+                 (Emil:Type:-read '(-> (Any &optional Any &rest Any) Any)))
+                :to-equal t))
+
+      (it "rest and no rest"
+        (expect (Emil:Type:Arrow:arity-assignable-to?
+                 (Emil:Type:-read '(-> (Any &rest Any) Any))
+                 (Emil:Type:-read '(-> (Any &optional Any) Any)))
+                :to-equal t)
+        (expect (Emil:Type:Arrow:arity-assignable-to?
+                 (Emil:Type:-read '(-> (Any &optional Any) Any))
+                 (Emil:Type:-read '(-> (Any &rest Any) Any)))
+                :to-equal nil)))
+
+    (describe "Emil:Type:Arrow:arity-assignable-from?"
+      (it "fixed arguments"
+        (expect (Emil:Type:Arrow:arity-assignable-from?
+                 (Emil:Type:-read '(-> (Any Any) Any))
+                 (Emil:Type:-read '(-> (Any Any) Any)))
+                :to-equal t)
+        (expect (Emil:Type:Arrow:arity-assignable-from?
+                 (Emil:Type:-read '(-> (Any Any) Any))
+                 (Emil:Type:-read '(-> (Any Any Any) Any)))
+                :to-equal nil))
+
+      (it "reflexiveness"
+        (expect (Emil:Type:Arrow:arity-assignable-from?
+                 (Emil:Type:-read '(-> (Any &optional Any &rest Any) Any))
+                 (Emil:Type:-read '(-> (Any &optional Any &rest Any) Any)))
+                :to-equal t))
+
+      (it "rest and no rest"
+        (expect (Emil:Type:Arrow:arity-assignable-from?
+                 (Emil:Type:-read '(-> (Any &optional Any) Any))
+                 (Emil:Type:-read '(-> (Any &rest Any) Any)))
+                :to-equal t)
+        (expect (Emil:Type:Arrow:arity-assignable-from?
+                 (Emil:Type:-read '(-> (Any &rest Any) Any))
+                 (Emil:Type:-read '(-> (Any &optional Any) Any)))
+                :to-equal nil)))
+
+    (describe "Emil:Type:Arrow:adjusted-arguments"
+      (it "fixed arguments"
+        (expect (Emil:Type:Arrow:adjusted-arguments
+                 (Emil:Type:-read '(-> (a b ) c))
+                 2)
+                :to-equal
+                '((Emil:Type:Basic :name a)
+                  (Emil:Type:Basic :name b))))
+
+      (it "fixed arguments / to few"
+        (expect (Emil:Type:Arrow:adjusted-arguments
+                 (Emil:Type:-read '(-> (a b) c))
+                 1)
+                :to-throw))
+
+      (it "fixed arguments / to many"
+        (expect (Emil:Type:Arrow:adjusted-arguments
+                 (Emil:Type:-read '(-> (a b) c))
+                 3)
+                :to-throw))
+
+      (it "optional argument"
+        (expect (Emil:Type:Arrow:adjusted-arguments
+                 (Emil:Type:-read '(-> (a &optional b c) d))
+                 3)
+                :to-equal
+                '((Emil:Type:Basic :name a)
+                  (Emil:Type:Basic :name b)
+                  (Emil:Type:Basic :name c))))
+
+      (it "optional argument / to few"
+        (expect (Emil:Type:Arrow:adjusted-arguments
+                 (Emil:Type:-read '(-> (a &optional b c) d))
+                 0)
+                :to-throw))
+
+      (it "optional argument / to many"
+        (expect (Emil:Type:Arrow:adjusted-arguments
+                 (Emil:Type:-read '(-> (a &optional b c) d))
+                 4)
+                :to-throw))
+
+      (it "rest argument"
+        (expect (Emil:Type:Arrow:adjusted-arguments
+                 (Emil:Type:-read '(-> (a b &rest c) d))
+                 4)
+                :to-equal
+                '((Emil:Type:Basic :name a)
+                  (Emil:Type:Basic :name b)
+                  (Emil:Type:Basic :name c)
+                  (Emil:Type:Basic :name c))))
+
+      (it "rest argument / to few"
+        (expect (Emil:Type:Arrow:adjusted-arguments
+                 (Emil:Type:-read '(-> (a b &rest c) d))
+                 1)
+                :to-throw)))
+
+    (describe "Emil:Type:Arrow:lambda-adjusted-arguments"
+      (it "fixed arguments"
+        (expect (Emil:Type:Arrow:lambda-adjusted-arguments
+                 '(a b)
+                 2)
+                :to-equal
+                '(a b)))
+
+      (it "fixed arguments / to few"
+        (expect (Emil:Type:Arrow:lambda-adjusted-arguments
+                 '(a b)
+                 1)
+                :to-throw))
+
+      (it "fixed arguments / to many"
+        (expect (Emil:Type:Arrow:lambda-adjusted-arguments
+                 '(a b)
+                 3)
+                :to-throw))
+
+      (it "optional argument"
+        (expect (Emil:Type:Arrow:lambda-adjusted-arguments
+                 '(a &optional b c)
+                 3)
+                :to-equal
+                '(a  b c)))
+
+      (it "optional argument / to few"
+        (expect (Emil:Type:Arrow:lambda-adjusted-arguments
+                 '(a &optional b c)
+                 0)
+                :to-throw))
+
+      (it "optional argument / to many"
+        (expect (Emil:Type:Arrow:lambda-adjusted-arguments
+                 '(a &optional b c)
+                 4)
+                :to-throw))
+
+      (it "rest argument"
+        (expect (Emil:Type:Arrow:lambda-adjusted-arguments
+                 '(a b &rest c)
+                 4)
+                :to-equal
+                '(a b c c)))
+
+      (it "rest argument / to few"
+        (expect (Emil:Type:Arrow:lambda-adjusted-arguments
+                 '(a b &rest c)
+                 1)
+                :to-throw)))))
