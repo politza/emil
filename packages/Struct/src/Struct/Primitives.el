@@ -248,7 +248,6 @@ Throws an error if
   "Sets STRUCT's PROPERTY using update-function FN.
 
 Returns the updated value."
-  (declare (indent 2))
   (Struct:set struct property
               (funcall fn (Struct:get struct property))))
 

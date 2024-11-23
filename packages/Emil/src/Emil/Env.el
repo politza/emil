@@ -68,13 +68,22 @@ present."
 
 Adds FUNCTION to this environment, if it is currently not
 present."
-    (unless (Emil:Type:funtion? type)
+    (unless (Emil:Type:function? type)
       (error "Argument should be a function type: %s" type))
     (let ((elt (assq function (Struct:get self :functions))))
       (if elt
           (setcdr elt type)
         (Struct:update
-          self :functions (-partial #'cons (cons function type)))))))
+          self :functions (-partial #'cons (cons function type))))))
+
+  (fn Emil:Env:Alist:update-from (self (environment (Trait Emil:Env))
+                                       variables functions)
+    (--each variables
+      (Emil:Env:Alist:update-variable
+       self it (Emil:Env:lookup-variable environment it)))
+    (--each functions
+      (Emil:Env:Alist:update-function
+       self it (Emil:Env:lookup-function environment it)))))
 
 (defun Emil:Env:Alist:read (variables functions &optional parent)
   "Reads an environment from VARIABLES and FUNCTIONS.

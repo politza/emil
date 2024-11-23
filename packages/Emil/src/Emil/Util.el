@@ -20,8 +20,8 @@ bbb ...\)."
      (t (Struct:update self :character #'1+)))
     name))
 
-(defun Emil:Util:map-accum (fn init list)
-  "Maps FN across list, while accumulating INIT."
+(defun Emil:Util:map-reduce (fn init list)
+  "Maps FN across list, while accumulating a value starting with INIT."
   (-let (((acc . results)
           (-reduce-from
            (-lambda ((acc . results) item)

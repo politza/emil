@@ -188,7 +188,7 @@ accepted ones."
     "Like `Emil:Type:Arrow:adjusted-arguments', but for lambda arguments."
     (let ((rest? (memq '&rest argument-list))
           (min-arity (car (func-arity `(lambda ,argument-list))))
-          (arguments (Emil:Type:Arrow:lambda-filter-arguments argument-list)))
+          (arguments (Emil:Type:Arrow:lambda-variables argument-list)))
       (Emil:Type:Arrow:-adjusted-arguments arguments count min-arity rest?)))
 
   (fn Emil:Type:Arrow:-adjusted-arguments (arguments count min-arity rest?)
@@ -206,7 +206,7 @@ accepted ones."
               (-repeat (- count (length arguments))
                        (car (last arguments)))))))
 
-  (fn Emil:Type:Arrow:lambda-filter-arguments (arguments)
+  (fn Emil:Type:Arrow:lambda-variables (arguments)
     "Return ARGUMENTS excluding &optional and &rest keywords."
     (--filter (not (memq it '(&optional &rest))) arguments)))
 
