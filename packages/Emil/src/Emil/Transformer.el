@@ -379,6 +379,7 @@
              :function (Emil:Form:ApplicationFn
                         :value (Struct:get function-form :value)
                         :type (Struct:get function-form :type))
+             ;; FIXME: Various types need to be resolved, e.g. for lambdas to have a proper, non-generic type.
              :arguments argument-forms
              :type return-type))))
 
