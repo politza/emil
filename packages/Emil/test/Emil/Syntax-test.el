@@ -14,7 +14,7 @@
                      :body nil)))
 
     (before-each
-      (eval '(Struct:define TestStruct property))
+      (eval '(Struct:define TestStruct (property :type integer)))
       (eval '(Struct:implement TestStruct (fn method (self)))))
 
     (after-each
@@ -50,7 +50,15 @@
                 ,@function
                 :body '((setf self.property 1))))
               :to-equal
-              '((Struct:set self :property 1))))
+              '((Struct:unsafe-set self :property 1))))
+
+    (it "property assignment of wrong type"
+      (expect (Emil:Syntax:transform
+               (Struct:Function*
+                ,@function
+                :body '((setf self.property "1"))))
+              :to-throw
+              'Emil:type-error))
 
     (it "string"
       (expect (Emil:Syntax:transform
@@ -163,8 +171,8 @@
                 :body '((if self.property self.property self.property))))
               :to-equal
               '((if (Struct:unsafe-get self :property)
-                   (Struct:unsafe-get self :property)
-                 (Struct:unsafe-get self :property)))))
+                    (Struct:unsafe-get self :property)
+                  (Struct:unsafe-get self :property)))))
 
     (xit "interactive"
       ;; FIXME: interactive not properly implemented.
@@ -180,8 +188,8 @@
                (Struct:Function*
                 ,@function
                 :body '((let ((variable self.property))))))
-               :to-equal
-               '((let ((variable (Struct:unsafe-get self :property)))))))
+              :to-equal
+              '((let ((variable (Struct:unsafe-get self :property)))))))
 
     (it "or"
       (expect (Emil:Syntax:transform
@@ -198,7 +206,7 @@
                 :body '((prog1 self.property self.property))))
               :to-equal
               '((prog1 (Struct:unsafe-get self :property)
-                 (Struct:unsafe-get self :property)))))
+                  (Struct:unsafe-get self :property)))))
 
     (it "progn like"
       (expect (Emil:Syntax:transform
@@ -207,7 +215,7 @@
                 :body '((progn self.property self.property))))
               :to-equal
               '((progn (Struct:unsafe-get self :property)
-                      (Struct:unsafe-get self :property)))))
+                       (Struct:unsafe-get self :property)))))
 
     (it "quote"
       (expect (Emil:Syntax:transform
@@ -298,4 +306,24 @@
       (expect (eval '(TestStruct:h (TestStruct)))
               :to-equal 0)
       (expect (eval '(TestStruct:i (TestStruct)))
-              :to-equal 0))))
+              :to-equal 0)))
+
+  (describe "property handling"
+    (after-each
+      (Struct:undefine 'TestStruct)
+      (Struct:undefine 'OtherStruct))
+
+    (it "updating a member's property"
+      (expect (eval '(progn
+                       (Struct:define OtherStruct (property :type number))
+                       (Struct:define TestStruct (other :type OtherStruct))
+                       (Struct:implement TestStruct
+                         (fn set (self (value number))
+                           (setf self.other.property value))
+                         (fn get (self)
+                           self.other.property))))
+              :to-equal 'TestStruct)
+      (expect (eval '(let ((struct (TestStruct :other (OtherStruct :property 0))))
+                       (TestStruct:set struct 1)
+                       (TestStruct:get struct)))
+              :to-equal 1))))

@@ -125,7 +125,7 @@
                                  (type (Struct:get property :type)))
                            (Emil:Type:read type)
                          (Emil:type-error "Property %s does not exist in type %s"
-                                          name (Emil:Type:print type))))
+                                          name (and type (Emil:Type:print type)))))
                      (or (and env (Emil:Env:lookup-variable env (car components)))
                          (Emil:Env:lookup-variable (Struct:get self :env)
                                                    (car components) env)
@@ -194,18 +194,18 @@
     (-zip-pair names types)))
 
 (defun Emil:Syntax:expand-setf (self form &optional env)
-  (if (and (= 2 (length form))
-           (Emil:Syntax:resolve-variable self (car form) env))
+  (if-let (property
+           (and (= 2 (length form))
+                (Emil:Syntax:resolve-variable self (car form) env)))
       (let* ((components
               (-map #'intern (split-string (symbol-name (car form)) "[.]")))
              (accesor (--reduce `(Struct:unsafe-get
                                   ,acc ,(Commons:symbol-to-keyword it))
                                 (butlast components))))
-        `(Struct:set ,accesor ,(Commons:symbol-to-keyword
-                                (car (last components)))
-           ,(cadr form)))
+        `(Struct:unsafe-set ,accesor ,(Commons:symbol-to-keyword
+                                       (car (last components)))
+                            (Emil:is ,(cadr form) ,(Struct:get property :type 'Any))))
     (macroexpand (cons 'setf form))))
-
 
 (Trait:implement Emil:Env Emil:Syntax
   :disable-syntax t
