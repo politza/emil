@@ -34,8 +34,7 @@
                 :to-equal
                 'TestStruct)
         (expect (length (Struct:get type :properties)) :to-equal 3)
-        (expect (Struct:Type? 'TestStruct) :to-equal t)
-        (expect (Struct:Type? (Struct:Type:get 'TestStruct :ensure)) :to-equal t)
+        (expect (Struct:Type? type) :to-equal t)
 
         (let ((optional (nth 0 (Struct:get type :properties))))
           (expect (Struct:get optional :name)
@@ -45,7 +44,8 @@
           (expect (Struct:get optional :documentation)
                   :to-equal "An optional property.")
           (expect (Struct:get optional :mutable)
-                  :to-equal t))
+                  :to-equal t)
+          (expect (Struct:Property? optional) :to-equal t))
 
         (let ((required (nth 1 (Struct:get type :properties))))
           (expect (Struct:get required :name)
@@ -57,7 +57,8 @@
           (expect (Struct:get required :type)
                   :to-equal '(not null))
           (expect (Struct:get required :mutable)
-                  :to-equal t))
+                  :to-equal t)
+          (expect (Struct:Property? required) :to-equal t))
 
         (let ((read-only (nth 2 (Struct:get type :properties))))
           (expect (Struct:get read-only :name)
@@ -67,7 +68,8 @@
           (expect (Struct:get read-only :documentation)
                   :to-equal "A read-only property.")
           (expect (Struct:get read-only :mutable)
-                  :to-equal nil))))
+                  :to-equal nil)
+          (expect (Struct:Property? read-only) :to-equal t))))
 
     (it "defines constructors and predicates"
       (expect (fboundp 'TestStruct) :to-equal t)
@@ -85,6 +87,12 @@
       (expect (TestStruct? '(NonTestStruct :required 4))
               :to-equal nil)
       (expect (TestStruct? 0)
+              :to-equal nil))
+
+    (it "can type-check a name"
+      (expect (Struct:Name? 'TestStruct)
+              :to-equal t)
+      (expect (Struct:Name? 'NonTestStruct)
               :to-equal nil))
 
     (it "keeps properties ordered"
@@ -146,14 +154,7 @@
                 :to-equal 2)
         (expect (Struct:get struct :required)
                 :to-equal 2)))
-
-    (it "can update a property anaphorically"
-      (let ((struct (TestStruct :required 1)))
-        (expect (Struct:update- struct :required (1+ it))
-                :to-equal 2)
-        (expect (Struct:get struct :required)
-                :to-equal 2)))
-
+    
     (it "can not set an unknown property"
       (expect (Struct:set (TestStruct :required 1)
                           :unknown 2)
