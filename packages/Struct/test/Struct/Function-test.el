@@ -32,7 +32,8 @@
            :kind &optional))
          :return-type number
          :documentation "Returns A plus B."
-         :body ((+ a b)))))
+         :body ((+ a b))
+         :filename nil)))
     
     (it "documentation, but no body"
       (expect
@@ -46,7 +47,8 @@
          :arguments nil
          :return-type nil
          :documentation "documentation"
-         :body nil)))
+         :body nil
+         :filename nil)))
 
     (it "documentation and nil body"
       (expect
@@ -60,7 +62,8 @@
          :arguments nil
          :return-type nil
          :documentation "documentation"
-         :body (nil))))
+         :body (nil)
+         :filename nil)))
 
     (it "no documentation and no body"
       (expect
@@ -74,7 +77,8 @@
          :arguments nil
          :return-type nil
          :documentation nil
-         :body nil)))
+         :body nil
+         :filename nil)))
 
     (it "no documentation and nil body"
       (expect
@@ -88,7 +92,8 @@
          :arguments nil
          :return-type nil
          :documentation nil
-         :body (nil))))
+         :body (nil)
+         :filename nil)))
 
     (it "no documentation and double-nil body"
       (expect
@@ -102,7 +107,8 @@
          :arguments nil
          :return-type nil
          :documentation nil
-         :body (nil nil))))
+         :body (nil nil)
+         :filename nil)))
 
     (it "invalid keyword"
       (expect

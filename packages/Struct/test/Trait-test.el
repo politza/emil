@@ -18,7 +18,7 @@
 
   (describe "with a basic trait"
     (before-each
-      (Trait:define TestTrait ()
+      (eval '(Trait:define TestTrait ()
         "TestTrait documentation."
 
         (fn TestTrait:required (self argument)
@@ -26,9 +26,9 @@
 
         (fn TestTrait:optional(self argument)
           "TestTrait:optional documentation."
-          (1+ argument)))
+          (1+ argument))))
 
-      (Trait:define OtherTrait ()))
+      (eval '(Trait:define OtherTrait ())))
 
     (it "defines a trait type"
       (let ((trait (Trait:get 'TestTrait :ensure)))
@@ -44,21 +44,37 @@
                                    (Struct:get trait :methods))))
               (optional (cdr (assq 'TestTrait:optional
                                    (Struct:get trait :methods)))))
-          (expect (Struct:get required :name) :to-be 'TestTrait:required)
-          (expect (Struct:get required :arguments) :to-equal '(self argument))
-          (expect (Struct:get required :documentation)
+          (expect (Struct:get required :function)
                   :to-equal
-                  "TestTrait:required documentation.")
+                  '(Struct:Function
+                    :name TestTrait:required
+                    :qualified-name TestTrait:required :arguments
+                    ((Struct:Argument :name self :type nil :default nil
+                                      :kind nil)
+                     (Struct:Argument :name argument :type nil
+                                      :default nil :kind nil))
+                    :return-type nil
+                    :documentation "TestTrait:required documentation."
+                    :body nil
+                    :filename nil))
           (expect (Struct:get required :default-implementation) :to-be nil)
           (expect (Struct:get required :implementations) :to-be nil)
           (expect (functionp (Struct:get required :dispatch-function))
                   :to-be t)
 
-          (expect (Struct:get optional :name) :to-be 'TestTrait:optional)
-          (expect (Struct:get optional :arguments) :to-equal '(self argument))
-          (expect (Struct:get optional :documentation)
+          (expect (Struct:get optional :function)
                   :to-equal
-                  "TestTrait:optional documentation.")
+                  '(Struct:Function
+                    :name TestTrait:optional
+                    :qualified-name TestTrait:optional :arguments
+                    ((Struct:Argument :name self :type nil :default nil
+                                      :kind nil)
+                     (Struct:Argument :name argument :type nil
+                                      :default nil :kind nil))
+                    :return-type nil
+                    :documentation "TestTrait:optional documentation."
+                    :body ((1+ argument))
+                    :filename nil))
           (expect (functionp
                    (Struct:get optional :default-implementation))
                   :to-be t)
@@ -81,9 +97,9 @@
 
     (describe "with an implementation"
       (before-each
-        (Trait:implement TestTrait TestStruct
+        (eval '(Trait:implement TestTrait TestStruct
           (fn TestTrait:required (self argument)
-            (+ (Struct:get self :property) argument))))
+            (+ (Struct:get self :property) argument)))))
 
       (it "can invoke a default method"
         (expect (TestTrait:optional (TestStruct) 2)
@@ -108,7 +124,8 @@
         (expect (cl-typep (TestStruct) '(Trait OtherTrait))
                 :to-be nil)
         (expect (cl-typep "TestStruct" '(Trait TestTrait))
-                :to-be nil))))
+                :to-be nil))
+      ))
 
   (describe "Trait:define"
     (describe "recognizes syntax-errors"
@@ -125,36 +142,36 @@
       (it "rejects illegal method-forms"
         (expect (macroexpand-all '(Trait:define TestTrait nil
                                     foo))
-                :to-throw 'error
-                '("Method definition should be a non-empty list: foo"))
+                :to-throw 'wrong-type-argument
+                '(cons foo form))
         (expect (macroexpand-all '(Trait:define TestTrait nil
                                     (cl-fn foo (self))))
                 :to-throw 'error
-                '("Method declaration should start with fn: cl-fn"))
+                '("Function declaration should start with fn: (cl-fn foo (self))"))
         (expect (macroexpand-all '(Trait:define TestTrait nil
                                     (fn 42)))
                 :to-throw 'error
-                '("Method name should be a symbol: 42"))
+                '("Function name should be a symbol: 42"))
         (expect (macroexpand-all '(Trait:define TestTrait nil
                                     (fn foo [])))
-                :to-throw 'error
-                '("Trait method must accept at least one argument: foo"))
+                :to-throw 'wrong-type-argument
+                '(list [] form))
         (expect (macroexpand-all '(Trait:define TestTrait nil
                                     (fn foo nil)))
                 :to-throw 'error
-                '("Trait method must accept at least one argument: foo"))
+                '("A method requires at least one argument: foo"))
         (expect (macroexpand-all '(Trait:define TestTrait nil
                                     (fn foo (self) (declare (indent 1)))))
                 :to-throw 'error
-                '("Declare not supported for methods"))
+                '("Declare form not supported: (declare (indent 1))"))
         (expect (macroexpand-all '(Trait:define TestTrait nil
                                     (fn foo ((self TestTrait)))))
                 :to-throw 'error
-                '("First argument can not be typed: (self TestTrait)"))))
+                '("Self argument of method can not be typed: foo"))))
 
     (describe "recognizes runtime-errors"
       (it "rejects undefined supertraits"
-        (expect (Trait:define TestTrait (SuperTrait))
+        (expect (eval '(Trait:define TestTrait (SuperTrait)))
                 :to-throw 'wrong-type-argument))))
 
   (describe "Trait:implement"
@@ -173,60 +190,60 @@
 
       (it "rejects illegal method-forms"
         (expect (macroexpand-all '(Trait:implement TestTrait TestStruct 42))
-                :to-throw 'error
-                '("Expected a non-empty list: 42"))
+                :to-throw 'wrong-type-argument
+                '(cons 42 form))
         (expect (macroexpand-all '(Trait:implement TestTrait TestStruct
                                     (cl-fn foo ())))
                 :to-throw 'error
-                '("Method implementation should start with fn: cl-fn"))
+                '("Function declaration should start with fn: (cl-fn foo nil)"))
         (expect (macroexpand-all '(Trait:implement TestTrait TestStruct
                                     (fn 42)))
                 :to-throw 'error
-                '("Method name should be a symbol: 42"))
+                '("Function name should be a symbol: 42"))
         (expect (macroexpand-all '(Trait:implement TestTrait TestStruct
                                     (fn foo [])))
-                :to-throw 'error
-                '("Invalid method argument-list declaration: []"))
+                :to-throw 'wrong-type-argument
+                '(list [] form))
         (expect (macroexpand-all '(Trait:implement TestTrait TestStruct
                                     (fn foo () (declare (indent 1)))))
                 :to-throw 'error
-                '("Declare not supported for methods"))))
+                '("Declare form not supported: (declare (indent 1))"))))
 
     (describe "recognizes runtime-errors"
-      (before-each (Trait:define TestTrait ()
-                     (fn TestTrait:required (self &optional argument))))
+      (before-each (eval '(Trait:define TestTrait ()
+                            (fn TestTrait:required (self &optional argument)))))
 
       (it "rejects if required methods are not implemented"
-        (expect (Trait:implement TestTrait TestStruct)
+        (expect (eval '(Trait:implement TestTrait TestStruct))
                 :to-throw 'error
                 '("Required method not implemented: TestTrait:required")))
 
       (it "rejects if non-trait methods are provided"
-        (expect (Trait:implement TestTrait TestStruct
+        (expect (eval '(Trait:implement TestTrait TestStruct
                   (fn TestTrait:required (self &optional argument))
-                  (fn TestTrait:no-such-method (self)))
+                  (fn TestTrait:no-such-method (self))))
                 :to-throw 'error
                 '("Method not declared by this trait: TestTrait:no-such-method")))
 
       (it "rejects if method signatures are incompatible"
-        (expect (Trait:implement TestTrait TestStruct
-                  (fn TestTrait:required (self argument)))
+        (expect (eval '(Trait:implement TestTrait TestStruct
+                  (fn TestTrait:required (self argument))))
                 :to-throw 'error
-                '("Signature incompatible with method declared by trait: TestTrait:required, (self &optional argument), (self argument)")))))
+                '("Signature incompatible with method declared by trait: TestTrait, TestTrait:required")))))
 
   (describe "with a supertrait"
-    (before-each
-      (Trait:define SuperTrait ()
-        (fn SuperTrait:optional (self argument)
-          (1+ argument)))
+    (eval '(before-each
+      (eval '(Trait:define SuperTrait ()
+               (fn SuperTrait:optional (self argument)
+                 (1+ argument))))
 
-      (Trait:define TestTrait (SuperTrait))
+      (eval '(Trait:define TestTrait (SuperTrait)))
 
-      (Trait:implement SuperTrait TestStruct)
-      (Trait:implement TestTrait TestStruct))
+      (eval '(Trait:implement SuperTrait TestStruct))
+      (eval '(Trait:implement TestTrait TestStruct))))
 
     (it "rejects unimplemented supertraits"
-      (expect (Trait:implement TestTrait OtherTestStruct)
+      (expect (eval '(Trait:implement TestTrait OtherTestStruct))
               :to-throw 'error
               '("Required supertrait not implemented by type: SuperTrait")))
 
@@ -235,12 +252,12 @@
 
   (describe "with Struct:lambda features"
     (before-each
-      (Trait:define TestTrait ()
-        (fn TestTrait:with-number (self (arg number)))
-        (fn TestTrait:with-struct (self (arg TestStruct)))
-        (fn TestTrait:with-rest-struct (self &struct (arg TestStruct))))
+      (eval '(Trait:define TestTrait ()
+               (fn TestTrait:with-number (self (arg number)))
+               (fn TestTrait:with-struct (self (arg TestStruct)))
+               (fn TestTrait:with-rest-struct (self &struct (arg TestStruct)))))
 
-      (Trait:implement TestTrait TestStruct
+      (eval '(Trait:implement TestTrait TestStruct
         (fn TestTrait:with-number (self (arg number))
           (+ (Struct:get self :property 0) arg))
         (fn TestTrait:with-struct (self (arg TestStruct))
@@ -248,7 +265,7 @@
              (Struct:get arg :property 0)))
         (fn TestTrait:with-rest-struct (self &struct (arg TestStruct))
           (+ (Struct:get self :property 0)
-             (Struct:get arg :property 0)))))
+             (Struct:get arg :property 0))))))
 
     (it "can use types in methods"
       (expect (TestTrait:with-number (TestStruct) 1)
