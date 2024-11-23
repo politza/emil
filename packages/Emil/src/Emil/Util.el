@@ -1,6 +1,7 @@
 ;; -*- lexical-binding: t -*-
 
 (require 'dash)
+(require 'Struct)
 
 (declare-function Emil:Type:Existential nil)
 
