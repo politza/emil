@@ -84,22 +84,22 @@
     (setf self.subscriptions (remq subscription self.subscriptions)))
 
   (fn next ((self Rs:Publisher:Submission) item)
-    (--each self.subscriptions
-      (Rs:Publisher:Submission:Subscription:next it item)))
+    (dolist (subscription self.subscriptions)
+      (subscription.next item)))
 
   (fn error ((self Rs:Publisher:Submission) error)
     (let ((subscriptions self.subscriptions))
       (setf self.subscriptions nil)
       (setf self.closed? t)
-      (--each subscriptions
-        (Rs:Publisher:Submission:Subscription:error it error))))
+      (dolist (subscription subscriptions)
+        (subscription.error error))))
 
   (fn complete ((self Rs:Publisher:Submission))
     (let ((subscriptions self.subscriptions))
       (setf self.subscriptions nil)
       (setf self.closed? t)
-      (--each subscriptions
-        (Rs:Publisher:Submission:Subscription:complete it)))))
+      (dolist (subscription subscriptions)
+        (subscription.complete)))))
 
 (Trait:implement Rs:Publisher Rs:Publisher:Submission
   (fn subscribe (self (subscriber (Trait Rs:Subscriber)))

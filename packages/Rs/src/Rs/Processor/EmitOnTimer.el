@@ -39,19 +39,18 @@
              #'self.-on-timer))))
 
   (fn -on-timer (self)
-    ;; (condition-case error
-    (-let* (((rest batch)
-             (-split-at (max 0 (- (length self.items) self.config.batch-size)) self.items)))
-      (when batch
-        (setf self.items rest)
-        (--each (nreverse batch)
-          (self.subscriber.on-next it)))
-      (when (and self.complete? (null rest))
-        (self.-cancel-timer)
-        (self.subscriber.on-complete)))
-    ;;   (error
-    ;;    (self.-cancel-timer)))
-    ))
+    (condition-case nil
+        (-let* (((rest batch)
+                 (-split-at (max 0 (- (length self.items) self.config.batch-size)) self.items)))
+          (when batch
+            (setf self.items rest)
+            (--each (nreverse batch)
+              (self.subscriber.on-next it)))
+          (when (and self.complete? (null rest))
+            (self.-cancel-timer)
+            (self.subscriber.on-complete)))
+      (error
+       (self.-cancel-timer)))))
 
 (Trait:implement Rs:Subscriber Rs:Processor:EmitOnTimer
   (fn on-subscribe (self (subscription (Trait Rs:Subscription)))
