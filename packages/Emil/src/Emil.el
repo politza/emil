@@ -97,15 +97,16 @@ Apart from that, this just expands to FORM.
                       (cons (-take 2 lambda) body-forms))
                 returns environment))))
       (_
-       (-let* (((intermediate-context . typed-form)
+       (-let* (((form-context . typed-form)
                 (Emil:infer self form context environment))
-               (inferred-type (Struct:get typed-form :type)))
+               (inferred-type
+                (Emil:Context:resolve form-context
+                                      (Struct:get typed-form :type)))
+               (result-type
+                (Emil:Context:resolve form-context type)))
          (cons
-          (Emil:subtype
-           self intermediate-context
-           (Emil:Context:resolve intermediate-context inferred-type)
-           (Emil:Context:resolve intermediate-context type))
-          typed-form)))))
+          (Emil:subtype self form-context inferred-type result-type)
+          (Emil:TypedForm* ,@typed-form :type result-type))))))
 
   (fn Emil:instantiate (self (context Emil:Context)
                              (variable Emil:Type:Existential)
