@@ -218,7 +218,9 @@
         `(Struct:unsafe-set ,accesor ,(Commons:symbol-to-keyword
                                        (car (last components)))
                             (Emil:is ,(cadr form) ,(Struct:get property :type 'Any))))
-    (macroexpand (cons 'setf form))))
+    ;; Don't use `macroexpand' here. It leads to an endless loop when
+    ;; completing local variables (`elisp--local-variables').
+    (apply (cdr (symbol-function 'setf)) form)))
 
 (defun Emil:Syntax:expand-setf-variable (expression)
   (pcase expression
