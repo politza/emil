@@ -222,4 +222,10 @@
 
     (it "can set a non-integer value :disable-type-checks is set"
       (Struct:unsafe-set (Struct:Type:get 'TestStruct) :disable-type-checks t)
-      (expect (Struct:set (TestStruct) :property "one") :to-equal "one"))))
+      (expect (Struct:set (TestStruct) :property "one") :to-equal "one")))
+
+  (it "can define empty structs"
+    (expect (Struct:define TestStruct)
+            :to-be 'TestStruct)
+    (expect (Struct:define TestStruct "Documentation.")
+            :to-be 'TestStruct)))
