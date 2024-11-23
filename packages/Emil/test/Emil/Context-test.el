@@ -15,7 +15,7 @@
                (Emil:Context
                 :entries (list (Emil:Type:VarInst :name 'a)))
                (Emil:Type:VarInst :name 'a))
-              :to-equal (cons (Emil:Context)
+              :to-equal (list (Emil:Context)
                               (Emil:Context))))
 
     (it "singleton / miss"
@@ -32,7 +32,7 @@
                                (Emil:Type:VarInst :name 'b)
                                (Emil:Type:VarInst :name 'c)))
                (Emil:Type:VarInst :name 'b))
-              :to-equal (cons
+              :to-equal (list
                          (Emil:Context
                           :entries (list (Emil:Type:VarInst :name 'a)))
                          (Emil:Context
