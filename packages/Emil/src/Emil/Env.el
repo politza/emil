@@ -10,29 +10,28 @@
 (Trait:define Emil:Env ()
   :disable-syntax t
   (fn Emil:Env:lookup-variable (self (variable symbol)
-                                     &optional (context Emil:Context))
+                                     &optional (locals (Trait Emil:Env)))
     "Looks up VARIABLE in this environment and returns its type.
 
-Optional CONTEXT contains information pertaining to the current
-type-inference state. Since it also implements `Emil:Env', it can also
-be used to lookup local variables and functions.
+Optional LOCALS contains bindings pertaining to the current
+type-inference state.
 
 Returns `nil', if VARIABLE is not bound in this environment.")
 
   (fn Emil:Env:lookup-function (self (function symbol)
-                                     &optional (context Emil:Context))
+                                     &optional (locals (Trait Emil:Env)))
     "Looks up FUNCTION in this environment and returns its type.
 
 See `Emil:Env:lookup-variable' for the CONTEXT argument.
 
 Returns `nil', if FUNCTION is not bound in this environment.")
 
-  (fn Emil:Env:macro-environment (self &optional (context Emil:Context))
+  (fn Emil:Env:macro-environment (self &optional (locals (Trait Emil:Env)))
     "Returns the environment for use in `macroexpand'.
 
-Returns an association-list of macro-names and their implementing
-functions."
-    (ignore self context)
+The returned value should be an association-list of macro-names and
+their implementing functions."
+    (ignore self locals)
     nil))
 
 (Struct:define Emil:Env:Alist
@@ -55,22 +54,22 @@ environment."
 
 (Trait:implement Emil:Env Emil:Env:Alist
   :disable-syntax t
-  (fn Emil:Env:lookup-variable (self variable &optional context)
+  (fn Emil:Env:lookup-variable (self variable &optional locals)
     (or (cdr (assq variable (Struct:get self :variables)))
         (and (Struct:get self :parent)
              (Emil:Env:lookup-variable (Struct:get self :parent)
-                                       variable context))))
-  
-  (fn Emil:Env:lookup-function (self function &optional context)
+                                       variable locals))))
+
+  (fn Emil:Env:lookup-function (self function &optional locals)
     (or (cdr (assq function (Struct:get self :functions)))
         (and (Struct:get self :parent)
              (Emil:Env:lookup-function (Struct:get self :parent)
-                                       function context))))
+                                       function locals))))
 
-  (fn Emil:Env:macro-environment (self &optional context)
+  (fn Emil:Env:macro-environment (self &optional locals)
     (append (Struct:get self :macros)
             (when-let (parent (Struct:get self :parent))
-              (Emil:Env:macro-environment parent context)))))
+              (Emil:Env:macro-environment parent locals)))))
 
 (Struct:implement Emil:Env:Alist
   :disable-syntax t
@@ -155,12 +154,12 @@ ones until some environment returns a non-`nil' value."
 
 (Trait:implement Emil:Env Emil:Env:Hierarchy
   :disable-syntax t
-  (fn Emil:Env:lookup-variable (self variable &optional context)
-    (--some (Emil:Env:lookup-variable it variable context)
+  (fn Emil:Env:lookup-variable (self variable &optional locals)
+    (--some (Emil:Env:lookup-variable it variable locals)
             (Struct:get self :environments)))
 
-  (fn Emil:Env:lookup-function (self function &optional context)
-    (--some (Emil:Env:lookup-function it function context)
+  (fn Emil:Env:lookup-function (self function &optional locals)
+    (--some (Emil:Env:lookup-function it function locals)
             (Struct:get self :environments))))
 
 (defun Emil:Env:empty ()
@@ -169,19 +168,19 @@ ones until some environment returns a non-`nil' value."
 
 (Trait:implement Emil:Env Emil:Context
   :disable-syntax t
-  (fn Emil:Env:lookup-variable (self variable &optional _context)
+  (fn Emil:Env:lookup-variable (self variable &optional _locals)
     "Looks up VARIABLE in the current, local environment.
 
-Argument CONTEXT is ignored.
+Argument LOCALS is ignored.
 
 Returns `nil', if VARIABLE is not present in this environment."
     (-some->> (Emil:Context:lookup-variable self variable)
       (Emil:Context:resolve self)))
 
-  (fn Emil:Env:lookup-function (_self _function &optional _context)
+  (fn Emil:Env:lookup-function (_self _function &optional _locals)
     "Looks up FUNCTION in the current, local environment.
 
-Argument CONTEXT is ignored.
+Argument LOCALS is ignored.
 
 Returns `nil', if FUNCTION is not present in this environment."
     nil))
@@ -194,13 +193,13 @@ Returns `nil', if FUNCTION is not present in this environment."
 
 (Trait:implement Emil:Env Emil:Env:Global
   :disable-syntax t
-  (fn Emil:Env:lookup-variable (_self variable &optional _context)
+  (fn Emil:Env:lookup-variable (_self variable &optional _locals)
     (when-let (type (get variable Emil:Env:variable-type))
       (if (Trait:implements? (Trait:type-of type) 'Emil:Type)
           type
         (Emil:Type:read type))))
 
-  (fn Emil:Env:lookup-function (_self function &optional _context)
+  (fn Emil:Env:lookup-function (_self function &optional _locals)
     (when-let (type (get function Emil:Env:function-type))
       (if (Trait:implements? (Trait:type-of type) 'Emil:Type)
           type
@@ -242,10 +241,10 @@ readable by `Emil:Type:read'."
 
 (Trait:implement Emil:Env Emil:Env:Fallback
   :disable-syntax t
-  (fn Emil:Env:lookup-variable (_self _variable &optional _context)
+  (fn Emil:Env:lookup-variable (_self _variable &optional _locals)
     (Emil:Type:Any))
 
-  (fn Emil:Env:lookup-function (_self _function &optional _context)
+  (fn Emil:Env:lookup-function (_self _function &optional _locals)
     (Emil:Type:read-function '(-> (&rest Any) Any))))
 
 (provide 'Emil/Env)

@@ -110,7 +110,8 @@
                      (lambda (type name)
                        (when-let* ((struct (and (Emil:Type:Basic? type)
                                                 (Struct:Type:get (Struct:get type :name))))
-                                   (property (Struct:Type:get-property struct (Commons:symbol-to-keyword name)))
+                                   (property (Struct:Type:get-property
+                                              struct (Commons:symbol-to-keyword name)))
                                    (type (Struct:get property :type)))
                          (Emil:Type:read type)))
                      (or (and env (Emil:Env:lookup-variable env (car components)))
@@ -176,19 +177,19 @@
 (Trait:implement Emil:Env Emil:Syntax
   :disable-syntax t
   (fn Emil:Env:lookup-variable (self (name symbol)
-                                     &optional (context Emil:Context))
-    (or (when-let ((property (Emil:Syntax:resolve-variable self name context))
+                                     &optional locals)
+    (or (when-let ((property (Emil:Syntax:resolve-variable self name locals))
                    (type (Struct:get property :type 'Any)))
           (Emil:Type:read type))
-        (Emil:Env:lookup-variable (Struct:get self :env) name context)))
+        (Emil:Env:lookup-variable (Struct:get self :env) name locals)))
 
   (fn Emil:Env:lookup-function (self (name symbol)
-                                     &optional (context Emil:Context))
-    (when-let (function (Emil:Syntax:resolve-function self name context))
+                                     &optional locals)
+    (when-let (function (Emil:Syntax:resolve-function self name locals))
       (when (Struct:Function:method? function)
         (Emil:Type:read-function (Struct:Function:type function :as-method)))))
 
-  (fn Emil:Env:macro-environment (self &optional (context Emil:Context))
+  (fn Emil:Env:macro-environment (self &optional _locals)
     ;; FIXME: Implement property assignment.
     nil))
 
