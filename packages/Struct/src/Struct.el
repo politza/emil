@@ -12,6 +12,7 @@
 (require 'dash)
 (require 'Struct/Primitives)
 (require 'Struct/Doc)
+(require 'Struct/Pcase)
 
 (require 'Struct/Syntax)
 
