@@ -7,6 +7,7 @@
 (require 'Emil/Context)
 (require 'Emil/Type)
 (require 'Emil/Message)
+(require 'Transformer)
 
 (Struct:define Emil:Analyzer
   (generator
@@ -24,7 +25,10 @@
               :type :error
               :content (error-message-string type-error)
               :form form))
-       (cons context (Emil:TypedForm:new form (Emil:Type:Any) environment)))))
+       (cons context (Emil:TypedForm:AnyForm
+                      :form form
+                      :type (Emil:Type:Any)
+                      :environment environment)))))
 
   (fn Emil:Analyzer:check (self form type (context Emil:Context)
                                 (environment (Trait Emil:Env)))
@@ -32,10 +36,8 @@
       ((Struct Emil:Type:Forall)
        (Emil:Analyzer:check-forall self form type context environment))
       ((and (Struct Emil:Type:Arrow)
-            (let `(function ,lambda)
-              (Transformer:Form:unwrap-n form 1))
-            (let `(lambda . ,_)
-              (Transformer:Form:unwrap-n lambda 1)))
+            (let `(function ,lambda) form)
+            (let `(lambda . ,_) lambda))
        (Emil:Analyzer:check-lambda self form type context environment))
       (_
        (-let* (((form-context . typed-form)
@@ -47,7 +49,9 @@
                 (Emil:Context:resolve form-context type)))
          (cons
           (Emil:Analyzer:subtype self form-context inferred-type given-type)
-          (Emil:TypedForm* ,@typed-form :type given-type))))))
+          (progn
+            (Struct:unsafe-set typed-form :type given-type)
+            typed-form))))))
 
   (fn Emil:Analyzer:check-forall (self form (type Emil:Type:Forall)
                                        (context Emil:Context)
@@ -60,17 +64,15 @@
             ((result-context . result-form)
              (Emil:Analyzer:check
               self form forall-type intermediate-context environment)))
-      (cons (Emil:Context:drop-until-after result-context marker)
-            (Emil:TypedForm* ,@result-form type))))
+      (cons (Emil:Context:drop-until-after result-context marker) result-form)))
 
   (fn Emil:Analyzer:check-lambda (self form (type Emil:Type:Arrow)
                                        (context Emil:Context)
                                        (environment (Trait Emil:Env)))
     (pcase-exhaustive type
       ((and (Struct Emil:Type:Arrow returns)
-            (let `(function ,lambda) (Transformer:Form:unwrap-n form 1))
-            (let `(lambda ,_ . ,body)
-              (Transformer:Form:unwrap-n lambda 2)))
+            (let `(function ,lambda) form)
+            (let `(lambda ,arguments . ,body) lambda))
        (-let* ((bindings
                 (--map (Emil:Context:Binding
                         :variable (car it) :type (cdr it))
@@ -82,10 +84,12 @@
                  (Emil:Context:concat (reverse bindings) marker context)
                  environment)))
          (cons (Emil:Context:drop-until-after body-context marker)
-               (Emil:TypedForm:new
-                (list (car form)
-                      (cons (-take 2 lambda) body-forms))
-                returns environment))))))
+               (Emil:TypedForm:Function
+                :value (Emil:TypedForm:Lambda
+                        :arguments arguments
+                        :body body-forms)
+                :type returns
+                :environment environment))))))
 
   (fn Emil:Analyzer:lambda-bindings ((type Emil:Type:Arrow) lambda)
     (let* ((lambda-arguments (nth 1 lambda))
@@ -127,9 +131,9 @@
 
   (fn Emil:Analyzer:check-do (self forms type (context Emil:Context)
                                    (environment (Trait Emil:Env)))
-    (-let (((context . form)
+    (-let (((context . progn-form)
             (Emil:Analyzer:check self (cons 'progn forms) type context environment)))
-      (cons context (cdr (Transformer:Form:value form)))))
+      (cons context (Struct:get progn-form :body))))
 
   (fn Emil:Analyzer:instantiate (self (context Emil:Context)
                                       (variable Emil:Type:Existential)

@@ -207,7 +207,7 @@
   (describe "while"
     (it "basic"
       (expect (Emil:infer-type '(while 0 1 []))
-              :to-equal 'vector)))
+              :to-equal 'Null)))
 
   (describe "with environment"
     (it "basic variable"

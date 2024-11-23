@@ -109,8 +109,7 @@
         (`progn (apply #'Transformer:transform-progn self form rest data))
         (`quote
          (unless (= 1 (length rest))
-           (Transformer:syntax-error "quote should have exactly one argument: %s"
-                                     rest elements))
+           (Transformer:syntax-error "quote should have exactly one argument: %s" rest))
          (apply #'Transformer:transform-quote self form (car rest) data))
         (`save-current-buffer
           (apply #'Transformer:transform-save-current-buffer self form rest data))
@@ -126,13 +125,11 @@
          (--each rest
            (unless (or (= 1 (% it-index 2))
                        (symbolp it))
-             (Transformer:syntax-error "setq place should be a symbol: %s"
-                                       it elements)))
+             (Transformer:syntax-error "setq place should be a symbol: %s" it)))
          (apply #'Transformer:transform-setq self form rest data))
         ((or `unwind-protect `while)
          (unless (>= (length rest) 1)
-           (Transformer:syntax-error "%s should have at least one argument: %s"
-                                     head rest elements))
+           (Transformer:syntax-error "%s should have at least one argument: %s" head rest))
          (if (eq head 'unwind-protect)
              (apply #'Transformer:transform-unwind-protect
                     self form (car rest) (cdr rest) data)

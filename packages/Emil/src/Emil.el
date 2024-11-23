@@ -35,9 +35,9 @@
             (Emil:Env:Alist :parent environment))))
     (when (Emil:Analyzer:has-errors? analyzer)
       (signal 'Emil:type-error (list (Struct:get analyzer :messages))))
-    (Emil:TypedForm*
-     ,@typed-form
-     :type (Emil:Context:resolve context (Struct:get typed-form :type)))))
+    (Emil:TypedForm:with-type
+     typed-form
+     (Emil:Context:resolve context (Struct:get typed-form :type)))))
 
 (provide 'Emil)
 ;;; Emil.el ends here

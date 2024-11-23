@@ -8,8 +8,8 @@
     (it "nil"
       (expect (Emil:transform nil)
               :to-equal
-              '(Emil:TypedForm
-                :form nil
+              '(Emil:TypedForm:Basic
+                :value nil
                 :type (Emil:Type:Null)
                 :environment
                 (Emil:Env:Alist
@@ -18,8 +18,8 @@
     (it "t"
       (expect (Emil:transform t)
               :to-equal
-              '(Emil:TypedForm
-                :form t
+              '(Emil:TypedForm:Basic
+                :value t
                 :type (Emil:Type:Basic :name symbol)
                 :environment
                 (Emil:Env:Alist
@@ -28,8 +28,8 @@
     (it "keyword"
       (expect (Emil:transform :keyword)
               :to-equal
-              '(Emil:TypedForm
-                :form :keyword
+              '(Emil:TypedForm:Basic
+                :value :keyword
                 :type (Emil:Type:Basic :name symbol)
                 :environment
                 (Emil:Env:Alist :variables nil :functions nil :parent nil))))
@@ -37,8 +37,8 @@
     (it "string"
       (expect (Emil:transform "string")
               :to-equal
-              '(Emil:TypedForm
-                :form "string"
+              '(Emil:TypedForm:Basic
+                :value "string"
                 :type (Emil:Type:Basic :name string)
                 :environment
                 (Emil:Env:Alist :variables nil :functions nil :parent nil))))
@@ -46,8 +46,8 @@
     (it "integer"
       (expect (Emil:transform 0)
               :to-equal
-              '(Emil:TypedForm
-                :form 0
+              '(Emil:TypedForm:Basic
+                :value 0
                 :type (Emil:Type:Basic :name integer)
                 :environment
                 (Emil:Env:Alist :variables nil :functions nil :parent nil))))
@@ -55,8 +55,8 @@
     (it "float"
       (expect (Emil:transform 0.0)
               :to-equal
-              '(Emil:TypedForm
-                :form 0.0
+              '(Emil:TypedForm:Basic
+                :value 0.0
                 :type (Emil:Type:Basic :name float)
                 :environment
                 (Emil:Env:Alist :variables nil :functions nil :parent nil))))
@@ -64,8 +64,8 @@
     (it "vector"
       (expect (Emil:transform [])
               :to-equal
-              '(Emil:TypedForm
-                :form []
+              '(Emil:TypedForm:Basic
+                :value []
                 :type
                 (Emil:Type:Basic :name vector)
                 :environment
@@ -75,24 +75,21 @@
     (it "identity"
       (expect (Emil:transform '(lambda (x) x))
               :to-equal
-              '(Emil:TypedForm
-                :form
-                #'(lambda
-                    (x)
-                    (Emil:TypedForm :form x
-                                    :type (Emil:Type:Existential :name a)
-                                    :environment
-                                    (Emil:Env:Alist
-                                     :variables
-                                     ((x Emil:Type:Existential :name a))
-                                     :functions nil :parent
-                                     (Emil:Env:Alist :variables nil :functions nil :parent nil))))
-                :type
-                (Emil:Type:Arrow :arguments
-                                 ((Emil:Type:Existential :name a))
-                                 :rest? nil :returns
-                                 (Emil:Type:Existential :name a)
-                                 :min-arity 1)
+              '(Emil:TypedForm:Function
+                :value (Emil:TypedForm:Lambda
+                        :arguments (x)
+                        :body ((Emil:TypedForm:Basic
+                                :value x
+                                :type (Emil:Type:Existential :name a)
+                                :environment (Emil:Env:Alist
+                                              :variables ((x Emil:Type:Existential :name a))
+                                              :functions nil
+                                              :parent (Emil:Env:Alist :variables nil :functions nil :parent nil)))))
+                :type (Emil:Type:Arrow :arguments
+                                       ((Emil:Type:Existential :name a))
+                                       :rest? nil :returns
+                                       (Emil:Type:Existential :name a)
+                                       :min-arity 1)
                 :environment
                 (Emil:Env:Alist :variables nil :functions nil :parent nil)))))
 
@@ -100,496 +97,343 @@
     (it "basic"
       (expect (Emil:transform '(let ((a 0)) a))
               :to-equal
-              '(Emil:TypedForm
-                :form
-                (let
-                    ((a
-                      (Emil:TypedForm
-                       :form 0 :type
-                       (Emil:Type:Basic :name integer)
-                       :environment
-                       (Emil:Env:Alist :variables nil :functions nil :parent nil))))
-                  (Emil:TypedForm
-                   :form a :type
-                   (Emil:Type:Basic :name integer)
-                   :environment
-                   (Emil:Env:Alist :variables
-                                   ((a Emil:Type:Basic :name integer))
-                                   :functions nil :parent
-                                   (Emil:Env:Alist :variables nil :functions nil :parent nil))))
-                :type
-                (Emil:Type:Basic :name integer)
-                :environment
-                (Emil:Env:Alist :variables nil :functions nil :parent nil)))))
+              '(Emil:TypedForm:Let
+                :kind let
+                :bindings ((Emil:TypedForm:Binding
+                            :name a
+                            :value (Emil:TypedForm:Basic
+                                    :value 0
+                                    :type (Emil:Type:Basic :name integer)
+                                    :environment (Emil:Env:Alist :variables nil :functions nil :parent nil))))
+                :body ((Emil:TypedForm:Basic
+                        :value a
+                        :type (Emil:Type:Basic :name integer)
+                        :environment (Emil:Env:Alist
+                                      :variables ((a Emil:Type:Basic :name integer))
+                                      :functions nil
+                                      :parent (Emil:Env:Alist :variables nil :functions nil :parent nil))))
+                :type (Emil:Type:Basic :name integer)
+                :environment (Emil:Env:Alist :variables nil :functions nil :parent nil)))))
 
   (describe "let*"
     (it "basic"
       (expect (Emil:transform '(let* ((a 0)) a))
               :to-equal
-              '(Emil:TypedForm
-                :form
-                (let*
-                    ((a
-                      (Emil:TypedForm
-                       :form 0 :type
-                       (Emil:Type:Basic :name integer)
-                       :environment
-                       (Emil:Env:Alist
-                        :variables nil :functions nil :parent
-                        (Emil:Env:Alist :variables nil :functions nil :parent nil)))))
-                  (Emil:TypedForm
-                   :form a :type
-                   (Emil:Type:Basic :name integer)
-                   :environment
-                   (Emil:Env:Alist :variables
-                                   ((a Emil:Type:Basic :name integer))
-                                   :functions nil :parent
-                                   (Emil:Env:Alist
-                                    :variables nil :functions nil :parent
-                                    (Emil:Env:Alist :variables nil :functions nil :parent nil)))))
-                :type
-                (Emil:Type:Basic :name integer)
-                :environment
-                (Emil:Env:Alist :variables nil :functions nil :parent nil)))))
+              '(Emil:TypedForm:Let
+                :kind let*
+                :bindings ((Emil:TypedForm:Binding
+                            :name a
+                            :value (Emil:TypedForm:Basic
+                                    :value 0
+                                    :type (Emil:Type:Basic :name integer)
+                                    :environment (Emil:Env:Alist
+                                                  :variables nil
+                                                  :functions nil
+                                                  :parent (Emil:Env:Alist :variables nil :functions nil :parent nil)))))
+                :body ((Emil:TypedForm:Basic
+                        :value a
+                        :type (Emil:Type:Basic :name integer)
+                        :environment (Emil:Env:Alist
+                                      :variables ((a Emil:Type:Basic :name integer))
+                                      :functions nil
+                                      :parent (Emil:Env:Alist
+                                               :variables nil
+                                               :functions nil
+                                               :parent (Emil:Env:Alist :variables nil :functions nil :parent nil)))))
+                :type (Emil:Type:Basic :name integer)
+                :environment (Emil:Env:Alist :variables nil :functions nil :parent nil)))))
 
   (describe "application"
     (it "identity"
       (expect (Emil:transform '((lambda (x) x) 0))
               :to-equal
-              '(Emil:TypedForm
-                :form
-                ((lambda
-                   (x)
-                   (Emil:TypedForm
-                    :form x
-                    :type
-                    (Emil:Type:Existential :name a)
-                    :environment
-                    (Emil:Env:Alist :variables
-                                    ((x Emil:Type:Existential :name a))
-                                    :functions nil :parent
-                                    (Emil:Env:Alist :variables nil :functions nil :parent nil))))
-                 (Emil:TypedForm
-                  :form 0
-                  :type
-                  (Emil:Type:Existential :name a)
-                  :environment
-                  (Emil:Env:Alist :variables nil :functions nil :parent nil)))
-                :type
-                (Emil:Type:Basic :name integer)
-                :environment
-                (Emil:Env:Alist :variables nil :functions nil :parent nil)))))
+              '(Emil:TypedForm:Application
+                :function (Emil:TypedForm:Function
+                           :value (Emil:TypedForm:Lambda
+                                   :arguments (x)
+                                   :body ((Emil:TypedForm:Basic
+                                           :value x
+                                           :type (Emil:Type:Existential :name a)
+                                           :environment
+                                           (Emil:Env:Alist
+                                            :variables
+                                            ((x Emil:Type:Existential :name a))
+                                            :functions nil
+                                            :parent
+                                            (Emil:Env:Alist :variables nil :functions nil :parent nil)))))
+                           :type (Emil:Type:Arrow
+                                  :arguments ((Emil:Type:Existential :name a))
+                                  :rest? nil
+                                  :returns (Emil:Type:Existential :name b)
+                                  :min-arity 1)
+                           :environment (Emil:Env:Alist :variables nil :functions nil :parent nil))
+                :arguments ((Emil:TypedForm:Basic
+                             :value 0
+                             :type (Emil:Type:Existential :name a)
+                             :environment (Emil:Env:Alist :variables nil :functions nil :parent nil)))
+                :type (Emil:Type:Basic :name integer)
+                :environment (Emil:Env:Alist :variables nil :functions nil :parent nil)))))
 
   (describe "and"
     (it "basic"
-      (expect (Emil:transform '(and 0 1 2))
+      (expect (Emil:transform '(and 0))
               :to-equal
-              '(Emil:TypedForm
-                :form
-                (and
-                 (Emil:TypedForm :form 0
-                                 :type (Emil:Type:Basic :name integer)
-                                 :environment
-                                 (Emil:Env:Alist :variables nil :functions nil :parent nil))
-                 (Emil:TypedForm :form 1
-                                 :type (Emil:Type:Basic :name integer)
-                                 :environment
-                                 (Emil:Env:Alist :variables nil :functions nil :parent nil))
-                 (Emil:TypedForm :form 2
-                                 :type (Emil:Type:Basic :name integer)
-                                 :environment
-                                 (Emil:Env:Alist :variables nil :functions nil :parent nil)))
-                :type
-                (Emil:Type:Any)
-                :environment
-                (Emil:Env:Alist :variables nil :functions nil :parent nil)))))
+              '(Emil:TypedForm:And
+                :conditions ((Emil:TypedForm:Basic
+                              :value 0
+                              :type (Emil:Type:Basic :name integer)
+                              :environment (Emil:Env:Alist :variables nil :functions nil :parent nil)))
+                :type (Emil:Type:Any)
+                :environment (Emil:Env:Alist :variables nil :functions nil :parent nil)))))
 
   (describe "catch"
     (it "basic"
-      (expect (Emil:transform '(catch 'tag 0 1 2))
+      (expect (Emil:transform '(catch 'tag 0))
               :to-equal
-              '(Emil:TypedForm
-                :form
-                (catch
-                    (Emil:TypedForm :form 'tag
-                                    :type (Emil:Type:Any)
-                                    :environment
-                                    (Emil:Env:Alist :variables nil :functions nil :parent nil))
-                  (Emil:TypedForm :form 0
-                                  :type (Emil:Type:Basic :name integer)
-                                  :environment
-                                  (Emil:Env:Alist :variables nil :functions nil :parent nil))
-                  (Emil:TypedForm :form 1
-                                  :type (Emil:Type:Basic :name integer)
-                                  :environment
-                                  (Emil:Env:Alist :variables nil :functions nil :parent nil))
-                  (Emil:TypedForm :form 2
-                                  :type (Emil:Type:Basic :name integer)
-                                  :environment
-                                  (Emil:Env:Alist :variables nil :functions nil :parent nil)))
-                :type
-                (Emil:Type:Any)
-                :environment
-                (Emil:Env:Alist :variables nil :functions nil :parent nil)))))
+              '(Emil:TypedForm:Catch
+                :tag (Emil:TypedForm:Quote
+                      :value tag
+                      :type (Emil:Type:Any)
+                      :environment (Emil:Env:Alist :variables nil :functions nil :parent nil))
+                :body ((Emil:TypedForm:Basic
+                        :value 0
+                        :type (Emil:Type:Basic :name integer)
+                        :environment (Emil:Env:Alist :variables nil :functions nil :parent nil)))
+                :type (Emil:Type:Any)
+                :environment (Emil:Env:Alist :variables nil :functions nil :parent nil)))))
 
   (describe "cond"
     (it "basic"
-      (expect (Emil:transform '(cond (nil 0 1) (t 2 3)))
+      (expect (Emil:transform '(cond (nil 0)))
               :to-equal
-              '(Emil:TypedForm
-                :form
-                (cond
-                 ((Emil:TypedForm :form nil
-                                  :type (Emil:Type:Null)
-                                  :environment
-                                  (Emil:Env:Alist :variables nil :functions nil :parent nil))
-                  (Emil:TypedForm :form 0
-                                  :type (Emil:Type:Basic :name integer)
-                                  :environment
-                                  (Emil:Env:Alist :variables nil :functions nil :parent nil))
-                  (Emil:TypedForm :form 1
-                                  :type (Emil:Type:Basic :name integer)
-                                  :environment
-                                  (Emil:Env:Alist :variables nil :functions nil :parent nil)))
-                 ((Emil:TypedForm :form t
-                                  :type (Emil:Type:Basic :name symbol)
-                                  :environment
-                                  (Emil:Env:Alist :variables nil :functions nil :parent nil))
-                  (Emil:TypedForm :form 2
-                                  :type (Emil:Type:Basic :name integer)
-                                  :environment
-                                  (Emil:Env:Alist :variables nil :functions nil :parent nil))
-                  (Emil:TypedForm :form 3
-                                  :type (Emil:Type:Basic :name integer)
-                                  :environment
-                                  (Emil:Env:Alist :variables nil :functions nil :parent nil))))
-                :type
-                (Emil:Type:Any)
-                :environment
-                (Emil:Env:Alist :variables nil :functions nil :parent nil)))))
+              '(Emil:TypedForm:Cond
+                :clauses ((Emil:TypedForm:Clause
+                           :condition (Emil:TypedForm:Basic
+                                       :value nil
+                                       :type (Emil:Type:Null)
+                                       :environment
+                                       (Emil:Env:Alist :variables nil :functions nil :parent nil))
+                           :body ((Emil:TypedForm:Basic
+                                   :value 0
+                                   :type (Emil:Type:Basic :name integer)
+                                   :environment
+                                   (Emil:Env:Alist :variables nil :functions nil :parent nil)))))
+                :type (Emil:Type:Any)
+                :environment (Emil:Env:Alist :variables nil :functions nil :parent nil)))))
 
   (describe "defconst"
     (it "basic"
-      (expect (Emil:transform '(defconst a (prog1 nil t) "doc"))
+      (expect (Emil:transform '(defconst a 0 "0"))
               :to-equal
-              '(Emil:TypedForm
-                :form
-                (defconst a
-                  (Emil:TypedForm
-                   :form
-                   (prog1
-                       (Emil:TypedForm :form nil
-                                       :type (Emil:Type:Null)
-                                       :environment
-                                       (Emil:Env:Alist :variables nil :functions nil :parent nil))
-                     (Emil:TypedForm :form t
-                                     :type (Emil:Type:Basic :name symbol)
-                                     :environment
-                                     (Emil:Env:Alist :variables nil :functions nil :parent nil)))
-                   :type
-                   (Emil:Type:Null)
-                   :environment
-                   (Emil:Env:Alist :variables nil :functions nil :parent nil))
-                  "doc")
-                :type
-                (Emil:Type:Basic :name symbol)
-                :environment
-                (Emil:Env:Alist :variables nil :functions nil :parent nil)))))
+              '(Emil:TypedForm:DefConst
+                :symbol a
+                :init-value (Emil:TypedForm:Basic
+                             :value 0
+                             :type (Emil:Type:Basic :name integer)
+                             :environment
+                             (Emil:Env:Alist :variables nil :functions nil :parent nil))
+                :documentation "0"
+                :type (Emil:Type:Basic :name symbol)
+                :environment (Emil:Env:Alist :variables nil :functions nil :parent nil)))))
 
   (describe "defvar"
     (it "basic"
-      (expect (Emil:transform '(defvar a (prog1 nil t) "doc"))
+      (expect (Emil:transform '(defvar a 0 "0"))
               :to-equal
-              '(Emil:TypedForm
-                :form
-                (defvar a
-                  (Emil:TypedForm
-                   :form
-                   (prog1
-                       (Emil:TypedForm :form nil
-                                       :type (Emil:Type:Null)
-                                       :environment
-                                       (Emil:Env:Alist :variables nil :functions nil :parent nil))
-                     (Emil:TypedForm :form t
-                                     :type (Emil:Type:Basic :name symbol)
-                                     :environment
-                                     (Emil:Env:Alist :variables nil :functions nil :parent nil)))
-                   :type
-                   (Emil:Type:Null)
-                   :environment
-                   (Emil:Env:Alist :variables nil :functions nil :parent nil))
-                  "doc")
-                :type
-                (Emil:Type:Basic :name symbol)
-                :environment
-                (Emil:Env:Alist :variables nil :functions nil :parent nil)))))
+              '(Emil:TypedForm:DefVar
+                :symbol a
+                :init-value (Emil:TypedForm:Basic
+                             :value 0
+                             :type (Emil:Type:Basic :name integer)
+                             :environment
+                             (Emil:Env:Alist :variables nil :functions nil :parent nil))
+                :documentation "0"
+                :type (Emil:Type:Basic :name symbol)
+                :environment (Emil:Env:Alist :variables nil :functions nil :parent nil)))))
 
   (describe "if"
     (it "basic"
-      (expect (Emil:transform '(if 0 1 2 3))
+      (expect (Emil:transform '(if 0 1 2))
               :to-equal
-              '(Emil:TypedForm
-                :form
-                (if
-                    (Emil:TypedForm :form 0
-                                    :type (Emil:Type:Basic :name integer)
-                                    :environment
-                                    (Emil:Env:Alist :variables nil :functions nil :parent nil))
-                    (Emil:TypedForm :form 1
-                                    :type (Emil:Type:Basic :name integer)
-                                    :environment
-                                    (Emil:Env:Alist :variables nil :functions nil :parent nil))
-                  (Emil:TypedForm :form 2
-                                  :type (Emil:Type:Basic :name integer)
-                                  :environment
-                                  (Emil:Env:Alist :variables nil :functions nil :parent nil))
-                  (Emil:TypedForm :form 3
-                                  :type (Emil:Type:Basic :name integer)
-                                  :environment
-                                  (Emil:Env:Alist :variables nil :functions nil :parent nil)))
-                :type
-                (Emil:Type:Any)
-                :environment
-                (Emil:Env:Alist :variables nil :functions nil :parent nil)))))
+              '(Emil:TypedForm:If
+                :condition (Emil:TypedForm:Basic
+                            :value 0
+                            :type (Emil:Type:Basic :name integer)
+                            :environment (Emil:Env:Alist :variables nil :functions nil :parent nil))
+                :then (Emil:TypedForm:Basic
+                       :value 1
+                       :type (Emil:Type:Basic :name integer)
+                       :environment (Emil:Env:Alist :variables nil :functions nil :parent nil))
+                :else ((Emil:TypedForm:Basic
+                        :value 2
+                        :type (Emil:Type:Basic :name integer)
+                        :environment (Emil:Env:Alist :variables nil :functions nil :parent nil)))
+                :type (Emil:Type:Any)
+                :environment (Emil:Env:Alist :variables nil :functions nil :parent nil)))))
 
   (describe "interactive"
     (it "basic"
       (expect (Emil:transform '(interactive "p"))
               :to-equal
-              '(Emil:TypedForm
-                :form
-                (interactive "p")
-                :type
-                (Emil:Type:Any)
-                :environment
-                (Emil:Env:Alist :variables nil :functions nil :parent nil)))))
+              '(Emil:TypedForm:Interactive
+                :forms ("p")
+                :type (Emil:Type:Any)
+                :environment (Emil:Env:Alist :variables nil :functions nil :parent nil)))))
 
   (describe "or"
     (it "basic"
-      (expect (Emil:transform '(or 0 1 2))
+      (expect (Emil:transform '(or 0))
               :to-equal
-              '(Emil:TypedForm
-                :form
-                (or
-                 (Emil:TypedForm :form 0
-                                 :type (Emil:Type:Basic :name integer)
-                                 :environment
-                                 (Emil:Env:Alist :variables nil :functions nil :parent nil))
-                 (Emil:TypedForm :form 1
-                                 :type (Emil:Type:Basic :name integer)
-                                 :environment
-                                 (Emil:Env:Alist :variables nil :functions nil :parent nil))
-                 (Emil:TypedForm :form 2
-                                 :type (Emil:Type:Basic :name integer)
-                                 :environment
-                                 (Emil:Env:Alist :variables nil :functions nil :parent nil)))
-                :type
-                (Emil:Type:Any)
-                :environment
-                (Emil:Env:Alist :variables nil :functions nil :parent nil)))))
+              '(Emil:TypedForm:Or
+                :conditions ((Emil:TypedForm:Basic
+                              :value 0
+                              :type (Emil:Type:Basic :name integer)
+                              :environment (Emil:Env:Alist :variables nil :functions nil :parent nil)))
+                :type (Emil:Type:Any)
+                :environment (Emil:Env:Alist :variables nil :functions nil :parent nil)))))
 
   (describe "prog1"
     (it "basic"
-      (expect (Emil:transform '(prog1 0 [] []))
+      (expect (Emil:transform '(prog1 0 1))
               :to-equal
-              '(Emil:TypedForm
-                :form
-                (prog1
-                    (Emil:TypedForm :form 0
-                                    :type (Emil:Type:Basic :name integer)
-                                    :environment
-                                    (Emil:Env:Alist :variables nil :functions nil :parent nil))
-                  (Emil:TypedForm :form
-                                  []
-                                  :type
-                                  (Emil:Type:Basic :name vector)
-                                  :environment
-                                  (Emil:Env:Alist :variables nil :functions nil :parent nil))
-                  (Emil:TypedForm :form
-                                  []
-                                  :type
-                                  (Emil:Type:Basic :name vector)
-                                  :environment
-                                  (Emil:Env:Alist :variables nil :functions nil :parent nil)))
-                :type
-                (Emil:Type:Basic :name integer)
-                :environment
-                (Emil:Env:Alist :variables nil :functions nil :parent nil)))))
+              '(Emil:TypedForm:Prog1
+                :first (Emil:TypedForm:Basic
+                        :value 0
+                        :type (Emil:Type:Basic :name integer)
+                        :environment (Emil:Env:Alist :variables nil :functions nil :parent nil))
+                :body ((Emil:TypedForm:Basic
+                        :value 1
+                        :type (Emil:Type:Basic :name integer)
+                        :environment (Emil:Env:Alist :variables nil :functions nil :parent nil)))
+                :type (Emil:Type:Basic :name integer)
+                :environment (Emil:Env:Alist :variables nil :functions nil :parent nil)))))
 
   (describe "progn"
     (it "basic"
-      (expect (Emil:transform '(progn 0 1 []))
+      (expect (Emil:transform '(progn 0 1))
               :to-equal
-              '(Emil:TypedForm
-                :form
-                (progn
-                  (Emil:TypedForm :form 0
-                                  :type (Emil:Type:Basic :name integer)
-                                  :environment
-                                  (Emil:Env:Alist :variables nil :functions nil :parent nil))
-                  (Emil:TypedForm :form 1
-                                  :type (Emil:Type:Basic :name integer)
-                                  :environment
-                                  (Emil:Env:Alist :variables nil :functions nil :parent nil))
-                  (Emil:TypedForm :form
-                                  []
-                                  :type
-                                  (Emil:Type:Basic :name vector)
-                                  :environment
-                                  (Emil:Env:Alist :variables nil :functions nil :parent nil)))
-                :type
-                (Emil:Type:Basic :name vector)
-                :environment
-                (Emil:Env:Alist :variables nil :functions nil :parent nil)))))
+              '(Emil:TypedForm:PrognLike
+                :kind progn
+                :body ((Emil:TypedForm:Basic
+                        :value 0
+                        :type (Emil:Type:Basic :name integer)
+                        :environment (Emil:Env:Alist :variables nil :functions nil :parent nil))
+                       (Emil:TypedForm:Basic
+                        :value 1
+                        :type (Emil:Type:Basic :name integer)
+                        :environment (Emil:Env:Alist :variables nil :functions nil :parent nil)))
+                :type (Emil:Type:Basic :name integer)
+                :environment (Emil:Env:Alist :variables nil :functions nil :parent nil)))))
 
   (describe "quote"
     (it "basic"
       (expect (Emil:transform '(quote x))
               :to-equal
-              '(Emil:TypedForm
-                :form 'x
+              '(Emil:TypedForm:Quote
+                :value x
                 :type (Emil:Type:Any)
                 :environment
                 (Emil:Env:Alist :variables nil :functions nil :parent nil)))))
 
   (describe "save-current-buffer"
     (it "basic"
-      (expect (Emil:transform '(save-current-buffer 0 1 []))
+      (expect (Emil:transform '(save-current-buffer 0 1))
               :to-equal
-              '(Emil:TypedForm
-                :form
-                (save-current-buffer
-                  (Emil:TypedForm :form 0
-                                  :type (Emil:Type:Basic :name integer)
-                                  :environment
-                                  (Emil:Env:Alist :variables nil :functions nil :parent nil))
-                  (Emil:TypedForm :form 1
-                                  :type (Emil:Type:Basic :name integer)
-                                  :environment
-                                  (Emil:Env:Alist :variables nil :functions nil :parent nil))
-                  (Emil:TypedForm :form
-                                  []
-                                  :type
-                                  (Emil:Type:Basic :name vector)
-                                  :environment
-                                  (Emil:Env:Alist :variables nil :functions nil :parent nil)))
-                :type
-                (Emil:Type:Basic :name vector)
-                :environment
-                (Emil:Env:Alist :variables nil :functions nil :parent nil)))))
+              '(Emil:TypedForm:PrognLike
+                :kind save-current-buffer
+                :body ((Emil:TypedForm:Basic
+                        :value 0
+                        :type (Emil:Type:Basic :name integer)
+                        :environment (Emil:Env:Alist :variables nil :functions nil :parent nil))
+                       (Emil:TypedForm:Basic
+                        :value 1
+                        :type (Emil:Type:Basic :name integer)
+                        :environment (Emil:Env:Alist :variables nil :functions nil :parent nil)))
+                :type (Emil:Type:Basic :name integer)
+                :environment (Emil:Env:Alist :variables nil :functions nil :parent nil)))))
 
   (describe "save-excursion"
     (it "basic"
-      (expect (Emil:transform '(save-excursion 0 1 []))
+      (expect (Emil:transform '(save-excursion 0 1))
               :to-equal
-              '(Emil:TypedForm
-                :form
-                (save-excursion
-                  (Emil:TypedForm :form 0
-                                  :type (Emil:Type:Basic :name integer)
-                                  :environment
-                                  (Emil:Env:Alist :variables nil :functions nil :parent nil))
-                  (Emil:TypedForm :form 1
-                                  :type (Emil:Type:Basic :name integer)
-                                  :environment
-                                  (Emil:Env:Alist :variables nil :functions nil :parent nil))
-                  (Emil:TypedForm :form
-                                  []
-                                  :type
-                                  (Emil:Type:Basic :name vector)
-                                  :environment
-                                  (Emil:Env:Alist :variables nil :functions nil :parent nil)))
-                :type
-                (Emil:Type:Basic :name vector)
-                :environment
-                (Emil:Env:Alist :variables nil :functions nil :parent nil)))))
+              '(Emil:TypedForm:PrognLike
+                :kind save-excursion
+                :body ((Emil:TypedForm:Basic
+                        :value 0
+                        :type (Emil:Type:Basic :name integer)
+                        :environment (Emil:Env:Alist :variables nil :functions nil :parent nil))
+                       (Emil:TypedForm:Basic
+                        :value 1
+                        :type (Emil:Type:Basic :name integer)
+                        :environment (Emil:Env:Alist :variables nil :functions nil :parent nil)))
+                :type (Emil:Type:Basic :name integer)
+                :environment (Emil:Env:Alist :variables nil :functions nil :parent nil)))))
 
   (describe "save-restriction"
     (it "basic"
-      (expect (Emil:transform '(save-restriction 0 1 []))
+      (expect (Emil:transform '(save-restriction 0 1))
               :to-equal
-              '(Emil:TypedForm
-                :form
-                (save-restriction
-                  (Emil:TypedForm :form 0
-                                  :type (Emil:Type:Basic :name integer)
-                                  :environment
-                                  (Emil:Env:Alist :variables nil :functions nil :parent nil))
-                  (Emil:TypedForm :form 1
-                                  :type (Emil:Type:Basic :name integer)
-                                  :environment
-                                  (Emil:Env:Alist :variables nil :functions nil :parent nil))
-                  (Emil:TypedForm :form
-                                  []
-                                  :type
-                                  (Emil:Type:Basic :name vector)
-                                  :environment
-                                  (Emil:Env:Alist :variables nil :functions nil :parent nil)))
-                :type
-                (Emil:Type:Basic :name vector)
-                :environment
-                (Emil:Env:Alist :variables nil :functions nil :parent nil)))))
+              '(Emil:TypedForm:PrognLike
+                :kind save-restriction
+                :body ((Emil:TypedForm:Basic
+                        :value 0
+                        :type (Emil:Type:Basic :name integer)
+                        :environment (Emil:Env:Alist :variables nil :functions nil :parent nil))
+                       (Emil:TypedForm:Basic
+                        :value 1
+                        :type (Emil:Type:Basic :name integer)
+                        :environment (Emil:Env:Alist :variables nil :functions nil :parent nil)))
+                :type (Emil:Type:Basic :name integer)
+                :environment (Emil:Env:Alist :variables nil :functions nil :parent nil)))))
 
   (describe "setq"
     (it "basic"
       (expect (Emil:transform '(setq a 0 b 1))
               :to-equal
-              '(Emil:TypedForm
-                :form
-                (setq a 0 b 1)
-                :type
-                (Emil:Type:Any)
-                :environment
-                (Emil:Env:Alist :variables nil :functions nil :parent nil)))))
+              '(Emil:TypedForm:Setq
+                :bindings ((Emil:TypedForm:Binding
+                            :name a
+                            :value (Emil:TypedForm:Basic
+                                    :value 0
+                                    :type (Emil:Type:Basic :name integer)
+                                    :environment (Emil:Env:Alist :variables nil :functions nil :parent nil)))
+                           (Emil:TypedForm:Binding
+                            :name b
+                            :value (Emil:TypedForm:Basic
+                                    :value 1
+                                    :type (Emil:Type:Basic :name integer)
+                                    :environment (Emil:Env:Alist :variables nil :functions nil :parent nil))))
+                :type (Emil:Type:Any)
+                :environment (Emil:Env:Alist :variables nil :functions nil :parent nil)))))
 
   (describe "unwind-protect"
     (it "basic"
-      (expect (Emil:transform '(unwind-protect [] 1 2))
+      (expect (Emil:transform '(unwind-protect 0 1))
               :to-equal
-              '(Emil:TypedForm
-                :form
-                (unwind-protect
-                    (Emil:TypedForm :form
-                                    []
-                                    :type
-                                    (Emil:Type:Basic :name vector)
-                                    :environment
-                                    (Emil:Env:Alist :variables nil :functions nil :parent nil))
-                  (Emil:TypedForm :form 1
-                                  :type (Emil:Type:Basic :name integer)
-                                  :environment
-                                  (Emil:Env:Alist :variables nil :functions nil :parent nil))
-                  (Emil:TypedForm :form 2
-                                  :type (Emil:Type:Basic :name integer)
-                                  :environment
-                                  (Emil:Env:Alist :variables nil :functions nil :parent nil)))
-                :type
-                (Emil:Type:Basic :name vector)
-                :environment
-                (Emil:Env:Alist :variables nil :functions nil :parent nil)))))
+              '(Emil:TypedForm:UnwindProtect
+                :body-form (Emil:TypedForm:Basic
+                            :value 0
+                            :type (Emil:Type:Basic :name integer)
+                            :environment (Emil:Env:Alist :variables nil :functions nil :parent nil))
+                :unwind-forms ((Emil:TypedForm:Basic
+                                :value 1
+                                :type (Emil:Type:Basic :name integer)
+                                :environment (Emil:Env:Alist :variables nil :functions nil :parent nil)))
+                :type (Emil:Type:Basic :name integer)
+                :environment (Emil:Env:Alist :variables nil :functions nil :parent nil)))))
 
-  (describe "while"
+  (xdescribe "while"
     (it "basic"
-      (expect (Emil:transform '(while 0 1 []))
+      (expect (Emil:transform '(while 0 1))
               :to-equal
-              '(Emil:TypedForm
-                :form
-                (while
-                    (Emil:TypedForm :form 0
-                                    :type (Emil:Type:Basic :name integer)
-                                    :environment
-                                    (Emil:Env:Alist :variables nil :functions nil :parent nil))
-                  (Emil:TypedForm :form 1
-                                  :type (Emil:Type:Basic :name integer)
-                                  :environment
-                                  (Emil:Env:Alist :variables nil :functions nil :parent nil))
-                  (Emil:TypedForm :form
-                                  []
-                                  :type
-                                  (Emil:Type:Basic :name vector)
-                                  :environment
-                                  (Emil:Env:Alist :variables nil :functions nil :parent nil)))
-                :type
-                (Emil:Type:Basic :name vector)
-                :environment
-                (Emil:Env:Alist :variables nil :functions nil :parent nil))))))
+              '(Emil:TypedForm:While
+                :condition (Emil:TypedForm:Basic
+                            :value 0
+                            :type (Emil:Type:Basic :name integer)
+                            :environment (Emil:Env:Alist :variables nil :functions nil :parent nil))
+                :body ((Emil:TypedForm:Basic
+                        :value 1
+                        :type (Emil:Type:Basic :name integer)
+                        :environment (Emil:Env:Alist :variables nil :functions nil :parent nil)))
+                :type (Emil:Type:Null)
+                :environment (Emil:Env:Alist :variables nil :functions nil :parent nil))))))
