@@ -33,7 +33,7 @@
 (Struct:implement Emil
   (fn Emil:infer (self form (context Emil:Context))
     (Transformer:transform-form self form context))
-  
+
   (fn Emil:check (self form type (context Emil:Context))
     (pcase type
       ((Struct Emil:Type:Forall parameters :type forall-type)
@@ -364,7 +364,7 @@ replaced with instances of `Emil:Type:Existential'."
     (cons (Emil:Type:Any)
           (cdr (--reduce-from
                 (Emil:infer-do
-                 self (cdr (Transformer:transform-form self (cdr acc) (car it)))
+                 self (cdr (Transformer:transform-form self (car it) (cdr acc)))
                  (cdr it))
                 (cons (Emil:Type:Null) context) clauses))))
 
@@ -480,12 +480,13 @@ replaced with instances of `Emil:Type:Existential'."
     (Emil:infer-do self context body))
 
   (fn Transformer:transform-setq (_self _form _definitions
-                                        &optional _context &rest _)
-    (error "Not implemented: setq"))
+                                        &optional context &rest _)
+    (cons (Emil:Type:Any) context))
 
-  (fn Transformer:transform-unwind-protect (_self _form _unwind-form _forms
-                                                  &optional _context &rest _)
-    (error "Not implemented: unwind-protect"))
+  (fn Transformer:transform-unwind-protect (self form body-form unwind-forms
+                                                 &optional context &rest _)
+    (prog1 (Transformer:transform-form self body-form context)
+      (Emil:infer-do self context unwind-forms)))
 
   (fn Transformer:transform-while (self _form condition body
                                         &optional context &rest _)
@@ -493,6 +494,7 @@ replaced with instances of `Emil:Type:Existential'."
 
   (fn Transformer:transform-application (self _form function arguments
                                               &optional context &rest _)
+
     (-let (((arrow-type . result-context)
             (Transformer:transform-form self function context)))
       (Emil:infer-application

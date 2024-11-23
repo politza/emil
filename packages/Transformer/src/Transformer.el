@@ -74,9 +74,6 @@
          (apply #'Transformer:transform-macro self form head rest data))
         (`and (apply #'Transformer:transform-and self form rest data))
         (`catch
-            (unless (symbolp (Form:value (car rest)))
-              (Transformer:syntax-error "catch tag should be a symbol: %s"
-                (car rest) (cons 'catch rest)))
           (apply #'Transformer:transform-catch self form (car rest) (cdr rest) data))
         (`cond
          (apply #'Transformer:transform-cond self form rest data))
@@ -257,10 +254,11 @@
     (ignore form)
     `(setq ,@(apply #'Transformer:map-transform self definitions data)))
 
-  (fn Transformer:transform-unwind-protect (self form unwind-form forms &rest data)
+  (fn Transformer:transform-unwind-protect (self form body-form unwind-forms
+                                                 &rest data)
     (ignore form)
-    `(unwind-protect ,(apply #'Transformer:transform-form self unwind-form data)
-       ,@(apply #'Transformer:map-transform self forms data)))
+    `(unwind-protect ,(apply #'Transformer:transform-form self body-form data)
+       ,@(apply #'Transformer:map-transform self unwind-forms data)))
 
   (fn Transformer:transform-while (self form condition body &rest data)
     (ignore form)
