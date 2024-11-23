@@ -4,4 +4,4 @@
 
 (setf eldev-project-source-dirs "src")
 
-(eldev-use-local-dependency "../commons")
+(eldev-use-local-dependency "../Commons")
