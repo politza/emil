@@ -1,13 +1,12 @@
 ;; -*- lexical-binding: t -*-
 
 (require 'Struct)
-(eval-and-compile
-  (require 'dash))
+(require 'dash)
 
 (defconst Trait:definition-symbol 'Trait:definition-symbol
   "Ths symbol by which to associate traits with their name.
 
-The trait-definition is put on the symbol property-list using this value.")
+The trait-definition is put on the symbol's property-list using this value.")
 
 (Struct:define Trait
   "Represents a trait-type."
@@ -121,7 +120,7 @@ The value is a pair `\(MIN . MAX\)'. See also `func-arity'."
             (lambda (&rest arguments)
               (Trait:dispatch ',trait ',name arguments))))))
 
-(defun Trait:define* (trait)
+(Struct:defmethod Trait:define* ((trait Trait))
   "Defines a new trait according to the given definition."
   (-let (((&plist :name :methods :supertraits)
           (Struct:properties trait)))
@@ -192,7 +191,7 @@ idempotent."
     `(cons ',name (lambda ,arguments ,@body))))
 
 (defun Trait:implement* (trait type implementations)
-  "Defines a implementation of TRAIT for TYPE."
+  "Defines an implementation of TRAIT for TYPE."
   (-let* ((trait-struct (Trait:get trait :ensure))
           ((&plist :supertraits :methods) (Struct:properties trait-struct)))
     (--each supertraits
@@ -218,7 +217,7 @@ idempotent."
     (--each methods
       (when-let (impl (cdr (assq (car it) implementations)))
         (Struct:update (cdr it) :implementations
-                       (lambda (value) (cons (cons type impl) value)))))
+                       (-partial #'cons (cons type impl)))))
     trait))
 
 (defun Trait:dispatch (trait method arguments)
@@ -232,9 +231,10 @@ idempotent."
     (unless (setq method-struct
                   (cdr (assq method (Struct:unsafe-get trait-struct :methods))))
       (error "Trait method not defined: %s, %s" trait method))
-    (unless (setq impl (or (cdr (assq type
-                                      (Struct:unsafe-get method-struct :implementations)))
-                           (Struct:unsafe-get method-struct :default-implementation)))
+    (unless (setq impl (or (cdr (assq type (Struct:unsafe-get
+                                            method-struct :implementations)))
+                           (Struct:unsafe-get
+                            method-struct :default-implementation)))
       (unless (memq type (Struct:unsafe-get trait-struct :implementing-types))
         (error "Type does not implement trait: %s, %s" type trait))
       (error "Required method not implemented by type: %s, %s" method type))

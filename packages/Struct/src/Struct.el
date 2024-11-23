@@ -9,20 +9,19 @@
 
 (require 'Commons)
 (require 'cl-macs)
-(eval-and-compile (require 'dash))
+(require 'dash)
 
-(defconst Struct:Type:symbol 'Struct:Type
+(defconst Struct:Type:definition-symbol 'Struct:Type:definition-symbol
   "Symbol used to attach struct type-information to other symbols.")
 
-(defconst Struct:syntax-highlight-symbol 'Struct:syntax-highlight
+(defconst Struct:syntax-highlight-symbol 'Struct:syntax-highlight-symbol
   "Symbol to attach font-lock information to other symbols.")
 
 (defvar Struct:enable-syntax-highlighting t
   "Whether to highlight struct types with face `font-lock-type-face'.")
 
-;; These `defsubst' definition need to be defined before they are
-;; used, or else the compiler will complain.
-;;;###autoload
+;; These `defsubst' definitions need to be defined before they are
+;; used.
 (defsubst Struct:unsafe-get (struct property &optional default)
   "Returns STRUCT's current value of PROPERTY.
 
@@ -30,23 +29,21 @@ Returns DEFAULT if value is nil."
   (or (plist-get (cdr struct) property)
       default))
 
-;;;###autoload
 (defsubst Struct:unsafe-set (struct property value)
-  "Sets STRUCT's PROPERTY to VALUE."
+  "Sets STRUCT's PROPERTY to VALUE and returns it."
   (setcdr struct
           (plist-put (cdr struct) property value))
   value)
 
-;;;###autoload
 (defsubst Struct:unsafe-properties (struct)
   "Returns STRUCT's properties."
   (cdr struct))
 
 (defun Struct:Type (&rest property-list)
-  "Constructs a new struct-type"
-  (Struct::construct 'Struct:Type property-list))
+  "Constructs a new struct-type."
+  (Struct:-construct 'Struct:Type property-list))
 
-(put 'Struct:Type Struct:Type:symbol
+(put 'Struct:Type Struct:Type:definition-symbol
      '(Struct:MetaType
        :name Struct:Type
        :properties
@@ -83,14 +80,13 @@ Returns DEFAULT if value is nil."
          :read-only t
          :type boolean))))
 
-(defun Struct:Type:get (name &optional no-error)
-  "Returns the `Struct:Type' of NAME.
+(defun Struct:Type:get (name &optional ensure)
+  "Returns the `Struct:Type' definition of NAME.
 
-Signals a `wrong-type-argument', if NAME is not a
-struct-type. Unless NO-ERROR is non-nil, in which case `nil' is
-returned."
-  (or (get name Struct:Type:symbol)
-      (and (not no-error)
+Returns nil, if NAME does not name a struct-type; unless ENSURE is
+non-nil, in which case a `wrong-type-argument' is signaled."
+  (or (get name Struct:Type:definition-symbol)
+      (and ensure
            (signal 'wrong-type-argument (list 'Struct:Type name)))))
 
 (defun Struct:Type? (name-or-type-struct)
@@ -99,14 +95,14 @@ returned."
 NAME-OR-TYPE-STRUCT can be either a symbol naming a struct-type or
 the type itself."
   (let ((type-struct (if (symbolp name-or-type-struct)
-                         (Struct:Type:get name-or-type-struct :no-error)
+                         (Struct:Type:get name-or-type-struct)
                        name-or-type-struct)))
     (eq 'Struct:Type (car-safe type-struct))))
 
 (defun Struct:Property (&rest property-list)
-  (Struct::construct 'Struct:Property property-list))
+  (Struct:-construct 'Struct:Property property-list))
 
-(put 'Struct:Property Struct:Type:symbol
+(put 'Struct:Property Struct:Type:definition-symbol
      `(Struct:MetaType
        :name Struct:Property
        :properties
@@ -167,14 +163,14 @@ the type itself."
          :read-only t
          :type nil))))
 
-(defun Struct::construct (name arguments)
-  (let ((type (Struct:Type:get name)))
+(defun Struct:-construct (name arguments)
+  (let ((type (Struct:Type:get name :ensure)))
     (cons name (->> arguments
-                    (Struct::initial-property-list type)
-                    (Struct::construct-property-list type)))))
+                    (Struct:-initial-property-list type)
+                    (Struct:-construct-property-list type)))))
 
-(defun Struct::initial-property-list (type arguments)
-  (let* ((property-list (Struct::empty-property-list type))
+(defun Struct:-initial-property-list (type arguments)
+  (let* ((property-list (Struct:-empty-property-list type))
          (property-count (/ (length property-list) 2)))
     (while arguments
       (let ((keyword (pop arguments))
@@ -185,18 +181,18 @@ the type itself."
              (nthcdr (* 2 property-count) property-list)))
     property-list))
 
-(defun Struct::property-keywords (properties)
+(defun Struct:-property-keywords (properties)
   (--map (Commons:symbol-to-keyword it)
          (--map (Struct:unsafe-get it :name)
                 properties)))
 
-(defun Struct::empty-property-list (type)
+(defun Struct:-empty-property-list (type)
   (--splice (prog1 t (ignore it))
             (list it nil)
-            (Struct::property-keywords
+            (Struct:-property-keywords
              (Struct:unsafe-get type :properties))))
 
-(defun Struct::construct-property-list (type property-list)
+(defun Struct:-construct-property-list (type property-list)
   (let ((properties (Struct:unsafe-get type :properties))
         (environment nil)
         (property-list-head property-list))
@@ -212,11 +208,11 @@ the type itself."
         (push (cons (Struct:unsafe-get property :name) value)
               environment)
         (setcar (cdr property-list-head)
-                (Struct::check-type property value))
+                (Struct:-check-property-type property value))
         (setq property-list-head (nthcdr 2 property-list-head))))
     property-list))
 
-(defun Struct::check-type (property-type value)
+(defun Struct:-check-property-type (property-type value)
   (when-let (type (Struct:unsafe-get property-type :type))
       (or (cl-typep value type)
           (signal 'wrong-type-argument (list type value))))
@@ -272,36 +268,36 @@ and is therefore able to support shorthand- as well as splice-syntax.
            (append struct-declarations
                    (list :name name :documentation documentation
                          :properties
-                         (-map #'Struct::construct-property
+                         (-map #'Struct:-construct-property
                                property-declarations))))
           (type (apply #'Struct:Type struct-property-list))
           (starred-name (intern (concat (symbol-name name) "*")))
           (predicate-name (intern (concat (symbol-name name) "?")))
           (alternative-predicate-name
            (intern (concat (symbol-name name) "-p"))))
-    `(prog1
-         (defmacro ,name (&rest property-list)
-           ,(Struct::doc-constructor type)
-           (declare (no-font-lock-keyword t)
-                    (debug t))
-           (list 'Struct::construct
-                 '',name (Struct::expand-syntax property-list)))
+    `(progn
+       (defmacro ,name (&rest property-list)
+         ,(Struct:-doc-constructor type)
+         (declare (no-font-lock-keyword t)
+                  (debug t))
+         (list 'Struct:-construct
+               '',name (Struct:-expand-syntax property-list)))
        (defun ,starred-name (&rest property-list)
-         ,(Struct::doc-constructor type)
-         (Struct::construct ',name property-list))
+         ,(Struct:-doc-constructor type)
+         (Struct:-construct ',name property-list))
        (defun ,predicate-name (object &optional ensure)
-         ,(Struct::doc-predicate type)
+         ,(Struct:-doc-predicate type)
          (or (eq (car-safe object) ',name)
              (and ensure
                   (signal 'wrong-type-argument (list ',predicate-name object)))))
        (defalias ',alternative-predicate-name ',predicate-name)
        ;; Use `copy-sequence', in case type is mutated afterwards.
-       (put ',name Struct:Type:symbol (copy-sequence ',type))
+       (put ',name Struct:Type:definition-symbol (copy-sequence ',type))
        (when Struct:enable-syntax-highlighting
-         (Struct::syntax-highlight-add ',name))
+         (Struct:-add-syntax-highlighting ',name))
        ',name)))
 
-(defun Struct::construct-property (declaration)
+(defun Struct:-construct-property (declaration)
   (cond
    ((symbolp declaration)
     (Struct:Property :name declaration))
@@ -320,19 +316,19 @@ and is therefore able to support shorthand- as well as splice-syntax.
    (t
     (error "Invalid property declaration: %s" declaration))))
 
-(defconst Struct::doc-predicate
+(defconst Struct:-doc-predicate
   "Returns `t', if OBJECT is of struct-type `%s'.
 
 Otherwise returns nil, unless ENSURE is non-nil, in which a
 `wrong-type-argument' is signaled.")
 
-(defconst Struct::doc-constructor-first-line
+(defconst Struct:-doc-constructor-first-line
   "Constructs a value of struct-type `%s'.")
 
-(defconst Struct::doc-constructor-properties-line
+(defconst Struct:-doc-constructor-properties-line
   "Struct `%s' has the following properties:")
 
-(defconst Struct::doc-constructor-syntax-info
+(defconst Struct:-doc-constructor-syntax-info
   "This macro supports shorthand-syntax, i.e. keyword arguments may be 
 omitted, when using an identifier eponymous with the property's 
 name. And also spread-syntax via the `,@' operator, with other struct
@@ -340,12 +336,12 @@ values as arguments.
 
 See also `%s*'.")
 
-(defconst Struct::doc-constructor-functions-info
+(defconst Struct:-doc-constructor-functions-info
   "The following functions are associated with this struct:")
 
-(defun Struct::doc-constructor (type)
+(defun Struct:-doc-constructor (type)
   (with-output-to-string
-    (princ (format Struct::doc-constructor-first-line
+    (princ (format Struct:-doc-constructor-first-line
                    (Struct:unsafe-get type :name)))
     (terpri nil t)
     (terpri)
@@ -353,7 +349,7 @@ See also `%s*'.")
       (princ (Struct:unsafe-get type :documentation))
       (terpri nil t)
       (terpri))
-    (princ (format Struct::doc-constructor-properties-line
+    (princ (format Struct:-doc-constructor-properties-line
                    (Struct:unsafe-get type :name)))
     (terpri nil t)
     (terpri)
@@ -380,13 +376,13 @@ See also `%s*'.")
                 (not (string-suffix-p
                       "*" (symbol-name (Struct:unsafe-get type :name)))))
       (terpri)
-      (princ (format Struct::doc-constructor-syntax-info
+      (princ (format Struct:-doc-constructor-syntax-info
                      (Struct:unsafe-get type :name))))
     (terpri nil t)
     (terpri)
-    (princ (Struct::doc-constructor-signature type))))
+    (princ (Struct:-doc-constructor-signature type))))
 
-(defun Struct::doc-constructor-signature (type)
+(defun Struct:-doc-constructor-signature (type)
   (--> (--map
         (-let* (((&plist :keyword :required :default-value)
                  (Struct:unsafe-properties it))
@@ -396,12 +392,12 @@ See also `%s*'.")
        (mapconcat #'identity it " ")
        (format "\(fn (&plist %s))" it)))
 
-(defun Struct::doc-predicate (type)
+(defun Struct:-doc-predicate (type)
   (with-output-to-string
-    (princ (format Struct::doc-predicate (Struct:unsafe-get type :name)))
+    (princ (format Struct:-doc-predicate (Struct:unsafe-get type :name)))
     (terpri)))
 
-(defun Struct::expand-syntax (arguments)
+(defun Struct:-expand-syntax (arguments)
   "Expands shorthand and spread-syntax in ARGUMENTS."
   (let ((expanded-property-list nil))
     (while arguments
@@ -428,13 +424,14 @@ See also `%s*'.")
     `(apply (function append)
             (list ,@(nreverse expanded-property-list)))))
 
-(defun Struct::syntax-highlight-add (name)
-  (let ((keywords `((,(format "\\_<%s\\*?\\_>" name)
+(defun Struct:-add-syntax-highlighting (name)
+  (let ((keywords `((,(format "\\_<%s\\*?\\_>"
+                              (regexp-quote (symbol-name name)))
                      0 'font-lock-type-face))))
     (put name Struct:syntax-highlight-symbol keywords)
     (font-lock-add-keywords 'emacs-lisp-mode keywords)))
 
-(defun Struct::syntax-highlight-remove (name &optional undefine)
+(defun Struct:-remove-syntax-highlighting (name &optional undefine)
   (when-let (keywords (get name Struct:syntax-highlight-symbol))
     (font-lock-remove-keywords 'emacs-lisp-mode keywords)
     (when undefine
@@ -450,9 +447,9 @@ corresponding `Struct:define' call.
 It does nothing, if NAME does not name a defined struct-type."
   (when (memq name '(Struct:Type Struct:Property))
     (error "Attempted to undefine a builtin struct-type: %s" name))
-  (when-let (type (Struct:Type:get name :no-error))
-    (put name Struct:Type:symbol nil)
-    (Struct::syntax-highlight-remove name :undefine)
+  (when-let (type (Struct:Type:get name))
+    (put name Struct:Type:definition-symbol nil)
+    (Struct:-remove-syntax-highlighting name :undefine)
     (fmakunbound name)
     (fmakunbound (intern (concat (symbol-name name) "*")))
     (fmakunbound (intern (concat (symbol-name name) "?")))
@@ -466,7 +463,7 @@ Returned value is actually the `Struct:Property' type of the
 given PROPERTY."
   (--find (eq property (Struct:unsafe-get it :keyword))
           (Struct:unsafe-get
-           (Struct:Type:get (car struct))
+           (Struct:Type:get (car struct) :ensure)
            :properties)))
 
 ;;;###autoload
@@ -491,7 +488,7 @@ Throws an error if
 - PROPERTY is read-only, or
 - PROPERTY has an associated type and VALUE does not match it."
   (let ((property-type (Struct:member? struct property))
-        (struct-type (Struct:Type:get (car struct))))
+        (struct-type (Struct:Type:get (car struct) :ensure)))
     (unless property-type
       (error "Property is not a member of struct: %s" property))
     (when (and (null value)
@@ -500,7 +497,7 @@ Throws an error if
     (when (or (Struct:unsafe-get struct-type :read-only)
               (Struct:unsafe-get property-type :read-only))
       (error "Attempted to set read-only property: %s" property))
-    (Struct::check-type property-type value))
+    (Struct:-check-property-type property-type value))
   (Struct:unsafe-set struct property value))
 
 ;;;###autoload
@@ -518,12 +515,6 @@ Throws an error if
 
 This function returns a new property-list everytime its called."
   (copy-sequence (Struct:unsafe-properties struct)))
-
-(put 'Struct:Type 'function-documentation
-     (Struct::doc-constructor (Struct:Type:get 'Struct:Type)))
-
-(put 'Struct:Property 'function-documentation
-     (Struct::doc-constructor (Struct:Type:get 'Struct:Property)))
 
 (defmacro Struct:defmethod (name arguments &rest body)
   "Defines a method NAME for a struct-type.
@@ -557,6 +548,12 @@ Otherwise this behaves like `defun', which see."
       (error "First argument must have the form (self Type)"))
     (setq arguments (cons self-argument (cdr arguments)))
     `(defun ,name ,arguments ,documentation ,declare ,@body)))
+
+(put 'Struct:Type 'function-documentation
+     (Struct:-doc-constructor (Struct:Type:get 'Struct:Type :ensure)))
+
+(put 'Struct:Property 'function-documentation
+     (Struct:-doc-constructor (Struct:Type:get 'Struct:Property :ensure)))
 
 (provide 'Struct)
 ;;; Struct.el ends here

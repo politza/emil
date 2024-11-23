@@ -23,7 +23,7 @@
          :read-only t)))
     
     (it "defines a type"
-      (let ((type (Struct:Type:get 'TestStruct)))
+      (let ((type (Struct:Type:get 'TestStruct :ensure)))
         (expect type :to-be-truthy)
         (expect (Struct:get type :documentation)
                 :to-equal
@@ -33,7 +33,7 @@
                 'TestStruct)
         (expect (length (Struct:get type :properties)) :to-equal 3)
         (expect (Struct:Type? 'TestStruct) :to-equal t)
-        (expect (Struct:Type? (Struct:Type:get 'TestStruct)) :to-equal t)
+        (expect (Struct:Type? (Struct:Type:get 'TestStruct :ensure)) :to-equal t)
 
         (let ((optional (nth 0 (Struct:get type :properties))))
           (expect (Struct:get optional :name)
@@ -176,7 +176,7 @@
 
     (it "can be undefined"
       (Struct:undefine 'TestStruct)
-      (expect (Struct:Type:get 'TestStruct) :to-throw 'error)
+      (expect (Struct:Type:get 'TestStruct :ensure) :to-throw 'error)
       (expect (fboundp 'TestStruct) :to-equal nil)
       (expect (fboundp 'TestStruct*) :to-equal nil))
 
@@ -236,7 +236,7 @@
     (expect (Struct:define TestStruct
               (:name property :documentation "Property documentation."))
             :to-be 'TestStruct)
-    (let ((property (nth 0 (Struct:get (Struct:Type:get 'TestStruct)
+    (let ((property (nth 0 (Struct:get (Struct:Type:get 'TestStruct :ensure)
                                        :properties))))
       (expect (Struct:get property :name)
               :to-be 'property)
