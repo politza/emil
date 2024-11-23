@@ -16,7 +16,8 @@
   (-let* (((properties body)
            (Commons:split-property-list properties-and-body))
           (disable-syntax (plist-get properties :disable-syntax))
-          (functions (Struct:-read-body name body (unless disable-syntax name)))
+          (functions
+           (--map (Struct:read-function name it disable-syntax) body))
           (transformer (unless (or disable-syntax
                                    (not (require 'Emil nil t)))
                          #'Emil:Syntax:transform))
@@ -43,26 +44,24 @@
        (when (Struct:implemented-in? name filename)
          (error "%s implemented multiple times in file: %s" name filename))))))
 
-(defun Struct:-read-body (struct-name body &optional namespace)
-  (let ((functions (--map (Struct:Function:read it namespace) body)))
-    (--each functions
-      (let ((arguments (Struct:get it :arguments))
-            (name (Struct:get it :name)))
-        (when (--find (eq Struct:Function:self-symbol (Struct:get it :name))
-                      (cdr arguments))
-          (error "Dispatch argument-name %s may only appear in first position: %s"
-                 Struct:Function:self-symbol name))
-        (when (and arguments
-                   (eq Struct:Function:self-symbol
-                       (Struct:get (car arguments) :name)))
-          (unless (Struct:get (car arguments) :type)
-            (Struct:unsafe-set (car arguments) :type struct-name))
-          (unless (equal struct-name
-                         (Struct:get (car arguments) :type))
-            (error "Dispatch argument of struct-function must have struct-type %s: %s"
-                   struct-name name)
-            ))))
-    functions))
+(defun Struct:read-function (struct-name form &optional disable-syntax)
+  (let* ((function (Struct:Function:read form (unless disable-syntax struct-name)))
+         (arguments (Struct:get function :arguments))
+         (name (Struct:get function :name)))
+    (when (--find (eq Struct:Function:self-symbol (Struct:get function :name))
+                  (cdr arguments))
+      (error "Dispatch argument-name %s may only appear in first position: %s"
+             Struct:Function:self-symbol name))
+    (when (and arguments
+               (eq Struct:Function:self-symbol
+                   (Struct:get (car arguments) :name)))
+      (unless (Struct:get (car arguments) :type)
+        (Struct:unsafe-set (car arguments) :type struct-name))
+      (unless (equal struct-name
+                     (Struct:get (car arguments) :type))
+        (error "Dispatch argument of struct-function must have struct-type %s: %s"
+               struct-name name)))
+    function))
 
 (defun Struct:-update-functions (type functions)
   (Struct:set type :functions

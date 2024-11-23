@@ -70,6 +70,11 @@ This is the case, if FUNCTION does not define a default implementation."
 
 (defvar Trait:declared-traits nil)
 
+(Struct:define Trait:Declaration
+  (name :type symbol)
+  (supertraits :type (List symbol))
+  (functions :type (List Struct:Function)))
+
 (defmacro Trait:define (name supertraits &optional documentation &rest properties-and-body)
   "Defines a new trait named NAME.
 
@@ -88,13 +93,13 @@ This is the case, if FUNCTION does not define a default implementation."
   (-let* (((properties body)
            (Commons:split-property-list properties-and-body))
           (disable-syntax (plist-get properties :disable-syntax))
-          (functions (--map (Trait:Function:read it name disable-syntax)
+          (functions (--map (Trait:read-function name it disable-syntax)
                             body))
           (transformer (unless (or disable-syntax
                                    (not (require 'Emil nil t)))
                          #'Emil:Syntax:transform))
           (Trait:declared-traits
-           (cons (list name supertraits functions)
+           (cons (cons name (Trait:Declaration* name supertraits functions))
                  Trait:declared-traits)))
   `(eval-and-compile
      ,@(--map (Struct:Function:emit-declaration it) functions)
@@ -105,9 +110,8 @@ This is the case, if FUNCTION does not define a default implementation."
              (list ,@(--map (Trait:-emit-member name it transformer)
                             functions)))))))
 
-(defun Trait:Function:read (form trait &optional disable-syntax)
-  (let* ((function (Struct:Function:read
-                     form (unless disable-syntax trait)))
+(defun Trait:read-function (trait form &optional disable-syntax)
+  (let* ((function (Struct:Function:read form (unless disable-syntax trait)))
          (name (Struct:get function :qualified-name))
          (arguments (Struct:get function :arguments))
          (trait-type `(Trait ,trait)))
@@ -195,8 +199,7 @@ idempotent."
            (Commons:split-property-list properties-and-body))
           (disable-syntax (plist-get properties :disable-syntax))
           (functions (Trait:-check-implementation
-                      trait type (--map (Struct:Function:read
-                                          it (unless disable-syntax trait))
+                      trait type (--map (Trait:read-impl trait type it disable-syntax)
                                         body)))
           (transformer (unless (or disable-syntax
                                    (not (require 'Emil nil t)))
@@ -214,6 +217,19 @@ idempotent."
         ',trait ',type
         (list ,@(Trait:-emit-functions functions transformer))))))
 
+(defun Trait:read-impl (trait type form &optional disable-syntax)
+  (let* ((function (Struct:Function:read form (unless disable-syntax trait)))
+         (arguments (Struct:get function :arguments))
+         (function-name (Struct:get function :qualified-name)))
+    (unless arguments
+      (error "Function argument-list can not be empty: %s" function-name))
+    (unless (Struct:get (car arguments) :type)
+      (Struct:unsafe-set (car arguments) :type type))
+    (unless (equal (Struct:get (car arguments) :type) type)
+      (error "Dispatch argument of trait-function must have implementors type %s: %s"
+             type function-name))
+    function))
+
 (defun Trait:-check-implementation (trait type functions)
   (-let* ((function-alist (--annotate (Struct:get it :qualified-name) functions))
           (trait-struct (Trait:get trait :ensure))
@@ -228,15 +244,7 @@ idempotent."
         (error "Required function not implemented: %s" (car it))))
     (--each function-alist
       (unless (assq (car it) trait-functions)
-        (error "Function not declared by this trait: %s" (car it)))
-      (let ((arguments (Struct:get (cdr it) :arguments)))
-        (unless arguments
-          (error "Function argument-list can not be empty: %s" (car it)))
-        (unless (Struct:get (car arguments) :type)
-          (Struct:unsafe-set (car arguments) :type type))
-        (unless (equal (Struct:get (car arguments) :type) type)
-          (error "Dispatch argument of trait-function must have implementors type %s: %s"
-                 type (car it)))))
+        (error "Function not declared by this trait: %s" (car it))))
     (--each trait-functions
       (when-let (entry (assq (car it) function-alist))
         (unless (Trait:-function-compatible?
@@ -365,9 +373,9 @@ If VALUE is a struct type, return it's name. Otherwise, calls
   "Returns a list of functions declared by TRAIT.
 
 TRAIT should be a symbol."
-  (if-let (declared (assq trait Trait:declared-traits))
-      (-let (((_ supertraits functions) declared))
-        (append functions (-mapcat #'Trait:functions supertraits)))
+  (if-let (declared (cdr (assq trait Trait:declared-traits)))
+      (append (Struct:get declared :functions)
+              (-mapcat #'Trait:functions (Struct:get declared :supertraits)))
     (when-let (type (Trait:get trait))
       (--map (Struct:get (cdr it) :function)
              (Struct:get type :functions)))))
