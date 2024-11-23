@@ -10,7 +10,7 @@
           '(Emil:infer Emil:check Emil:subtype Emil:infer-do
                        Emil:infer-application Emil:Context:hole
                        Emil:Context:double-hole
-                       Emil:Context:lookup-binding
+                       Emil:Context:lookup-variable
                        Emil:Context:lookup-solved
                        Emil:Context:drop-until-after
                        Emil:Context:well-formed? Emil:Context:resolve

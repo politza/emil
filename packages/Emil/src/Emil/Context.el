@@ -76,7 +76,7 @@ context; or if OTHER appears in front of VARIABLE."
                  (bottom (Emil:Context:hole (cdr top) other)))
       (cons (car top) (list (car bottom) (cdr bottom)))))
 
-  (fn Emil:Context:lookup-binding (self (variable symbol) -> (Trait Emil:Type))
+  (fn Emil:Context:lookup-variable (self (variable symbol) -> (Trait Emil:Type))
     "Lookup VARIABLE in this context.
 
 Returns variable's type; or `nil', if VARIABLE is not bound in this
@@ -86,6 +86,12 @@ context."
                         (equal variable other)))
                      (Struct:get self :entries))
       (Struct:get :type)))
+
+  (fn Emil:Context:lookup-function (_self _function)
+    "Lookup FUNCTION in this context.
+
+Currently, this always returns nil."
+    nil)
 
   (fn Emil:Context:lookup-solved (self (variable Emil:Type:Existential)
                                        -> (Trait Emil:Type))
@@ -196,7 +202,7 @@ ones, which are discarded."
 Argument CONTEXT is ignored.
 
 Returns `nil', if VARIABLE is not present in this environment."
-    (-some->> (Emil:Context:lookup-binding self variable)
+    (-some->> (Emil:Context:lookup-variable self variable)
       (Emil:Context:resolve self)))
 
   (fn Emil:Env:lookup-function (_self _function _context)

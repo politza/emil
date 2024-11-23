@@ -117,15 +117,15 @@
                          (Emil:Context
                           :entries (list (Emil:Type:Existential :name 'e)))))))
 
-  (describe "Emil:Context:lookup-binding"
+  (describe "Emil:Context:lookup-variable"
     (it "empty"
-      (expect (Emil:Context:lookup-binding
+      (expect (Emil:Context:lookup-variable
                (Emil:Context)
                'a)
               :to-equal nil))
 
     (it "singleton / miss"
-      (expect (eval '(Emil:Context:lookup-binding
+      (expect (eval '(Emil:Context:lookup-variable
                       (Emil:Context
                        :entries (list (Emil:Context:Binding
                                        :variable 'b
@@ -134,7 +134,7 @@
               :to-equal nil))
 
     (it "singleton / hit"
-      (expect (eval '(Emil:Context:lookup-binding
+      (expect (eval '(Emil:Context:lookup-variable
                       (Emil:Context
                        :entries (list (Emil:Context:Binding
                                        :variable 'a
@@ -143,7 +143,7 @@
               :to-equal (Emil:Type:Never)))
 
     (it "triple / hit"
-      (expect (eval '(Emil:Context:lookup-binding
+      (expect (eval '(Emil:Context:lookup-variable
                       (Emil:Context
                        :entries (list (Emil:Context:Binding
                                        :variable 'a
@@ -156,7 +156,7 @@
               :to-equal (Emil:Type:Never)))
 
     (it "triple / miss"
-      (expect (eval '(Emil:Context:lookup-binding
+      (expect (eval '(Emil:Context:lookup-variable
                       (Emil:Context
                        :entries (list (Emil:Type:Existential :name 'a)
                                       (Emil:Context:Binding
