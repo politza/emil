@@ -46,15 +46,19 @@
      (t (error "Internal error: form is none of the above: %s" form))))
   
   (defmethod Transformer:transform-number (self number &optional data)
+    (ignore self data)
     number)
   
   (defmethod Transformer:transform-string (self string &optional data)
+    (ignore self data)
     string)
   
   (defmethod Transformer:transform-vector (self vector &optional data)
+    (ignore self data)
     vector)
   
   (defmethod Transformer:transform-symbol (self symbol &optional data)
+    (ignore self data)
     symbol)
   
   (defmethod Transformer:transform-cons (self cons &optional data)
@@ -199,7 +203,7 @@
   
   (defmethod Transformer:transform-if (self condition then else &optional data)
     `(if ,(Transformer:transform-form self condition data)
-         (Transformer:transform-form self then data)
+         ,(Transformer:transform-form self then data)
        ,@(Transformer:map-transform self else data)))
   
   (defmethod Transformer:transform-interactive (self descriptor modes &optional data)
@@ -238,6 +242,7 @@
     `(progn ,@(Transformer:map-transform self body data)))
   
   (defmethod Transformer:transform-quote (self argument &optional data)
+    (ignore self data)
     `(quote ,argument))
   
   (defmethod Transformer:transform-save-current-buffer (self body &optional data)
@@ -256,15 +261,14 @@
     `(setq-default ,@(Transformer:map-transform self definitions data)))
   
   (defmethod Transformer:transform-unwind-protect (self form forms &optional data)
-    `(unwind-protect (Transformer:transform-form self form data)
+    `(unwind-protect ,(Transformer:transform-form self form data)
        ,@(Transformer:map-transform self forms data)))
   
   (defmethod Transformer:transform-while (self condition body &optional data)
-    `(while (Transformer:transform-form self condition data)
+    `(while ,(Transformer:transform-form self condition data)
        ,@(Transformer:map-transform self body data)))
   
-  (defmethod Transformer:transform-application (self function arguments
-                                                     &optional data)
+  (defmethod Transformer:transform-application (self function arguments &optional data)
     (if (macrop function)
         (Transformer:transform-form self (macroexpand (cons function arguments)) data)
       `(,(Transformer:transform-form self function)
