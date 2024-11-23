@@ -98,13 +98,13 @@ Apart from that, this just expands to FORM.
       ((and (Struct Emil:Type:Arrow returns)
             (let `(function ,lambda) form)
             (let `(lambda ,arguments . ,body)
-              (Transformer:Form:unwrap-n 2 lambda)))
-       (unless (Emil:Type:Arrow:arity-assignable-from? type (func-arity form))
+              (Transformer:Form:unwrap-n lambda 2)))
+       (unless (Emil:Type:Arrow:arity-assignable-from? type (func-arity lambda))
          (Emil:type-error "Function is not arity compatible: %s, %s"
                           form type))
        (-let* ((argument-count
                 (max (length (Emil:Type:Arrow:lambda-variables arguments))
-                     (Emil:Type:Arrow:arguments type)))
+                     (length (Emil:Type:Arrow:arguments type))))
                (arguments-adjusted
                 (Emil:Type:Arrow:lambda-adjusted-arguments arguments argument-count))
                (argument-types-adjusted
