@@ -26,7 +26,7 @@
 
 (describe "Struct"
   (after-each
-      (Struct:undefine 'TestStruct))
+    (Struct:undefine 'TestStruct))
 
   (describe "with a basic struct"
     (before-each
@@ -175,12 +175,12 @@
 
     (it "can not set an unknown property"
       (expect (Struct:set (TestStruct :required 1)
-                          :unknown 2)
+                  :unknown 2)
               :to-throw))
 
     (it "can not set a read-only property"
       (expect (Struct:set (TestStruct :required 1)
-                          :read-only 2)
+                  :read-only 2)
               :to-throw))
 
     (it "can get all properties"
@@ -263,4 +263,47 @@
       (expect (Struct:get property :documentation)
               :to-equal "Property documentation.")
       (expect (Struct:get property :mutable)
-              :to-be nil))))
+              :to-be nil)))
+
+  (describe "Struct Metadata"
+    (before-each
+      (eval '(Struct:define TestStruct
+               "A test struct."
+               :metadata (:struct t)
+               (property
+                "An integer property."
+                :default 0
+                :mutable t
+                :type integer
+                :metadata (:property t)))))
+
+    (after-each
+      (Struct:undefine 'TestStruct))
+
+    (it "can read struct metadata"
+      (expect (Struct:metadata 'TestStruct)
+              :to-equal '(:struct t))
+      (expect (Struct:metadata (TestStruct))
+              :to-equal '(:struct t))
+      (expect (Struct:metadata (TestStruct))
+              :to-be (Struct:metadata (TestStruct))))
+
+    (it "can read property metadata"
+      (expect (Struct:property-metadata 'TestStruct :property)
+              :to-equal '(:property t))
+      (expect (Struct:property-metadata (TestStruct) :property)
+              :to-equal '(:property t))
+      (expect (Struct:property-metadata (TestStruct) :property)
+              :to-be (Struct:property-metadata (TestStruct) :property)))
+
+    (it "throws an error if type is not a struct"
+      (expect (Struct:metadata 'NotAStruct)
+              :to-throw 'error)
+      (expect (Struct:metadata (list 'NotAStruct))
+              :to-throw 'error)
+      (expect (Struct:property-metadata 'NotAStruct :property)
+              :to-throw 'error))
+
+    (it "throws an error if property does not exist"
+      (expect (Struct:property-metadata 'TestStruct :not-a-property)
+              :to-throw 'error))))

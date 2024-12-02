@@ -77,7 +77,13 @@ Returns DEFAULT if value is nil."
          :default nil
          :documentation "The type of this property."
          :mutable nil
-         :type nil)))))
+         :type nil)
+        (Struct:Property
+         :name metadata
+         :default nil
+         :documentation "Contains artibrary metadata for this property."
+         :mutable nil
+         :type list)))))
 
 (define-symbol-prop 'Struct:Type Struct:Type:definition-symbol
   `(Struct:MetaType
@@ -113,6 +119,12 @@ corresponding property."
 
 This association-list maps qualified names to their declaration."
          :mutable t
+         :type list)
+        (Struct:Property
+         :name metadata
+         :default nil
+         :documentation "Contains arbitrary metadata for this struct-type."
+         :mutable nil
          :type list)))))
 
 (defun Struct:Type (&rest property-list)
@@ -275,5 +287,26 @@ Returns the updated value."
 
 This function returns a new property-list everytime it's invoked."
   (copy-sequence (Struct:unsafe-properties struct)))
+
+(defun Struct:metadata (object)
+  "Returns the metadata associated with OBJECT.
+
+Object should either be a struct value or a symbol denoting a struct-type."
+  (let ((name (if (symbolp object) object (car-safe object))))
+    (Struct:get (Struct:Type:get name :ensure) :metadata)))
+
+(defun Struct:property-metadata (object property)
+  "Returns the metadata associated with OBJECT's PROPERTY.
+
+OBJECT should either be a struct value or a symbol denoting a struct-type.
+
+PROPERTY should be a keyword denoting the property for which
+metadata should be retrieved."
+  (let* ((name (if (symbolp object) object (car-safe object)))
+         (type (Struct:Type:get name :ensure))
+         (definition (alist-get property (Struct:get type :properties))))
+    (unless definition
+      (error "Property `%s' is not a member of struct `%s'" property name))
+    (Struct:get definition :metadata)))
 
 (provide 'Struct/Primitives)

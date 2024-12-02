@@ -48,7 +48,10 @@ The trait-symbols are put on the symbol's property-list using this value.")
    :type list :mutable t)
   (supertraits
    "A list of required traits for implementing this trait."
-   :type list))
+   :type list)
+  (metadata
+   "Contains arbitrary metadata for this trait."
+   :type list :default nil))
 
 (defun Trait:get (name &optional ensure)
   "Returns the `Trait' definition of NAME.
@@ -110,6 +113,7 @@ This is the case, if FUNCTION does not define a default implementation."
   (-let* (((properties body)
            (Commons:split-property-list properties-and-body))
           (disable-syntax (plist-get properties :disable-syntax))
+          (metadata (plist-get properties :metadata))
           (functions (--map (Trait:read-function name it disable-syntax)
                             body))
           (transformer (unless (or disable-syntax
@@ -123,6 +127,7 @@ This is the case, if FUNCTION does not define a default implementation."
      (Trait:define*
       (Trait :name ',name
              :supertraits (copy-sequence ',supertraits)
+             :metadata ',metadata
              :functions
              (list ,@(--map (Trait:-emit-member name it transformer)
                             functions)))))))
@@ -402,6 +407,9 @@ TRAIT should be a symbol."
 
 TYPE should be a symbol."
   (-mapcat #'Trait:functions (Trait:implemented type)))
+
+(defun Trait:metadata (type)
+  (Struct:get (Trait:get type :ensure) :metadata))
 
 (provide 'Trait)
 ;;; Trait.el ends here

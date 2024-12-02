@@ -18,6 +18,8 @@
 ;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 (require 'Struct/Primitives)
+(require 'Struct)
+(require 'buttercup)
 
 (describe "Struct:Primitives"
   (before-each

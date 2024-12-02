@@ -393,4 +393,22 @@
 
     (it "a super-trait does extend a sub-trait"
       (expect (Trait:extends? 'SuperTrait 'SubTrait)
-              :to-be nil))))
+              :to-be nil)))
+
+  (describe "Trait Metadata"
+    (before-each
+      (eval '(Trait:define TestTrait ()
+               :metadata (:trait t))))
+
+    (after-each
+      (Trait:undefine 'TestTrait))
+
+    (it "can read trait's metadata"
+      (expect (Trait:metadata 'TestTrait)
+              :to-equal '(:trait t))
+      (expect (Trait:metadata 'TestTrait)
+              :to-be (Trait:metadata 'TestTrait)))
+
+    (it "throws an error if type is not a trait"
+      (expect (Trait:metadata 'NotATrait)
+              :to-throw 'error))))
