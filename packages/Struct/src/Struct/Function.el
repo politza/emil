@@ -33,12 +33,9 @@
 (cl-deftype List (type)
   `(and list
         (satisfies ,(lambda (list)
-                      (and (or (null list)
-                               (cl-typep (car list) type))
-                           (or (null (cdr list))
-                               (cl-typep (cadr list) type))
-                           (or (null (cddr list))
-                               (cl-typep (caddr list) type)))))))
+                      (or (null list)
+                          (null (car list))
+                          (cl-typep (car list) type))))))
 
 (Struct:define Struct:Function
   "Defines a declared function."

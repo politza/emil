@@ -573,4 +573,33 @@ Returns nil, if TYPE is not an alias."
        (eq 'Trait (Struct:get type :name))
        (= 1 (length (Struct:get type :arguments)))))
 
+(cl-deftype Cons (head tail)
+  `(and list
+        (satisfies ,(lambda (cons)
+                      (or (null cons)
+                          (and (or (null (car cons))
+                                   (cl-typep (car cons) head))
+                               (or (null (cdr cons))
+                                   (cl-typep (cdr cons) tail))))))))
+
+(cl-deftype List (type)
+  `(and list
+        (satisfies ,(lambda (list)
+                      (or (null list)
+                          (null (car list))
+                          (cl-typep (car list) type))))))
+
+(cl-deftype Sequence (type)
+  `(and sequence
+        (satisfies ,(lambda (sequence)
+                      (or (null sequence)
+                          (= 0 (length sequence))
+                          (cl-typep (elt sequence 0) type))))))
+
+(cl-deftype Vector (type)
+  `(and vector (Sequence ,type)))
+
+(cl-deftype Array (type)
+  `(and array (Sequence ,type)))
+
 (provide 'Emil/Type)
