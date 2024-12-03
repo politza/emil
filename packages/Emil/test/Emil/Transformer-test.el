@@ -249,7 +249,7 @@
               '(Emil:Form:Catch
                 :tag (Emil:Form:Quote
                       :value tag
-                      :type (Emil:Type:Any))
+                      :type (Emil:Type:Basic :name symbol))
                 :body ((Emil:Form:Atom
                         :value 0
                         :type (Emil:Type:Basic :name integer)))
@@ -377,7 +377,7 @@
               :to-equal
               '(Emil:Form:Quote
                 :value x
-                :type (Emil:Type:Any)))))
+                :type (Emil:Type:Basic :name symbol)))))
 
   (describe "save-current-buffer"
     (it "basic"

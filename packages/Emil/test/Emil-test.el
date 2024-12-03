@@ -198,7 +198,7 @@
   (describe "quote"
     (it "basic"
       (expect (Emil:infer-type '(quote x))
-              :to-equal 'Any)))
+              :to-equal 'symbol)))
 
   (describe "save-current-buffer"
     (it "basic"
