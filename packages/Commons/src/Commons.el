@@ -20,7 +20,8 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
-(eval-and-compile (require 'dash))
+(require 'dash)
+(eval-when-compile (require 'cl-macs))
 
 (defun Commons:keyword-to-symbol (keyword)
   (unless (keywordp keyword)
