@@ -105,5 +105,10 @@ Constant symbols are `nil', `t' and all keywords. Signals a
   (or (memq symbol '(nil t))
       (keywordp symbol)))
 
+(defun Commons:read-file (filename)
+  (with-temp-buffer
+    (insert-file-contents filename)
+    (read (current-buffer))))
+
 (provide 'Commons)
 ;;; Commons.el ends here
