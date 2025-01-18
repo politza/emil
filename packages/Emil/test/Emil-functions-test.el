@@ -585,4 +585,10 @@
         (expect (Emil:infer-type
                  '(f 0 "1" [2])
                  env)
-                :to-equal '(Result integer string (Vector Any)))))))
+                :to-equal '(Result integer string (Vector Any)))))
+
+    (describe "fn keyword"
+      (it "basic test"
+        (expect (Emil:infer-type
+                 '(fn ((a integer)) a))
+                :to-equal '(-> (integer) integer))))))

@@ -20,6 +20,7 @@
 (require 'Struct)
 (require 'Struct/Argument)
 (require 'Commons)
+(require 'pcase)
 
 (defconst Struct:Function:arrow-symbol '->)
 
@@ -36,6 +37,13 @@
                       (or (null list)
                           (null (car list))
                           (cl-typep (car list) type))))))
+
+(defmacro fn (arguments &optional documentation &rest body)
+  (declare (indent defun) (debug defun))
+  (let ((fn (Struct:Function:read `(fn _ ,arguments ,documentation ,@body))))
+    (if (fboundp 'Emil:is)
+        (Struct:Function:emit-fn fn)
+      (Struct:Function:emit-lambda fn))))
 
 (Struct:define Struct:Function
   "Defines a declared function."
@@ -182,6 +190,18 @@ Returns a cons of (ARGUMENTS . RETURN_TYPE)."
      ,@(when-let (documentation (Struct:get self :documentation))
          (list documentation))
      ,@(Struct:Function:emit-body self transformer flush?)))
+
+(defun Struct:Function:emit-fn (self)
+  `(lambda ,(Struct:Function:emit-arguments self)
+     ,@(when-let (documentation (Struct:get self :documentation))
+         (list documentation))
+     ,@(--map `(Emil:is ,(Struct:get it :name)
+                 ,(pcase (Struct:get it :kind)
+                    ('&rest `(List ,(Struct:get it :type)))
+                    (_ (Struct:get it :type))))
+              (--filter (Struct:get it :type)
+                        (Struct:get self :arguments)))
+     ,@(Struct:Function:emit-body self)))
 
 (defun Struct:Function:emit-arguments (self)
   (let ((previous-kind nil)
