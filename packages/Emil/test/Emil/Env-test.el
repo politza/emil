@@ -168,6 +168,25 @@
                 :to-equal
                 nil))
 
+      (it "Emil:Env:declare-alias"
+        (Emil:Env:declare-function 'Emil:Env:Global:test-symbol '(-> () Void))
+        (Emil:Env:declare-alias 'Emil:Env:Global:test-alias 'Emil:Env:Global:test-symbol)
+        (expect (Emil:Env:lookup-function
+                 (Emil:Env:Global)
+                 'Emil:Env:Global:test-alias)
+                :to-equal
+                (Emil:Type:Arrow :arguments nil :rest? nil
+                                 :returns (Emil:Type:Void) :min-arity 0))
+
+        (Emil:Env:declare-function 'Emil:Env:Global:test-symbol nil)
+        (expect (Emil:Env:declare-alias 'Emil:Env:Global:test-alias 'Emil:Env:Global:test-symbol)
+                :to-throw 'Emil:error)
+        (Emil:Env:declare-alias 'Emil:Env:Global:test-alias nil)
+        (expect (Emil:Env:lookup-function
+                 (Emil:Env:Global)
+                 'Emil:Env:Global:test-alias)
+                :to-equal nil))
+
       (it "Emil:Env:declare-variable"
         (Emil:Env:declare-variable 'Emil:Env:Global:test-symbol 'integer)
         (expect (Emil:Env:lookup-variable

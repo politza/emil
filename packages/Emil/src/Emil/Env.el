@@ -192,6 +192,12 @@ Returns `nil', if FUNCTION is not present in this environment."
   (put symbol Emil:Env:variable-type
        (if type (Emil:Type:read type))))
 
+(defun Emil:Env:declare-alias (symbol definition)
+  (put symbol Emil:Env:function-type
+       (and definition
+            (or (get definition Emil:Env:function-type)
+                (Emil:error "Type of definition `%s' for alias `%s' is not declared" definition symbol)))))
+
 (defmacro Emil:Env:declare-functions (&rest declarations)
   "Declare function types given via DECLARATIONS.
 
@@ -214,6 +220,14 @@ readable by `Emil:Type:read'."
   `(progn
      ,@(-map (-lambda ((symbol . type))
                `(Emil:Env:declare-variable ',symbol ',type))
+             declarations)))
+
+(defmacro Emil:Env:declare-aliases (&rest declarations)
+  "Declare types of function aliases via DECLARATIONS."
+  (declare (indent 0))
+  `(progn
+     ,@(-map (-lambda ((symbol . definition))
+               `(Emil:Env:declare-alias ',symbol ',definition))
              declarations)))
 
 (Struct:define Emil:Env:Fallback)
