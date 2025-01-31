@@ -81,11 +81,11 @@
                     (Emil:Analyzer:infer self (nth 0 arguments) context environment)))
               (cons context (Emil:Form:with-type typed-form type)))))))
 
-  (fn Emil:Analyzer:macroexpand-maybe (form environment)
+  (fn Emil:Analyzer:macroexpand-maybe (form environment context)
     (if (and (macrop (car-safe form))
              (not (memq (car-safe form)
                         Emil:Annotation:macros)))
-        (macroexpand form (Emil:Env:macro-environment environment))
+        (macroexpand form (Emil:Env:macro-environment environment context))
       form)))
 
 (Trait:implement Transformer Emil:Analyzer
@@ -413,7 +413,7 @@
              (Emil:Analyzer:infer-application
               self (Emil:Context:resolve
                     function-context (Struct:get function-form :type))
-              (--map (Emil:Analyzer:macroexpand-maybe it environment)
+              (--map (Emil:Analyzer:macroexpand-maybe it environment context)
                      arguments)
               function-context environment)))
       (cons context
@@ -430,7 +430,7 @@
         (Emil:Analyzer:transform-annotation
          self form macro arguments context environment)
       (Emil:Analyzer:infer
-       self (macroexpand form (Emil:Env:macro-environment environment))
+       self (macroexpand form (Emil:Env:macro-environment environment context))
        context environment))))
 
 (provide 'Emil/Transformer)
