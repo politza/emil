@@ -331,6 +331,8 @@
       ((and `(,_ ,(Struct Emil:Type:Existential name))
             (guard (not (member name (Emil:Type:free-variables left)))))
        (Emil:Analyzer:instantiate self context right left :greater-or-equal))
+      (`(,(Struct Emil:Type:Void) ,(Struct Emil:Type:Void))
+       context)
       ((or `(,(Struct Emil:Type:Never) ,_)
            `(,(Struct Emil:Type:Void) ,_)
            `(,_ ,(Struct Emil:Type:Never)))
