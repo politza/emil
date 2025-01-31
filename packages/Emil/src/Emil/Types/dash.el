@@ -1,6 +1,7 @@
 ;; -*- mode: emacs-lisp; lexical-binding: t -*-
 
 (require 'Emil/Env)
+(require 'Emil/Builtin)
 
 (Emil:Env:declare-functions 
   (-each . (-> ((List 'a) (-> ('a) Void)) Void))
