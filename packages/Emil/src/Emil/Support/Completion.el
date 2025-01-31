@@ -29,8 +29,9 @@
 (defun Emil:Support:completion-at-point ()
   (-when-let* (((start . end) (unless (nth 8 (syntax-ppss))
                                 (bounds-of-thing-at-point 'symbol)))
+               (contains-dot? (string-search "." (buffer-substring-no-properties start end)))
                (structure (Emil:Support:parse))
-               (syntax-disabled?
+               (not-syntax-disabled?
                 (not (plist-get (Struct:get structure :properties) :disable-syntax)))
                (function-name (Emil:Support:current-function))
                (symbols-with-pos-enabled t)
