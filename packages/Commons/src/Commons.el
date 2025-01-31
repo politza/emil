@@ -105,10 +105,22 @@ Constant symbols are `nil', `t' and all keywords. Signals a
   (or (memq symbol '(nil t))
       (keywordp symbol)))
 
-(defun Commons:read-file (filename)
+(defun Commons:read-from-file (filename)
   (with-temp-buffer
     (insert-file-contents filename)
     (read (current-buffer))))
+
+(defun Commons:print-to-file (filename form)
+  (let ((print-length nil)
+        (print-level nil)
+        (print-quoted t)
+        (print-circle t)
+        (directory (file-name-directory filename)))
+    (with-temp-buffer
+      (prin1 form (current-buffer))
+      (unless (file-directory-p directory)
+        (make-directory directory :parents))
+      (write-region (point-min) (point-max) filename nil 'quiet))))
 
 (provide 'Commons)
 ;;; Commons.el ends here
