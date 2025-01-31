@@ -368,7 +368,9 @@
 
   (fn Emil:Analyzer:subtype-arrow-pairs ((left Emil:Type:Arrow) (right Emil:Type:Arrow))
     (unless (Emil:Type:Arrow:arity-assignable-to? left right)
-      (Emil:type-error "Function is not arity-compatible: %s, %s" left right))
+      (Emil:type-error "Function is not arity-compatible: %s, %s"
+                       (Emil:Type:print left)
+                       (Emil:Type:print right)))
     (let* ((left-arguments (Emil:Type:Arrow:arguments left))
            (left-count (length left-arguments))
            (left-rest (and (Emil:Type:Arrow:rest? left)
