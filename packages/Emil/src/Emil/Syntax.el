@@ -25,6 +25,7 @@
 (require 'Emil/Form)
 (require 'cl-lib)
 (require 'elisp-mode)
+(require 'Commons)
 
 (declare-function Emil:transform "Emil" (form &optional env no-error))
 

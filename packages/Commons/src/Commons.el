@@ -122,5 +122,20 @@ Constant symbols are `nil', `t' and all keywords. Signals a
         (make-directory directory :parents))
       (write-region (point-min) (point-max) filename nil 'quiet))))
 
+(defun Commons:uniq-stable (list &optional key-fn)
+  "Return a new list with duplicates removed.
+
+Elements are compared via the provided KEY-FN which defaults to `identity'.
+
+Always retains the first element in the list."
+  (unless key-fn (setq key-fn #'identity))
+  (let ((table (make-hash-table :test 'equal))
+        (uniq nil))
+    (dolist (element list (nreverse uniq))
+      (let ((key (funcall key-fn element)))
+        (unless (gethash key table)
+          (puthash key t table)
+          (push element uniq))))))
+
 (provide 'Commons)
 ;;; Commons.el ends here
