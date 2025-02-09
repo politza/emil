@@ -75,7 +75,9 @@
     (-let ((type (Emil:Type:read (nth 1 arguments))))
       (pcase-exhaustive macro
         ('Emil:is
-            (Emil:Analyzer:check self (nth 0 arguments) type context environment))
+            (-let (((context . typed-form)
+                    (Emil:Analyzer:check self (nth 0 arguments) type context environment)))
+              (cons context (Emil:Form:with-type typed-form type))))
         ('Emil:as
             (-let (((context . typed-form)
                     (Emil:Analyzer:infer self (nth 0 arguments) context environment)))
